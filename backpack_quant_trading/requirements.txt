@@ -1,0 +1,46 @@
+# 核心异步和网络库
+aiohttp>=3.9.0
+websockets>=12.0
+requests>=2.31.0
+
+# 系统和进程管理
+psutil>=5.9.0
+
+# Web框架和服务器
+fastapi>=0.104.0
+uvicorn>=0.24.0
+gunicorn>=21.2.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# 数据库
+SQLAlchemy>=2.0.0
+pymysql>=1.1.0
+
+# 加密和安全
+cryptography>=41.0.0
+werkzeug>=3.0.0
+
+# 配置管理
+python-dotenv>=1.0.0
+
+# 数据可视化
+matplotlib>=3.7.0
+plotly>=5.18.0
+dash>=3.0.0
+
+# 技术指标
+ta>=0.11.0
+numba>=0.58.0
+
+# 交易所集成
+ccxt>=4.0.0
+
+# Web3相关（Ostium支持）
+web3>=6.11.0
+eth-account>=0.10.0
