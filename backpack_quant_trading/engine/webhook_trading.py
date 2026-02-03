@@ -205,7 +205,7 @@ class WebhookTradingEngine:
         except Exception as e:
             logger.error(f"钉钉通知发送失败: {e}")
 
-    async def execute_signal(self, signal: TradingViewSignal, raw_payload: Optional[Dict[str, Any]] = None):
+    async def execute_signal(self, signal: TradingViewSignal, raw_payload: Optional[Dict[str, Any]] = None, *args, **kwargs):
         """处理信号入口。raw_payload 为 Webhook 原始 body，Ostium 已从 signal 解析意图，此参数仅保持与 Hyperliquid 引擎签名一致。"""
         # 确保锁已创建
         if self.lock is None:

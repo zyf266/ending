@@ -613,12 +613,18 @@ class BackpackWebSocketClient:
         try:
             logger.info(f"正在连接到WebSocket: {self.ws_url}")
 
+            # --- 【新增】自适应代理支持 ---
+            import os
+            proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+            # ---------------------------
+
             # 创建连接
             self.websocket = await websockets.connect(
                 self.ws_url,
                 ping_interval=None,  # 禁用自动ping
                 close_timeout=10,
-                max_size=2 ** 23  # 8MB
+                max_size=2 ** 23,  # 8MB
+                proxy=proxy_url    # 【新增】通过代理连接
             )
 
             self.connected = True

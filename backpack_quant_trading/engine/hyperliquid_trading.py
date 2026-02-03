@@ -76,7 +76,7 @@ class HyperliquidTradingEngine:
         except Exception as e:
             logger.error(f"同步 Hyperliquid 持仓失败: {e}")
 
-    async def execute_signal(self, signal: TradingViewSignal, raw_payload: Optional[Dict[str, Any]] = None):
+    async def execute_signal(self, signal: TradingViewSignal, raw_payload: Optional[Dict[str, Any]] = None, *args, **kwargs):
         """执行 TV 信号。raw_payload 为 Webhook 原始 body，优先用于解析 先前仓位/先前仓位大小。"""
         if self.is_stopped:
             logger.warning("🛑 系统已熔断，停止接收信号")

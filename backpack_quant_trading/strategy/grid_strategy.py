@@ -885,6 +885,12 @@ class HyperliquidWebSocketClient:
     async def connect(self, max_retries: int = 3):
         if self._is_connected():
             return
+        
+        # --- 【新增】自适应代理支持 ---
+        import os
+        proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+        # ---------------------------
+
         last_error = None
         for attempt in range(1, max_retries + 1):
             try:
@@ -894,7 +900,8 @@ class HyperliquidWebSocketClient:
                         self.base_url,
                         ping_interval=30,
                         ping_timeout=30,
-                        open_timeout=20
+                        open_timeout=20,
+                        proxy=proxy_url  # 【新增】支持代理
                     ),
                     timeout=30
                 )

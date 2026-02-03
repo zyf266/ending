@@ -6,8 +6,22 @@ import socket
 import time
 import psutil
 import requests  # 添加 requests 库用于调用 Webhook API
+import asyncio
 import logging
 from pathlib import Path
+
+# --- 【终极修复】解决 Python 3.9+ 多线程下 asyncio 事件循环缺失报错 ---
+class SafeEventLoopPolicy(asyncio.DefaultEventLoopPolicy):
+    def get_event_loop(self):
+        try:
+            return super().get_event_loop()
+        except RuntimeError:
+            loop = self.new_event_loop()
+            self.set_event_loop(loop)
+            return loop
+
+asyncio.set_event_loop_policy(SafeEventLoopPolicy())
+# --------------------------------------------------------------------
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -57,7 +71,7 @@ CARD_STYLE = {
     'borderRadius': '12px',
     'padding': '24px',
     'marginBottom': '24px',
-    'border': f'1px solid {COLORS["border"]}',
+    'border': '1px solid ' + COLORS['border'],
     'color': COLORS['text'],
     'boxShadow': COLORS['shadow']
 }
@@ -77,7 +91,7 @@ MODAL_BASE_STYLE = {
 
 INPUT_STYLE = {
     'backgroundColor': '#F9FAFB',
-    'border': f'1px solid {COLORS["border"]}',
+    'border': '1px solid ' + COLORS['border'],
     'color': COLORS['text'],
     'padding': '14px 18px',  # 缩小一半：28px 36px -> 14px 18px
     'borderRadius': '5px',  # 缩小一半：10px -> 5px
@@ -100,10 +114,10 @@ app = dash.Dash(
     title='Backpack量化交易终端', 
     suppress_callback_exceptions=True,
     update_title='加载中...',
-    external_stylesheets=[
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'
-    ]
+    serve_locally=True  # 【优化】强制从本地加载JS/CSS资源，不再请求国外CDN
 )
+app.scripts.config.serve_locally = True
+app.css.config.serve_locally = True
 server = app.server
 
 # 注入全局自定义CSS
@@ -584,7 +598,7 @@ def get_sidebar(current_user, pathname):
         ], style={
             'marginBottom': '20px',  # 增加间距：16px -> 20px
             'textAlign': 'center', 
-            'borderBottom': f'1px solid {COLORS['border']}', 
+            'borderBottom': '1px solid ' + COLORS['border'],
             'paddingBottom': '12px'  # 增加内边距：10px -> 12px
         }),
         
@@ -625,7 +639,7 @@ def get_header(current_user):
         html.Div([
             html.Div([
                 html.Span("●", style={'color': '#0ecb81', 'marginRight': '5px', 'fontSize': '12px'}),  # 缩小：16px -> 12px
-                html.Span(f"{current_user['username']}", style={'color': COLORS['text'], 'fontSize': '14px', 'fontWeight': '700'}),  # 缩小：18px -> 14px
+                html.Span(str(current_user['username']), style={'color': COLORS['text'], 'fontSize': '14px', 'fontWeight': '700'}),  # 缩小：18px -> 14px
             ], style={'padding': '4px 8px', 'display': 'flex', 'alignItems': 'center'}),  # 缩小：8px 16px -> 4px 8px
             
             html.Button('退出系统', id='logout-button', className='btn-danger', style={'padding': '6px 14px', 'fontSize': '14px', 'marginLeft': '8px'})  # 缩小：12px 28px -> 6px 14px, 16px -> 14px, 16px -> 8px
@@ -708,7 +722,7 @@ def render_auth_layout():
                 placeholder='用户名', 
                 style={
                     'backgroundColor': '#FFFFFF',
-                    'border': f'1px solid {COLORS["border"]}',
+                    'border': '1px solid ' + COLORS['border'],
                     'color': COLORS['text'],
                     'borderRadius': '8px',
                     'width': '100%',
@@ -725,7 +739,7 @@ def render_auth_layout():
                 placeholder='密码', 
                 style={
                     'backgroundColor': '#FFFFFF',
-                    'border': f'1px solid {COLORS["border"]}',
+                    'border': '1px solid ' + COLORS['border'],
                     'color': COLORS['text'],
                     'borderRadius': '8px',
                     'width': '100%',
@@ -879,7 +893,7 @@ def render_dashboard_layout():
             'justifyContent': 'space-between', 
             'alignItems': 'center', 
             'marginBottom': '12px',  # 缩小一半：24px -> 12px
-            'borderLeft': f'2px solid {COLORS["accent"]}',  # 缩小一半：4px -> 2px
+            'borderLeft': '2px solid ' + COLORS['accent'],  # 缩小一半：4px -> 2px
             'paddingLeft': '8px'  # 缩小一半：16px -> 8px
         }),
         
@@ -978,7 +992,7 @@ def render_ai_lab_layout():
             'justifyContent': 'space-between', 
             'alignItems': 'center', 
             'marginBottom': '16px',  # 缩小：32px -> 16px
-            'borderLeft': f'2px solid {COLORS["accent"]}',  # 缩小：4px -> 2px
+            'borderLeft': '2px solid ' + COLORS['accent'],  # 缩小：4px -> 2px
             'paddingLeft': '8px'  # 缩小：16px -> 8px
         }),
 
@@ -1005,14 +1019,14 @@ def render_ai_lab_layout():
                     dcc.Textarea(
                         id='raw-kline-data',
                         placeholder='例如: [{"time": "10:00", "open": 65000, "high": 65500, ...}]',
-                        style={'width': '100%', 'height': '175px', 'backgroundColor': '#F9FAFB', 'color': COLORS['text'], 'border': f'1px solid {COLORS["border"]}', 'borderRadius': '8px', 'padding': '16px', 'marginBottom': '12px', 'fontSize': '12px'}  # 缩小：350px -> 175px, 16px -> 8px, 32px -> 16px, 24px -> 12px, 28px -> 12px
+                        style={'width': '100%', 'height': '175px', 'backgroundColor': '#F9FAFB', 'color': COLORS['text'], 'border': '1px solid ' + COLORS['border'], 'borderRadius': '8px', 'padding': '16px', 'marginBottom': '12px', 'fontSize': '12px'}  # 缩小：350px -> 175px, 16px -> 8px, 32px -> 16px, 24px -> 12px, 28px -> 12px
                     ),
 
                     html.Label('3. 分析指令 (驯化提示词)', style={'color': COLORS['text'], 'display': 'block', 'marginBottom': '8px', 'fontSize': '14px', 'fontWeight': '700'}),  # 缩小：16px -> 8px, 32px -> 14px
                     dcc.Input(
                         id='ai-user-query',
                         value='请根据当前的 K 线图形和原始数据，识别趋势并标注买卖点。',
-                        style={'width': '100%', 'backgroundColor': '#F9FAFB', 'color': COLORS['text'], 'border': f'1px solid {COLORS["border"]}', 'borderRadius': '8px', 'padding': '16px', 'marginBottom': '16px', 'fontSize': '14px'}  # 缩小：16px -> 8px, 32px -> 16px, 32px -> 16px, 30px -> 14px
+                        style={'width': '100%', 'backgroundColor': '#F9FAFB', 'color': COLORS['text'], 'border': '1px solid ' + COLORS['border'], 'borderRadius': '8px', 'padding': '16px', 'marginBottom': '16px', 'fontSize': '14px'}  # 缩小：16px -> 8px, 32px -> 16px, 32px -> 16px, 30px -> 14px
                     ),
 
                     html.Button('开始 AI 综合分析', id='run-ai-analysis-btn', className='btn-primary', style={'width': '100%', 'fontSize': '16px', 'padding': '16px'})  # 缩小：36px -> 16px, 36px -> 16px
@@ -1172,7 +1186,7 @@ def manage_forbidden_ranges(add_clicks, remove_clicks, start, end, current_range
 )
 def update_ai_image_preview(contents, filename):
     if contents is not None:
-        return html.Img(src=contents, style={'maxWidth': '100%', 'maxHeight': '200px', 'borderRadius': '8px', 'border': f'1px solid {COLORS["border"]}'})
+        return html.Img(src=contents, style={'maxWidth': '100%', 'maxHeight': '200px', 'borderRadius': '8px', 'border': '1px solid ' + COLORS['border']})
     return html.Div("未上传图片", style={'color': COLORS['text_dim'], 'fontSize': '12px'})
 
 @app.callback(
@@ -1402,7 +1416,7 @@ def render_forbidden_ranges_tags(ranges):
                          style={'cursor': 'pointer', 'fontWeight': 'bold', 'color': COLORS['danger'], 'padding': '2px 5px'})
             ], style={
                 'backgroundColor': 'rgba(240, 185, 11, 0.15)',
-                'border': f'1px solid {COLORS["accent"]}',
+                'border': '1px solid ' + COLORS['accent'],
                 'color': COLORS['accent'],
                 'borderRadius': '4px',
                 'padding': '4px 8px',
@@ -1704,7 +1718,14 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
             
             # 后台异步注册（使用 threading）
             import threading
+            import asyncio
             def async_register():
+                # 修复 Python 3.9+ 在新线程中缺失事件循环的问题
+                try:
+                    asyncio.get_event_loop()
+                except RuntimeError:
+                    asyncio.set_event_loop(asyncio.new_event_loop())
+                
                 import time
                 max_retries = 5  # 增加到 5 次
                 retry_delay = 1.0  # 增加延迟到 1 秒
@@ -1915,14 +1936,14 @@ def update_instance_cards(instances):
                 }),
                 
                 # 交易对
-                html.P(f"💹 {inst['symbol']}", style={
+                html.P("💹 " + str(inst['symbol']), style={
                     'margin': '0 0 4px 0',
                     'fontSize': '12px',
                     'color': COLORS['text']
                 }),
                 
                 # 启动时间和 PID
-                html.P(f"🕒 {inst['start_time']} | PID: {inst['pid']}", style={
+                html.P("🕒 " + str(inst['start_time']) + " | PID: " + str(inst['pid']), style={
                     'margin': '0',
                     'fontSize': '10px',
                     'color': COLORS['text_dim']
@@ -1960,7 +1981,7 @@ def update_instance_cards(instances):
             ], style={'minWidth': '110px', 'display': 'flex', 'flexDirection': 'column'})
         ], style={
             'backgroundColor': COLORS['card'],
-            'border': f'1px solid {COLORS["border"]}',
+            'border': '1px solid ' + COLORS['border'],
             'borderRadius': '8px',
             'padding': '14px',
             'marginBottom': '12px',
@@ -2364,7 +2385,7 @@ def update_dashboard(n, active_instances):
                     html.Span(str(row['created_at'])[11:19], style={'float': 'right', 'color': COLORS['text_dim'], 'fontSize': '11px'})
                 ], style={'marginBottom': '4px'}),
                 html.P(row['description'], style={'margin': '0', 'fontSize': '13px', 'lineHeight': '1.4'})
-            ], style={'padding': '12px', 'borderBottom': f'1px solid {COLORS['border']}'})
+            ], style={'padding': '12px', 'borderBottom': '1px solid ' + COLORS['border']})
             for _, row in risk_df.head(5).iterrows()
         ])
     else:
@@ -2443,13 +2464,13 @@ def render_grid_trading_layout():
                         html.Div([
                             html.Label('API Key / Access Key', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
                             dcc.Input(id='grid-api-key', type='text', placeholder='输入 API Key', style={
-                                'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': f'1px solid {COLORS["border"]}'
+                                'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': '1px solid ' + COLORS['border']
                             })
                         ], style={'flex': '1', 'marginRight': '20px'}),
                         html.Div([
                             html.Label('Secret Key / Refresh Key', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
                             dcc.Input(id='grid-secret-key', type='password', placeholder='输入 Secret Key', style={
-                                'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': f'1px solid {COLORS["border"]}'
+                                'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': '1px solid ' + COLORS['border']
                             })
                         ], style={'flex': '1'})
                     ], style={'display': 'flex', 'marginBottom': '15px'}),
@@ -2458,7 +2479,7 @@ def render_grid_trading_layout():
                     html.Div(id='grid-creds-deepcoin', children=[
                         html.Label('Passphrase (API 口令)', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
                         dcc.Input(id='grid-passphrase', type='password', placeholder='输入 API Passphrase', style={
-                            'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': f'1px solid {COLORS["border"]}'
+                            'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': '1px solid ' + COLORS['border']
                         })
                     ], style={'marginBottom': '15px'}),
 
@@ -2466,7 +2487,7 @@ def render_grid_trading_layout():
                     html.Div(id='grid-creds-ostium', children=[
                         html.Label('Private Key (Ostium/Hyper/HIP-3 钱包私钥)', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
                         dcc.Input(id='grid-private-key', type='password', placeholder='输入 0x 开头的私钥', style={
-                            'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': f'1px solid {COLORS["border"]}'
+                            'width': '100%', 'padding': '10px', 'borderRadius': '8px', 'border': '1px solid ' + COLORS['border']
                         })
                     ], style={'marginBottom': '15px'}),
                 ], style={
@@ -2492,7 +2513,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1', 'marginRight': '20px'}),
@@ -2509,7 +2530,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1', 'marginRight': '20px'}),
@@ -2526,7 +2547,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1'}),
@@ -2548,7 +2569,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1', 'marginRight': '20px'}),
@@ -2565,7 +2586,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1', 'marginRight': '20px'}),
@@ -2584,7 +2605,7 @@ def render_grid_trading_layout():
                                 'padding': '10px',
                                 'fontSize': '14px',
                                 'borderRadius': '8px',
-                                'border': f'1px solid {COLORS["border"]}'
+                                'border': '1px solid ' + COLORS['border'],
                             }
                         )
                     ], style={'flex': '1'}),
@@ -2871,7 +2892,7 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
                     'borderRadius': '4px', 'cursor': 'pointer', 'fontSize': '12px', 'fontWeight': '600'
                 })
             ], style={
-                'backgroundColor': COLORS['card'], 'border': f'1px solid {COLORS["border"]}', 'borderRadius': '8px',
+                'backgroundColor': COLORS['card'], 'border': '1px solid ' + COLORS['border'], 'borderRadius': '8px',
                 'padding': '14px', 'display': 'flex', 'alignItems': 'center', 'boxShadow': COLORS['shadow']
             }))
         return cards

@@ -159,6 +159,11 @@ class WebSocketClient:
             logger.info("WebSocket已连接，跳过连接步骤")
             return
 
+        # --- 【新增】自适应代理支持 ---
+        import os
+        proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+        # ---------------------------
+
         last_error = None
         for attempt in range(1, max_retries + 1):
             try:
@@ -168,7 +173,8 @@ class WebSocketClient:
                         self.base_url,
                         ping_interval=30,  # 每30秒发送一次ping
                         ping_timeout=30,   # 【修复】增加到30秒，避免平仓时服务器响应慢导致超时
-                        open_timeout=20    # 【修复】设置连接建立超时
+                        open_timeout=20,    # 【修复】设置连接建立超时
+                        proxy=proxy_url     # 【新增】支持代理
                     ),
                     timeout=30  # 【修复】增加到30秒，给足连接时间
                 )

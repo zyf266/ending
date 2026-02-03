@@ -22907,3 +22907,469 @@ connector: <aiohttp.connector.TCPConnector object at 0x0000026DB64012B0>
 2026-02-02 16:30:22 | INFO     | grid_strategy:1224 | 📌 多网格: 已停止 [inst_1770020982]
 2026-02-02 16:30:22 | ERROR    | asyncio:1865 | Unclosed client session
 client_session: <aiohttp.client.ClientSession object at 0x0000026DB3FCE0D0>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-14' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-15' coro=<WebSocketCommonProtocol.keepalive_ping() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1259> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-16' coro=<WebSocketCommonProtocol.close_connection() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1314> wait_for=<Task pending name='Task-14' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | DEBUG    | websockets.client:1369 | x closing TCP connection
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-24' coro=<WebSocketCommonProtocol.keepalive_ping() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1259> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-25' coro=<WebSocketCommonProtocol.close_connection() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1314> wait_for=<Task pending name='Task-23' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | DEBUG    | websockets.client:1369 | x closing TCP connection
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-23' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-45' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-46' coro=<WebSocketCommonProtocol.keepalive_ping() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1259> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-47' coro=<WebSocketCommonProtocol.close_connection() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1314> wait_for=<Task pending name='Task-45' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>>
+2026-02-02 17:04:06 | DEBUG    | websockets.client:1369 | x closing TCP connection
+2026-02-02 17:10:28 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-02 17:12:00 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-02 17:13:14 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-02 17:57:05 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-02 18:01:27 | INFO     | backpack_quant_trading.core.api_client:118 | ED25519密钥已加载，将使用密钥认证
+2026-02-02 18:01:27 | INFO     | backpack_quant_trading.core.api_client:124 | 🔓 Backpack客户端初始化为公共模式（仅获取行情）
+2026-02-02 18:01:27 | INFO     | grid_strategy:156 | 📊 生成 6 个网格层级
+2026-02-02 18:01:27 | INFO     | grid_strategy:135 | ✅ 网格策略初始化完成 [inst_1770026487]: ETH_USDC_PERP
+2026-02-02 18:01:27 | INFO     | grid_strategy:136 |    网格类型: long_only (long_short=双向, long_only=做多, short_only=做空)
+2026-02-02 18:01:27 | INFO     | grid_strategy:137 |    价格区间: $2250.00 - $2300.00
+2026-02-02 18:01:27 | INFO     | grid_strategy:138 |    网格数量: 5
+2026-02-02 18:01:27 | INFO     | grid_strategy:139 |    网格间距: $10.00
+2026-02-02 18:01:27 | INFO     | grid_strategy:140 |    单格投资: $0.50
+2026-02-02 18:01:27 | INFO     | grid_strategy:141 |    杠杆倍数: 15x
+2026-02-02 18:01:27 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:01:27 | INFO     | grid_strategy:1192 | 📌 多网格: 已添加并启动 [inst_1770026487]
+2026-02-02 18:01:27 | INFO     | grid_strategy:164 | 🚀 启动网格交易...
+2026-02-02 18:01:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.backpack.exchange:443
+2026-02-02 18:01:28 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/markets HTTP/1.1" 200 None
+2026-02-02 18:01:28 | INFO     | grid_strategy:180 | 🎯 资产精度: 数量=4, 价格=2
+2026-02-02 18:01:28 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/capital HTTP/1.1" 200 1020
+2026-02-02 18:01:28 | INFO     | grid_strategy:197 | 💰 账户余额: 0.00 USDC
+2026-02-02 18:01:28 | WARNING  | grid_strategy:202 | ⚠️ 余额可能不足: 需要 2.50 USDC, 当前 0.00 USDC
+2026-02-02 18:01:28 | INFO     | grid_strategy:211 | 🔌 正在连接 WebSocket...
+2026-02-02 18:01:28 | INFO     | grid_strategy:998 | 正在连接WebSocket服务器: wss://ws.backpack.exchange (第1/3次尝试)
+2026-02-02 18:01:28 | DEBUG    | websockets.client:256 | = connection is CONNECTING
+2026-02-02 18:01:29 | DEBUG    | websockets.client:114 | > GET / HTTP/1.1
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Host: ws.backpack.exchange
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Upgrade: websocket
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Connection: Upgrade
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Key: /g4Xz/GYRnWBupnP/i0i3w==
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Version: 13
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+2026-02-02 18:01:29 | DEBUG    | websockets.client:116 | > User-Agent: Python/3.13 websockets/10.4
+2026-02-02 18:01:29 | DEBUG    | websockets.client:147 | < HTTP/1.1 101 Switching Protocols
+2026-02-02 18:01:29 | DEBUG    | websockets.client:149 | < Date: Mon, 02 Feb 2026 10:01:29 GMT
+2026-02-02 18:01:29 | DEBUG    | websockets.client:149 | < Connection: upgrade
+2026-02-02 18:01:29 | DEBUG    | websockets.client:149 | < upgrade: websocket
+2026-02-02 18:01:29 | DEBUG    | websockets.client:149 | < sec-websocket-accept: G6bSD+62xwK7ZwNETsgXE/ruUw8=
+2026-02-02 18:01:29 | DEBUG    | websockets.client:357 | = connection is OPEN
+2026-02-02 18:01:29 | INFO     | grid_strategy:1008 | ✅ WebSocket连接已建立
+2026-02-02 18:01:29 | INFO     | grid_strategy:1064 | 发送订阅消息: {"id":"8cb51b08-fd53-4a19-bad5-497efd19ca68","method":"SUBSCRIBE","params":["ticker.ETH_USDC_PERP"]}
+2026-02-02 18:01:29 | DEBUG    | websockets.client:1183 | > TEXT '{"id":"8cb51b08-fd53-4a19-bad5-497efd19ca68","m...ticker.ETH_USDC_PERP"]}' [100 bytes]
+2026-02-02 18:01:29 | INFO     | grid_strategy:1071 | ✅ 订阅成功: ticker.ETH_USDC_PERP
+2026-02-02 18:01:29 | DEBUG    | websockets.client:1177 | < TEXT '{"error":null,"id":"8cb51b08-fd53-4a19-bad5-497efd19ca68"}' [58 bytes]
+2026-02-02 18:01:30 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:01:30 | WARNING  | grid_strategy:260 | ⚠️ 网格策略未运行
+2026-02-02 18:01:30 | INFO     | grid_strategy:1224 | 📌 多网格: 已停止 [inst_1770026487]
+2026-02-02 18:01:30 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770026490138124,"V":"207346340.22..."ticker.ETH_USDC_PERP"}' [202 bytes]
+2026-02-02 18:01:30 | INFO     | grid_strategy:222 | 💰 初始价格 (WebSocket): $2284.90
+2026-02-02 18:01:30 | INFO     | grid_strategy:355 | 📝 开始布置初始网格订单 (模式: long_only, 当前价: $2284.90)...
+2026-02-02 18:01:31 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2
+2026-02-02 18:01:31 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2250.00, 数量: 0.0033 ETH
+2026-02-02 18:01:31 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2250.0'}]
+2026-02-02 18:01:31 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:01:31 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770026491024, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29792093767', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2250', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29792093767'}
+2026-02-02 18:01:31 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2250.00, ID: 29792093767
+2026-02-02 18:01:31 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770026491140286,"V":"207363229.37..."ticker.ETH_USDC_PERP"}' [202 bytes]
+2026-02-02 18:01:31 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 597
+2026-02-02 18:01:31 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2260.00, 数量: 0.0033 ETH
+2026-02-02 18:01:31 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2260.0'}]
+2026-02-02 18:01:31 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:01:31 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770026491637, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29792094340', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2260', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29792094340'}
+2026-02-02 18:01:31 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2260.00, ID: 29792094340
+2026-02-02 18:01:32 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 1193
+2026-02-02 18:01:32 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2270.00, 数量: 0.0033 ETH
+2026-02-02 18:01:32 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2270.0'}]
+2026-02-02 18:01:32 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770026492137708,"V":"207363229.37..."ticker.ETH_USDC_PERP"}' [202 bytes]
+2026-02-02 18:01:32 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:01:32 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770026492202, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29792094951', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2270', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29792094951'}
+2026-02-02 18:01:32 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2270.00, ID: 29792094951
+2026-02-02 18:01:32 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 1789
+2026-02-02 18:01:32 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2280.00, 数量: 0.0033 ETH
+2026-02-02 18:01:32 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2280.0'}]
+2026-02-02 18:01:33 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:01:33 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770026492796, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29792095819', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2280', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29792095819'}
+2026-02-02 18:01:33 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2280.00, ID: 29792095819
+2026-02-02 18:01:33 | INFO     | grid_strategy:377 | ✅ 初始订单布置完成 (long_only)
+2026-02-02 18:01:33 | INFO     | grid_strategy:254 | ✅ 网格交易启动成功
+2026-02-02 18:01:33 | INFO     | grid_strategy:497 | 👀 开始监控网格订单...
+2026-02-02 18:01:33 | INFO     | grid_strategy:502 | ✅ 使用 WebSocket 实时数据
+2026-02-02 18:01:33 | INFO     | grid_strategy:554 | ✅ 监控循环已停止
+2026-02-02 18:08:53 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-2' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>
+2026-02-02 18:08:53 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-3' coro=<WebSocketCommonProtocol.keepalive_ping() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1259> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-02-02 18:08:53 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-4' coro=<WebSocketCommonProtocol.close_connection() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:1314> wait_for=<Task pending name='Task-2' coro=<WebSocketCommonProtocol.transfer_data() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\websockets\legacy\protocol.py:968> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[Task.task_wakeup()]>>
+2026-02-02 18:08:53 | DEBUG    | websockets.client:1369 | x closing TCP connection
+2026-02-02 18:09:15 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:56 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:56 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:56 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:56 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:57 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:57 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:57 | INFO     | backpack_quant_trading.core.api_client:118 | ED25519密钥已加载，将使用密钥认证
+2026-02-02 18:12:57 | INFO     | backpack_quant_trading.core.api_client:124 | 🔓 Backpack客户端初始化为公共模式（仅获取行情）
+2026-02-02 18:12:57 | INFO     | grid_strategy:156 | 📊 生成 6 个网格层级
+2026-02-02 18:12:57 | INFO     | grid_strategy:135 | ✅ 网格策略初始化完成 [inst_1770027177]: ETH_USDC_PERP
+2026-02-02 18:12:57 | INFO     | grid_strategy:136 |    网格类型: long_only (long_short=双向, long_only=做多, short_only=做空)
+2026-02-02 18:12:58 | INFO     | grid_strategy:137 |    价格区间: $2250.00 - $2300.00
+2026-02-02 18:12:58 | INFO     | grid_strategy:138 |    网格数量: 5
+2026-02-02 18:12:58 | INFO     | grid_strategy:139 |    网格间距: $10.00
+2026-02-02 18:12:58 | INFO     | grid_strategy:140 |    单格投资: $0.50
+2026-02-02 18:12:58 | INFO     | grid_strategy:141 |    杠杆倍数: 15x
+2026-02-02 18:12:58 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:58 | INFO     | grid_strategy:1192 | 📌 多网格: 已添加并启动 [inst_1770027177]
+2026-02-02 18:12:58 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:58 | INFO     | grid_strategy:164 | 🚀 启动网格交易...
+2026-02-02 18:12:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.backpack.exchange:443
+2026-02-02 18:12:59 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:12:59 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/markets HTTP/1.1" 200 None
+2026-02-02 18:12:59 | INFO     | grid_strategy:180 | 🎯 资产精度: 数量=4, 价格=2
+2026-02-02 18:13:00 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/capital HTTP/1.1" 200 1020
+2026-02-02 18:13:00 | INFO     | grid_strategy:197 | 💰 账户余额: 0.00 USDC
+2026-02-02 18:13:00 | WARNING  | grid_strategy:202 | ⚠️ 余额可能不足: 需要 2.50 USDC, 当前 0.00 USDC
+2026-02-02 18:13:00 | INFO     | grid_strategy:211 | 🔌 正在连接 WebSocket...
+2026-02-02 18:13:00 | INFO     | grid_strategy:998 | 正在连接WebSocket服务器: wss://ws.backpack.exchange (第1/3次尝试)
+2026-02-02 18:13:00 | DEBUG    | websockets.client:256 | = connection is CONNECTING
+2026-02-02 18:13:00 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:13:00 | DEBUG    | websockets.client:114 | > GET / HTTP/1.1
+2026-02-02 18:13:00 | DEBUG    | websockets.client:116 | > Host: ws.backpack.exchange
+2026-02-02 18:13:00 | DEBUG    | websockets.client:116 | > Upgrade: websocket
+2026-02-02 18:13:00 | DEBUG    | websockets.client:116 | > Connection: Upgrade
+2026-02-02 18:13:01 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Key: +2fEYA/bZeqmXv2SKzEVgw==
+2026-02-02 18:13:01 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Version: 13
+2026-02-02 18:13:01 | DEBUG    | websockets.client:116 | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+2026-02-02 18:13:01 | DEBUG    | websockets.client:116 | > User-Agent: Python/3.13 websockets/10.4
+2026-02-02 18:13:01 | DEBUG    | websockets.client:147 | < HTTP/1.1 101 Switching Protocols
+2026-02-02 18:13:01 | DEBUG    | websockets.client:149 | < Date: Mon, 02 Feb 2026 10:13:01 GMT
+2026-02-02 18:13:01 | DEBUG    | websockets.client:149 | < Connection: upgrade
+2026-02-02 18:13:01 | DEBUG    | websockets.client:149 | < upgrade: websocket
+2026-02-02 18:13:01 | DEBUG    | websockets.client:149 | < sec-websocket-accept: 2xw1Wb1CS8L77oliVrag450fAtQ=
+2026-02-02 18:13:01 | DEBUG    | websockets.client:357 | = connection is OPEN
+2026-02-02 18:13:01 | INFO     | grid_strategy:1008 | ✅ WebSocket连接已建立
+2026-02-02 18:13:01 | INFO     | grid_strategy:1064 | 发送订阅消息: {"id":"d4a488e1-30a2-4dd6-aafb-d7e04e382825","method":"SUBSCRIBE","params":["ticker.ETH_USDC_PERP"]}
+2026-02-02 18:13:01 | DEBUG    | websockets.client:1183 | > TEXT '{"id":"d4a488e1-30a2-4dd6-aafb-d7e04e382825","m...ticker.ETH_USDC_PERP"]}' [100 bytes]
+2026-02-02 18:13:01 | INFO     | grid_strategy:1071 | ✅ 订阅成功: ticker.ETH_USDC_PERP
+2026-02-02 18:13:01 | DEBUG    | websockets.client:1177 | < TEXT '{"error":null,"id":"d4a488e1-30a2-4dd6-aafb-d7e04e382825"}' [58 bytes]
+2026-02-02 18:13:01 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:13:02 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027182138707,"V":"207566678.63..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:02 | INFO     | grid_strategy:222 | 💰 初始价格 (WebSocket): $2290.82
+2026-02-02 18:13:02 | INFO     | grid_strategy:355 | 📝 开始布置初始网格订单 (模式: long_only, 当前价: $2290.82)...
+2026-02-02 18:13:02 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:13:02 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2
+2026-02-02 18:13:02 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2250.00, 数量: 0.0033 ETH
+2026-02-02 18:13:02 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2250.0'}]
+2026-02-02 18:13:03 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:13:03 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770027182734, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29793406554', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2250', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793406554'}
+2026-02-02 18:13:03 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2250.00, ID: 29793406554
+2026-02-02 18:13:03 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027183137163,"V":"207567818.47..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:03 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 597
+2026-02-02 18:13:03 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2260.00, 数量: 0.0033 ETH
+2026-02-02 18:13:03 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2260.0'}]
+2026-02-02 18:13:03 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:13:03 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770027183327, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29793408627', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2260', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793408627'}
+2026-02-02 18:13:03 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2260.00, ID: 29793408627
+2026-02-02 18:13:04 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 1193
+2026-02-02 18:13:04 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2270.00, 数量: 0.0033 ETH
+2026-02-02 18:13:04 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2270.0'}]
+2026-02-02 18:13:04 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:13:04 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770027183922, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29793410148', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2270', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793410148'}
+2026-02-02 18:13:04 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2270.00, ID: 29793410148
+2026-02-02 18:13:04 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027184144037,"V":"207567936.38..."ticker.ETH_USDC_PERP"}' [202 bytes]
+2026-02-02 18:13:04 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 1789
+2026-02-02 18:13:04 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2280.00, 数量: 0.0033 ETH
+2026-02-02 18:13:04 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2280.0'}]
+2026-02-02 18:13:04 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:13:04 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770027184499, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29793411105', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2280', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793411105'}
+2026-02-02 18:13:04 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2280.00, ID: 29793411105
+2026-02-02 18:13:05 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2385
+2026-02-02 18:13:05 | INFO     | grid_strategy:413 | 📝 准备下单: BUY @ $2290.00, 数量: 0.0033 ETH
+2026-02-02 18:13:05 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Bid', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2290.0'}]
+2026-02-02 18:13:05 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027185140392,"V":"207567936.38..."ticker.ETH_USDC_PERP"}' [202 bytes]
+2026-02-02 18:13:05 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 629
+2026-02-02 18:13:05 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Bid 0.0033 Limit (仅减少: False) - {'clientId': None, 'createdAt': 1770027185175, 'executedQuantity': '0.0033', 'executedQuoteQuantity': '7.552941', 'id': '29793411951', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2290', 'quantity': '0.0033', 'reduceOnly': None, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Bid', 'status': 'FILLED', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793411951'}
+2026-02-02 18:13:05 | INFO     | grid_strategy:452 | 📌 挂单成功: BUY @ $2290.00, ID: 29793411951
+2026-02-02 18:13:05 | INFO     | grid_strategy:377 | ✅ 初始订单布置完成 (long_only)
+2026-02-02 18:13:05 | INFO     | grid_strategy:254 | ✅ 网格交易启动成功
+2026-02-02 18:13:05 | INFO     | grid_strategy:497 | 👀 开始监控网格订单...
+2026-02-02 18:13:05 | INFO     | grid_strategy:502 | ✅ 使用 WebSocket 实时数据
+2026-02-02 18:13:05 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2385
+2026-02-02 18:13:05 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:06 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:06 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:06 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027186139086,"V":"207569160.19..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:06 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:06 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411951&symbol=ETH_USDC_PERP HTTP/1.1" 404 51
+2026-02-02 18:13:06 | ERROR    | backpack_quant_trading.core.api_client:238 | API请求失败: 404 Client Error: Not Found for url: https://api.backpack.exchange/api/v1/order?orderId=29793411951&symbol=ETH_USDC_PERP
+2026-02-02 18:13:06 | ERROR    | backpack_quant_trading.core.api_client:240 | 响应状态码: 404
+2026-02-02 18:13:06 | ERROR    | backpack_quant_trading.core.api_client:241 | 响应内容: {"code":"RESOURCE_NOT_FOUND","message":"Not Found"}
+2026-02-02 18:13:06 | ERROR    | backpack_quant_trading.core.api_client:242 | 请求URL: https://api.backpack.exchange/api/v1/order
+2026-02-02 18:13:06 | ERROR    | backpack_quant_trading.core.api_client:243 | 请求头: {'Content-Type': 'application/json; charset=utf-8', 'X-API-Key': 'OMLRZspf7Rs+Ho4CO6FvHl5THtohVZM4hdupWyx8E5A=', 'X-Signature': 'oRW2cQbUe0aaZdWENC+YXbTDdLQRXuj5rLK+SC61DlxF2BAyrbYGiZ/xj1QMKzsgGDODvI1WF77Cd9qil5CZBQ==', 'X-Timestamp': '1770027186632', 'X-Window': '5000'}
+2026-02-02 18:13:07 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027187134522,"V":"207569160.19..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:07 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /wapi/v1/history/orders?limit=50&symbol=ETH_USDC_PERP HTTP/1.1" 200 None
+2026-02-02 18:13:07 | WARNING  | grid_strategy:733 | 【网格】✅ 开多成交: $2290.00 -> 挂平多单 @ $2300.00
+2026-02-02 18:13:07 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2385
+2026-02-02 18:13:08 | WARNING  | grid_strategy:686 | 【网格】挂限价平仓单: SELL @ $2300.00, 数量=0.0033
+2026-02-02 18:13:08 | INFO     | backpack_quant_trading.core.api_client:413 | 准备发送订单数据: [{'symbol': 'ETH_USDC_PERP', 'side': 'Ask', 'quantity': '0.0033', 'orderType': 'Limit', 'price': '2300.0', 'reduceOnly': True}]
+2026-02-02 18:13:08 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "POST /api/v1/orders HTTP/1.1" 200 614
+2026-02-02 18:13:08 | INFO     | backpack_quant_trading.core.api_client:436 | 执行订单成功: ETH_USDC_PERP Ask 0.0033 Limit (仅减少: True) - {'clientId': None, 'createdAt': 1770027188021, 'executedQuantity': '0', 'executedQuoteQuantity': '0', 'id': '29793418450', 'operation': 'Ok', 'orderType': 'Limit', 'postOnly': False, 'price': '2300', 'quantity': '0.0033', 'reduceOnly': True, 'relatedOrderId': None, 'selfTradePrevention': 'RejectTaker', 'side': 'Ask', 'status': 'NEW', 'stopLossLimitPrice': None, 'stopLossTriggerBy': None, 'stopLossTriggerPrice': None, 'strategyId': None, 'symbol': 'ETH_USDC_PERP', 'takeProfitLimitPrice': None, 'takeProfitTriggerBy': None, 'takeProfitTriggerPrice': None, 'timeInForce': 'GTC', 'triggerBy': None, 'triggerPrice': None, 'triggerQuantity': None, 'triggeredAt': None, 'orderId': '29793418450'}
+2026-02-02 18:13:08 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027188134710,"V":"207569160.19..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:08 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793418450&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:08 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:08 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:09 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:09 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-02 18:13:09 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027189141856,"V":"207569160.19..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:09 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:10 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:10 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:10 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027190135817,"V":"207630744.29..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:10 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:10 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:11 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027191138649,"V":"207630744.29..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:11 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:12 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:12 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027192129892,"V":"207630744.29..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:12 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:12 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:13 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:13 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:13 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027193141237,"V":"207631266.90..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:13 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:13 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:13 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:14 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:14 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:14 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027194134711,"V":"207631598.24..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:14 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:15 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793411105&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:15 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/orders?symbol=ETH_USDC_PERP HTTP/1.1" 200 2981
+2026-02-02 18:13:15 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793406554&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:15 | DEBUG    | websockets.client:1177 | < TEXT '{"data":{"E":1770027195134687,"V":"207631929.66..."ticker.ETH_USDC_PERP"}' [203 bytes]
+2026-02-02 18:13:16 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793408627&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:16 | DEBUG    | urllib3.connectionpool:475 | https://api.backpack.exchange:443 "GET /api/v1/order?orderId=29793410148&symbol=ETH_USDC_PERP HTTP/1.1" 200 595
+2026-02-02 18:13:16 | DEBUG    | grid_strategy:598 | 检查开多/开空单 29793411105 失败: cannot schedule new futures after shutdown
+2026-02-02 18:38:25 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-02 18:39:49 | INFO     | dash.dash:2468 | Dash is running on http://0.0.0.0:8050/
+
+2026-02-03 13:54:32 | INFO     | __main__:1640 | 检测到 8005 端口未被占用，启动 Webhook 服务...
+2026-02-03 13:54:32 | INFO     | __main__:1660 | Webhook 服务进程已启动 (PID: 35080)，异步等待端口启用...
+2026-02-03 13:54:32 | INFO     | __main__:1666 | Webhook 服务已在端口 8005 运行，准备注册实例: ostium_135431_840204
+2026-02-03 13:54:32 | INFO     | __main__:1673 | ✅ Private Key 已提供,长度: 66
+2026-02-03 13:54:32 | INFO     | __main__:1717 | ⏳ 实例 ostium_135431_840204 已添加到列表，后台异步注册中...
+2026-02-03 13:54:33 | DEBUG    | asyncio:631 | Using proactor: IocpProactor
+2026-02-03 13:54:33 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 13:54:35 | WARNING  | __main__:1753 | ⚠️ Webhook 服务还未就绪，第 1/5 次尝试...
+2026-02-03 13:54:36 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 13:54:38 | WARNING  | __main__:1753 | ⚠️ Webhook 服务还未就绪，第 2/5 次尝试...
+2026-02-03 13:54:39 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 13:54:41 | WARNING  | __main__:1753 | ⚠️ Webhook 服务还未就绪，第 3/5 次尝试...
+2026-02-03 13:54:42 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 13:54:51 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "POST /register_instance HTTP/1.1" 200 217
+2026-02-03 13:54:51 | INFO     | __main__:1738 | ✅ 引擎实例注册成功: ostium_135431_840204
+2026-02-03 13:54:51 | INFO     | __main__:1739 | 📋 配置: {'symbol': 'USD/JPY', 'leverage': 50, 'stop_loss_percent': 0.015, 'take_profit_percent': 0.02, 'margin_amount': '20', 'forbidden_hours': [3, 4, 5, 6, 7, 11, 12, 19, 20]}
+2026-02-03 13:54:51 | INFO     | __main__:1741 | 🔗 TradingView Webhook URL: http://127.0.0.1:8005/webhook
+2026-02-03 13:54:51 | INFO     | __main__:1742 | 🎯 实例 ID: ostium_135431_840204
+2026-02-03 14:19:20 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:21 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "POST /unregister_instance/ostium_135431_840204 HTTP/1.1" 200 70
+2026-02-03 14:19:21 | INFO     | __main__:1605 | ✅ Webhook 实例 ostium_135431_840204 已注销
+2026-02-03 14:19:23 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:23 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:25 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:25 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:30 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:30 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:30 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:30 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:31 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:31 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:31 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:31 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:36 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:36 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:36 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:36 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:19:41 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:19:41 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:25:02 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:25:02 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:25:03 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:25:03 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:25:18 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:25:18 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:25:18 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:25:18 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:25:20 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:25:20 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:02 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:02 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:05 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:05 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:10 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:10 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:15 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:15 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:20 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:20 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:25 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:25 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:30 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:30 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:35 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:35 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:40 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:40 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:45 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:45 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:50 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:50 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:26:55 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:26:55 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:00 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:00 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:05 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:05 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:10 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:10 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:16 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:16 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:20 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:20 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:28 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:28 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:30 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:30 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:35 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:36 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:40 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:40 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:45 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:45 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:50 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:50 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:27:55 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:27:55 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:00 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:00 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:05 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:05 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:10 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:10 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:15 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:15 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:20 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:20 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:25 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:25 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:30 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:30 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:35 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:35 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:40 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:40 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:45 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:45 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:50 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:51 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:28:55 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:28:55 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:29:00 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:29:00 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:29:05 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:29:05 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:29:10 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:29:10 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:29:15 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:29:15 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:29:23 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:29:23 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:31:26 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:31:26 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:38:29 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:38:29 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:38:37 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:38:37 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:56:37 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:56:37 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:58:41 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:58:41 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:59:40 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:59:40 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 14:59:48 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 14:59:48 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:09:38 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:09:38 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:18:13 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:18:13 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:18:52 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:18:52 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:19:18 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:19:18 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:19:19 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:19:19 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:20:05 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:20:05 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:21:07 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:21:07 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:21:13 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:21:13 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:22:25 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:22:25 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:23:21 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:23:21 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:23:23 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:23:23 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:23:23 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:23:23 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:23:24 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:23:24 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:23:50 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:23:50 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:24:03 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:24:03 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:24:13 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:24:13 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:24:31 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:24:31 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:24:47 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:24:47 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:25:23 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:25:23 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:25:28 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:25:28 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:26:31 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:26:31 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
+2026-02-03 15:26:33 | DEBUG    | urllib3.connectionpool:246 | Starting new HTTP connection (1): 127.0.0.1:8005
+2026-02-03 15:26:33 | DEBUG    | urllib3.connectionpool:475 | http://127.0.0.1:8005 "GET /instances HTTP/1.1" 200 45
