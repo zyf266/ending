@@ -34,8 +34,10 @@ def make_klines(base_price: float, closes: list, base_time: int = 1700000000000)
 
 def simulate_with_real_data():
     """用真实币安数据检测当前是否触发"""
-    print("获取 币安人生USDT 2小时 K线...")
-    symbol_klines = fetch_binance_klines("币安人生USDT", "2h", limit=500)
+    # 【修复】改为合约市场常用币种
+    test_symbol = "1000SHIBUSDT"  # SHIB 合约，波动大更容易触发
+    print(f"获取 币安{test_symbol} 2小时 K线...")
+    symbol_klines = fetch_binance_klines(test_symbol, "2h", limit=500)
     eth_klines = fetch_binance_klines("ETHUSDT", "2h", limit=500)
     if not symbol_klines or not eth_klines:
         print("获取K线失败")
@@ -72,7 +74,8 @@ def simulate_with_mock_data():
 
 def send_test_dingtalk():
     """直接发送一条模拟钉钉，展示触发时的消息格式"""
-    ok = send_dingtalk_alert("币安人生USDT", "2小时", "【模拟测试】品种涨幅强于ETH且满足连阳")
+    # 【修复】改为合约市场常用币种
+    ok = send_dingtalk_alert("1000SHIBUSDT", "2小时", "【模拟测试】品种涨幅强于ETH且满足连阳")
     print(f"钉钉模拟发送: {'成功' if ok else '失败（请检查 DINGTALK_TOKEN）'}")
     return ok
 
@@ -82,7 +85,7 @@ if __name__ == "__main__":
     print("币种监视 - 策略触发模拟")
     print("=" * 55)
 
-    print("\n[1] 真实数据检测（币安人生USDT 2h）")
+    print("\n[1] 真实数据检测（1000SHIBUSDT 2h 合约市场）")
     print("-" * 40)
     simulate_with_real_data()
 
