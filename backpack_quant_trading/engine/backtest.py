@@ -51,7 +51,7 @@ class BacktestEngine:
     def __init__(self, initial_capital: float = 10000.0):
         self.initial_capital = initial_capital
         self.capital = initial_capital
-        self.positions: Dict[str, float] = {}
+        self.positions: Dict[str, Dict] = {}  # 双向持仓: {symbol: {long: {...}, short: {...}}}
         self.trades: List[Trade] = []
         self.portfolio_values = []
         self.dates = []
@@ -60,9 +60,9 @@ class BacktestEngine:
         self.commission_rate = 0.001  # 0.1% 手续费
         self.slippage = 0.0005  # 0.05% 滑点
 
-    def run(self, strategy: BaseStrategy, data: Dict[str, pd.DataFrame],
+    async def run(self, strategy: BaseStrategy, data: Dict[str, pd.DataFrame],
             start_date: datetime, end_date: datetime) -> BacktestResult:
-        """运行回测"""
+        """运行回测（异步）"""
         logger.info(f"开始回测: {start_date} 到 {end_date}")
 
         result = BacktestResult()
@@ -76,6 +76,12 @@ class BacktestEngine:
             all_timestamps.update(df.index)
 
         all_dates = sorted(all_timestamps)
+        
+        # 【关键修复】预热期：跳过前100根K线，让指标计算充分
+        warmup_bars = 100
+        if len(all_dates) > warmup_bars:
+            logger.info(f"🔥 预热期: 跳过前{warmup_bars}根K线")
+            all_dates = all_dates[warmup_bars:]
 
         for current_date in all_dates:
             current_data = {}
@@ -90,118 +96,154 @@ class BacktestEngine:
                 continue
 
             import asyncio
-            signals = asyncio.run(strategy.calculate_signal(current_data))
+            signals = await strategy.calculate_signal(current_data)
 
             for signal in signals:
                 self.execute_trade(signal, current_date)
-
-            self.update_portfolio_value(current_data, current_date)
+                            
+            # 记录资金曲线
+            self.portfolio_values.append(self.capital)
+            self.dates.append(current_date)
 
         result = self.calculate_metrics()
 
         return result
 
     def execute_trade(self, signal, current_date):
-        """执行交易"""
-        if signal.action == 'buy':
-            self._execute_buy(signal, current_date)
-        elif signal.action == 'sell':
-            self._execute_sell(signal, current_date)
+        """执行交易（支持多空双向持仓）"""
+        symbol = signal.symbol
+        action = signal.action
+        price = float(signal.price) if signal.price else 0
+        quantity = float(signal.quantity) if signal.quantity else 0
+        
+        # 初始化持仓
+        if symbol not in self.positions:
+            self.positions[symbol] = {
+                'long': {'qty': 0, 'entry_price': 0, 'margin': 0},
+                'short': {'qty': 0, 'entry_price': 0, 'margin': 0}
+            }
+        
+        pos = self.positions[symbol]
+        
+        # BUY: 有空仓则平空，否则开多
+        if action == 'buy':
+            if pos['short']['qty'] > 0:
+                self._close_short(symbol, quantity, price, current_date, signal.reason)
+            else:
+                self._open_long(symbol, quantity, price, current_date, signal.reason)
+        # SELL: 有多仓则平多，否则开空
+        elif action == 'sell':
+            if pos['long']['qty'] > 0:
+                self._close_long(symbol, quantity, price, current_date, signal.reason)
+            else:
+                self._open_short(symbol, quantity, price, current_date, signal.reason)
 
-    def _execute_buy(self, signal, current_date):
-        """执行买入"""
-        # 计算实际成交价格（考虑滑点）
-        actual_price = signal.price * (1 + self.slippage)
-
-        # 计算手续费
-        commission = actual_price * signal.quantity * self.commission_rate
-
-        # 检查资金是否足够
-        trade_value = actual_price * signal.quantity + commission
+    def _open_long(self, symbol: str, quantity: float, price: float, current_date, reason: str):
+        """开多仓"""
+        # 【关键修复】如果已有多仓，不允许重复开仓
+        if self.positions[symbol]['long']['qty'] > 0:
+            logger.warning(f"已有多仓，拒绝重复开多")
+            return
+        
+        actual_price = price * (1 + self.slippage)
+        leverage = 100
+        margin = (actual_price * quantity) / leverage
+        commission = margin * self.commission_rate
+        trade_value = margin + commission
+        
         if trade_value > self.capital:
-            logger.warning(f"资金不足，无法执行买入: 需要 {trade_value}, 可用 {self.capital}")
+            logger.warning(f"资金不足，无法开多")
             return
-
-        # 记录交易
-        trade = Trade(
-            symbol=signal.symbol,
-            action='buy',
-            quantity=signal.quantity,
-            entry_price=actual_price,
-            entry_time=current_date,
-            commission=commission,
-            reason=signal.reason
-        )
-
-        # 更新仓位和资金
-        self.positions[signal.symbol] = self.positions.get(signal.symbol, 0) + signal.quantity
+        
+        self.positions[symbol]['long'] = {'qty': quantity, 'entry_price': actual_price, 'margin': margin}
         self.capital -= trade_value
-
-        self.trades.append(trade)
-        logger.info(f"买入 {signal.symbol}: {signal.quantity} @ {actual_price:.4f}")
-
-    def _execute_sell(self, signal, current_date):
-        """执行卖出"""
-        if signal.symbol not in self.positions or self.positions[signal.symbol] <= 0:
-            logger.warning(f"没有 {signal.symbol} 的仓位可以卖出")
+        
+        self.trades.append(Trade(
+            symbol=symbol, action='buy', quantity=quantity, entry_price=actual_price,
+            entry_time=current_date, commission=commission, reason=reason
+        ))
+        logger.info(f"开多 {symbol}: {quantity:.4f} @ {actual_price:.2f}")
+        
+        # 【关键】同步给策略（保持兼容）
+        # 注意：这里需要访问策略对象，但回测引擎不应该依赖策略
+        # 所以我们让策略自己管理持仓，但需要确保策略能找到持仓
+    
+    def _open_short(self, symbol: str, quantity: float, price: float, current_date, reason: str):
+        """开空仓"""
+        # 【关键修复】如果已有空仓，不允许重复开仓
+        if self.positions[symbol]['short']['qty'] > 0:
+            logger.warning(f"已有空仓，拒绝重复开空")
             return
+        
+        actual_price = price * (1 - self.slippage)
+        leverage = 100
+        margin = (actual_price * quantity) / leverage
+        commission = margin * self.commission_rate
+        trade_value = margin + commission
+        
+        if trade_value > self.capital:
+            logger.warning(f"资金不足，无法开空")
+            return
+        
+        self.positions[symbol]['short'] = {'qty': quantity, 'entry_price': actual_price, 'margin': margin}
+        self.capital -= trade_value
+        
+        self.trades.append(Trade(
+            symbol=symbol, action='sell', quantity=quantity, entry_price=actual_price,
+            entry_time=current_date, commission=commission, reason=reason
+        ))
+        logger.info(f"开空 {symbol}: {quantity:.4f} @ {actual_price:.2f}")
+    
+    def _close_long(self, symbol: str, quantity: float, price: float, current_date, reason: str):
+        """平多仓"""
+        pos = self.positions[symbol]['long']
+        if pos['qty'] <= 0:
+            return
+        
+        actual_price = price * (1 - self.slippage)
+        leverage = 100
+        price_change = (actual_price - pos['entry_price']) / pos['entry_price']
+        pnl = pos['margin'] * price_change * leverage
+        commission = pos['margin'] * self.commission_rate
+        final_pnl = pnl - commission
+        
+        self.capital += pos['margin'] + final_pnl
+        self.positions[symbol]['long'] = {'qty': 0, 'entry_price': 0, 'margin': 0}
+        
+        self.trades.append(Trade(
+            symbol=symbol, action='sell', quantity=pos['qty'],
+            entry_price=pos['entry_price'], exit_price=actual_price,
+            entry_time=current_date, exit_time=current_date,
+            pnl=final_pnl, pnl_percent=(final_pnl/pos['margin'])*100,
+            commission=commission, reason=reason
+        ))
+        logger.info(f"平多 {symbol}: PnL={final_pnl:.2f}")
+    
+    def _close_short(self, symbol: str, quantity: float, price: float, current_date, reason: str):
+        """平空仓"""
+        pos = self.positions[symbol]['short']
+        if pos['qty'] <= 0:
+            return
+        
+        actual_price = price * (1 + self.slippage)
+        leverage = 100
+        price_change = (pos['entry_price'] - actual_price) / pos['entry_price']
+        pnl = pos['margin'] * price_change * leverage
+        commission = pos['margin'] * self.commission_rate
+        final_pnl = pnl - commission
+        
+        self.capital += pos['margin'] + final_pnl
+        self.positions[symbol]['short'] = {'qty': 0, 'entry_price': 0, 'margin': 0}
+        
+        self.trades.append(Trade(
+            symbol=symbol, action='buy', quantity=pos['qty'],
+            entry_price=pos['entry_price'], exit_price=actual_price,
+            entry_time=current_date, exit_time=current_date,
+            pnl=final_pnl, pnl_percent=(final_pnl/pos['margin'])*100,
+            commission=commission, reason=reason
+        ))
+        logger.info(f"平空 {symbol}: PnL={final_pnl:.2f}")
 
-        # 计算实际成交价格（考虑滑点）
-        actual_price = signal.price * (1 - self.slippage)
-
-        # 计算手续费
-        commission = actual_price * signal.quantity * self.commission_rate
-
-        # 计算盈亏
-        entry_price = self._get_average_entry_price(signal.symbol)
-        pnl = (actual_price - entry_price) * signal.quantity - commission
-
-        # 记录交易
-        trade = Trade(
-            symbol=signal.symbol,
-            action='sell',
-            quantity=signal.quantity,
-            entry_price=entry_price,
-            exit_price=actual_price,
-            entry_time=current_date,
-            exit_time=current_date,
-            pnl=pnl,
-            pnl_percent=(pnl / (entry_price * signal.quantity)) * 100,
-            commission=commission,
-            reason=signal.reason
-        )
-
-        # 更新仓位和资金
-        self.positions[signal.symbol] -= signal.quantity
-        if self.positions[signal.symbol] <= 0:
-            del self.positions[signal.symbol]
-
-        self.capital += actual_price * signal.quantity - commission
-
-        self.trades.append(trade)
-        logger.info(f"卖出 {signal.symbol}: {signal.quantity} @ {actual_price:.4f}, PnL: {pnl:.2f}")
-
-    def _get_average_entry_price(self, symbol: str) -> float:
-        """获取平均入场价格"""
-        symbol_trades = [t for t in self.trades if t.symbol == symbol and t.action == 'buy']
-        if not symbol_trades:
-            return 0
-        total_cost = sum(t.entry_price * t.quantity for t in symbol_trades)
-        total_quantity = sum(t.quantity for t in symbol_trades)
-        return total_cost / total_quantity if total_quantity > 0 else 0
-
-    def update_portfolio_value(self, current_data, current_date):
-        """更新组合价值"""
-        portfolio_value = float(self.capital)
-
-        for symbol, df in current_data.items():
-            if isinstance(df, pd.DataFrame) and not df.empty:
-                price = float(df.iloc[-1]['close'])
-                if symbol in self.positions:
-                    portfolio_value += price * self.positions[symbol]
-
-        self.portfolio_values.append(portfolio_value)
-        self.dates.append(current_date)
 
     def calculate_metrics(self):
         """计算回测指标"""
@@ -214,8 +256,8 @@ class BacktestEngine:
         returns = pd.Series(self.portfolio_values).pct_change().dropna()
         total_return = (self.portfolio_values[-1] / self.initial_capital - 1) * 100
 
-        days = (self.dates[-1] - self.dates[0]).days
-        annualized_return = ((1 + total_return / 100) ** (365 / days) - 1) * 100
+        days = (self.dates[-1] - self.dates[0]).days if len(self.dates) > 1 else 0
+        annualized_return = ((1 + total_return / 100) ** (365 / days) - 1) * 100 if days > 0 else 0
 
         returns_array = np.diff(self.portfolio_values).astype(float) / np.array(self.portfolio_values[:-1], dtype=float)
         if len(returns_array) > 1 and np.std(returns_array) > 0:

@@ -236,6 +236,21 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class UserInstance(Base):
+    """用户实例归属表：实盘/网格/币种监视按用户隔离，刷新后恢复。
+    注意：config_json 仅存 platform/strategy/symbol 等元数据，绝不存储 API Key、私钥等敏感信息。"""
+    __tablename__ = 'user_instances'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    instance_type = Column(String(30), nullable=False)  # 'live' | 'grid' | 'currency_monitor'
+    instance_id = Column(String(100), nullable=False, index=True)
+    config_json = Column(Text, nullable=True)  # 仅存 platform/strategy/symbol 等，不含私钥
+    created_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (Index('idx_user_instance', 'user_id', 'instance_type', 'instance_id'),)
+
+
 class StrategyConfig(Base):
     """策略元数据与默认配置"""
     __tablename__ = 'strategy_config'
@@ -504,6 +519,98 @@ class DatabaseManager:
             session.refresh(user)
             session.expunge(user)
             return user
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def save_user_instance(self, user_id: int, instance_type: str, instance_id: str, config_json: Optional[str] = None):
+        """保存用户实例归属（实盘/网格/币种监视）"""
+        session = self.get_session()
+        try:
+            existing = session.query(UserInstance).filter_by(
+                user_id=user_id, instance_type=instance_type, instance_id=instance_id
+            ).first()
+            if not existing:
+                ui = UserInstance(user_id=user_id, instance_type=instance_type, instance_id=instance_id, config_json=config_json)
+                session.add(ui)
+            else:
+                existing.config_json = config_json
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def get_user_instance_ids(self, user_id: int, instance_type: str) -> list:
+        """获取某用户某类型的所有 instance_id"""
+        session = self.get_session()
+        try:
+            rows = session.query(UserInstance).filter_by(user_id=user_id, instance_type=instance_type).all()
+            return [r.instance_id for r in rows]
+        finally:
+            session.close()
+
+    def get_user_instance_configs(self, user_id: int, instance_type: str) -> list:
+        """获取某用户某类型的所有实例配置 (instance_id, config_json)"""
+        session = self.get_session()
+        try:
+            rows = session.query(UserInstance).filter_by(user_id=user_id, instance_type=instance_type).all()
+            return [(r.instance_id, r.config_json) for r in rows]
+        finally:
+            session.close()
+
+    def get_first_user_id(self) -> Optional[int]:
+        """获取系统中第一个用户的 id，用于全局共享配置（如币种监视）"""
+        session = self.get_session()
+        try:
+            user = session.query(User).order_by(User.id).first()
+            return user.id if user else None
+        finally:
+            session.close()
+
+    def get_currency_monitor_config(self) -> Optional[tuple]:
+        """获取币种监视的全局配置（不限用户），返回 (instance_id, config_json) 或 None"""
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                instance_type='currency_monitor', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
+    def save_currency_monitor_config(self, config_json: str):
+        """保存币种监视的全局配置（使用第一个用户 id 作为存储键，先清理旧的多用户数据）"""
+        self.delete_currency_monitor_config()  # 清理旧数据，避免多用户残留
+        uid = self.get_first_user_id()
+        if uid is not None:
+            self.save_user_instance(uid, 'currency_monitor', 'singleton', config_json)
+
+    def delete_currency_monitor_config(self):
+        """删除币种监视的全局配置"""
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                instance_type='currency_monitor', instance_id='singleton'
+            ).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def delete_user_instance(self, user_id: int, instance_type: str, instance_id: str):
+        """删除用户实例归属（停止时调用）"""
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                user_id=user_id, instance_type=instance_type, instance_id=instance_id
+            ).delete()
+            session.commit()
         except Exception as e:
             session.rollback()
             raise e

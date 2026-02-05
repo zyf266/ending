@@ -162,21 +162,37 @@ class WebSocketClient:
         # --- 【新增】自适应代理支持 ---
         import os
         proxy_url = os.environ.get('HTTPS_PROXY') or os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+        
+        # 【关键修复】检查websockets库是否支持proxy参数
+        import inspect
+        connect_signature = inspect.signature(websockets.connect)
+        supports_proxy = 'proxy' in connect_signature.parameters
+        
+        if proxy_url and not supports_proxy:
+            logger.warning(f"⚠️ 检测到代理设置({proxy_url})，但websockets库不支持proxy参数，已忽略")
+            logger.warning(f"💡 如需使用代理，请升级websockets: pip install --upgrade websockets")
+            proxy_url = None
         # ---------------------------
 
         last_error = None
         for attempt in range(1, max_retries + 1):
             try:
                 logger.info(f"正在连接WebSocket服务器: {self.base_url} (第{attempt}/{max_retries}次尝试)")
+                
+                # 【关键修复】根据是否支持proxy参数来构造连接
+                connect_kwargs = {
+                    'ping_interval': 30,
+                    'ping_timeout': 30,
+                    'open_timeout': 20
+                }
+                
+                if proxy_url and supports_proxy:
+                    connect_kwargs['proxy'] = proxy_url
+                    logger.info(f"🌐 使用代理: {proxy_url}")
+                
                 self.ws = await asyncio.wait_for(
-                    websockets.connect(
-                        self.base_url,
-                        ping_interval=30,  # 每30秒发送一次ping
-                        ping_timeout=30,   # 【修复】增加到30秒，避免平仓时服务器响应慢导致超时
-                        open_timeout=20,    # 【修复】设置连接建立超时
-                        proxy=proxy_url     # 【新增】支持代理
-                    ),
-                    timeout=30  # 【修复】增加到30秒，给足连接时间
+                    websockets.connect(self.base_url, **connect_kwargs),
+                    timeout=30
                 )
                 logger.info("✅ WebSocket连接已建立")
                 
@@ -374,7 +390,7 @@ class LiveTradingEngine:
         # 【修复】添加余额缓存，减少API调用频率
         self._balance_cache = None
         self._balance_cache_time = 0
-        self._balance_cache_ttl = 10  # 缓存10秒
+        self._balance_cache_ttl = 600  # 缓存10分钟（600秒），避免频繁调用API
         
         # 【新增】Symbol映射表: Backpack格式 -> 用户输入格式
         # 用于将WebSocket收到的symbol映射到策略注册的symbol
@@ -527,10 +543,10 @@ class LiveTradingEngine:
         if not self.ws_client._is_connected():
             await self.ws_client.connect()
         
-        # 订阅K线频道（15分钟周期，用于AI策略分析）
+        # 订阅K线频道（日内交易使用1分钟周期，AI策略分析）
         for symbol in self.trading_symbols:
-            logger.info(f"📡 [Backpack] 订阅{symbol}的K线数据频道（15分钟）...")
-            await self.ws_client.subscribe("kline:15m", symbol)
+            logger.info(f"📡 [Backpack] 订阅{symbol}的K线数据频道（1分钟）...")
+            await self.ws_client.subscribe("kline:1m", symbol)
 
         tasks = [
             self._order_status_loop(),
@@ -593,6 +609,26 @@ class LiveTradingEngine:
         """
         # 查找映射表
         return self.symbol_mapping.get(backpack_symbol, backpack_symbol)
+    
+    def _extract_base_currency(self, symbol: str) -> str:
+        """提取交易对的基础币种（用于缓存键）
+        
+        Examples:
+            ETH-USDT-SWAP -> ETH
+            ETH_USDC_PERP -> ETH
+            BTC-USDT-SWAP -> BTC
+            SOL_USDC_PERP -> SOL
+        """
+        # 移除常见后缀
+        clean = symbol.replace("-SWAP", "").replace("-PERP", "").replace("_PERP", "")
+        
+        # 分割并取第一部分
+        if "-" in clean:
+            return clean.split("-")[0]  # ETH-USDT -> ETH
+        elif "_" in clean:
+            return clean.split("_")[0]  # ETH_USDC -> ETH
+        else:
+            return clean  # 已经是单个币种
     
     def _convert_to_backpack_format(self, symbol: str) -> str:
         """将交易对转换为Backpack格式（用于获取K线数据）
@@ -896,16 +932,23 @@ class LiveTradingEngine:
             
             # 【修复】平仓订单跳过风控检查
             if not is_close:
-                # 【修复】市价单没有价格，从市场获取当前价格用于风控检查
+                # 【修复】市价单没有价格，优先使用信号中的价格，其次从市场获取
                 check_price = price
                 if not check_price or check_price == Decimal("0"):
-                    try:
-                        ticker = await self.exchange_client.get_ticker(symbol)
-                        check_price = Decimal(str(ticker.get('lastPrice', 0)))
-                        logger.info(f"💰 市价单使用当前市场价格进行风控检查: {check_price}")
-                    except Exception as e:
-                        logger.error(f"获取市场价格失败: {e}")
-                        return None
+                    # 【关键修复】优先使用strategy_signal中的价格（更准确）
+                    if strategy_signal and hasattr(strategy_signal, 'price') and strategy_signal.price:
+                        check_price = Decimal(str(strategy_signal.price))
+                        logger.info(f"💰 市价单使用信号中的价格进行风控检查: {check_price} ({symbol})")
+                    else:
+                        # 如果信号中没有价格，才从市场获取
+                        try:
+                            # 【关键修复】使用转换后的order_symbol获取ticker
+                            ticker = await self.exchange_client.get_ticker(order_symbol)
+                            check_price = Decimal(str(ticker.get('lastPrice', 0)))
+                            logger.info(f"💰 市价单使用市场价格进行风控检查: {check_price} ({order_symbol})")
+                        except Exception as e:
+                            logger.error(f"获取市场价格失败: {e}")
+                            return None
                 
                 # 【修复】获取账户资金作为风险检查的参数，使用缓存减少API调用
                 account_capital = 0.0
@@ -1046,7 +1089,7 @@ class LiveTradingEngine:
         """
         logger.info("="*80)
         logger.info("📥 [数据预加载] 开始预加载历史K线数据...")
-        logger.info(f"📥 [数据预加载] 目标: 为每个交易对获取 {limit} 根15分钟K线")
+        logger.info(f"📥 [数据预加载] 目标: 为每个交易对获取 {limit} 根**1分钟**K线 (日内交易模式)")
         logger.info("="*80)
         
         # 【关键修复】创建临时Backpack客户端用于获取K线
@@ -1058,31 +1101,23 @@ class LiveTradingEngine:
         
         for symbol in self.trading_symbols:
             try:
-                logger.info(f"📡 [数据预加载] 正在获取 {symbol} 的历史K线数据 (15分钟周期, limit={limit})...")
+                logger.info(f"📡 [数据预加载] 正在获取 {symbol} 的历史K线数据 (1分钟周期, limit={limit})...")
                 
-                # 计算开始时间（对于15m周期，1000根 = 15000分钟 ≈ 10.4天，取11天保险）
-                start_time = int((datetime.now() - timedelta(days=11)).timestamp())
+                # 计算开始时间（对于1m周期，1000根 = 1000分钟 ≈ 16.7小时，取1天保险）
+                start_time = int((datetime.now() - timedelta(days=1)).timestamp())
                 end_time = int(datetime.now().timestamp())
                 
                 logger.debug(f"📅 时间范围: {datetime.fromtimestamp(start_time)} ~ {datetime.fromtimestamp(end_time)}")
                 
-                # 【关键修复】如果symbol不是Backpack格式，需要转换
-                # ETH-USDT-SWAP (用户输入) -> ETH_USDC_PERP (Backpack格式)
-                backpack_symbol = symbol
-                if "_PERP" not in symbol and "_USDC" not in symbol:
-                    # 需要转换：ETH-USDT-SWAP -> ETH_USDC_PERP
-                    if "-SWAP" in symbol or "-PERP" in symbol:
-                        clean = symbol.replace("-SWAP", "").replace("-PERP", "")
-                        parts = clean.split("-")
-                        if len(parts) >= 2:
-                            base = parts[0]  # ETH
-                            backpack_symbol = f"{base}_USDC_PERP"
-                            logger.info(f"🔄 [数据预加载] 交易对格式转换: {symbol} -> {backpack_symbol}")
+                # 【关键修复】使用统一的转换方法，将用户symbol转换为Backpack格式
+                backpack_symbol = self._convert_to_backpack_format(symbol)
+                if backpack_symbol != symbol:
+                    logger.info(f"🔄 [数据预加载] 交易对转换: {symbol} -> {backpack_symbol}")
                 
-                # 【关键修复】使用Backpack客户端获取历史15分钟K线
+                # 【关键修复】使用Backpack客户端获取历史1分钟K线
                 klines = await backpack_client.get_klines(
                     symbol=backpack_symbol,
-                    interval="15m",
+                    interval="1m",  # 日内交易改为1分钟周期
                     start_time=start_time,
                     end_time=end_time,
                     limit=limit
@@ -1168,8 +1203,9 @@ class LiveTradingEngine:
                                 logger.warning(f"⚠️ 未知的K线数据格式: {type(k)}, 跳过第{idx}条")
                                 continue
                             
-                            # 添加到数据管理器（使用15m作为interval）
-                            await self.data_manager.add_kline_data(symbol, k_data, interval="15m")
+                            # 【关键修复】使用基础币种作为缓存键，确保预加载和实时K线使用同一缓存
+                            cache_symbol = self._extract_base_currency(symbol)  # ETH_USDC_PERP -> ETH
+                            await self.data_manager.add_kline_data(cache_symbol, k_data, interval="1m")
                             success_count += 1
                             
                             # 每100条打印一次进度
@@ -1182,9 +1218,10 @@ class LiveTradingEngine:
                     
                     logger.info(f"✅ [数据预加载] {symbol} 成功加载 {success_count}/{len(klines)} 条历史K线")
                     
-                    # 确认缓存数量
-                    final_df = await self.data_manager.fetch_recent_data(symbol, interval="15m", limit=limit)
-                    logger.info(f"✅ [数据预加载] {symbol} 缓存验证: 共{len(final_df)}条数据")
+                    # 确认缓存数量（【关键修复】使用基础币种查询）
+                    cache_symbol = self._extract_base_currency(symbol)  # ETH_USDC_PERP -> ETH
+                    final_df = await self.data_manager.fetch_recent_data(cache_symbol, interval="1m", limit=limit)
+                    logger.info(f"✅ [数据预加载] {symbol} 缓存验证 ({cache_symbol}_1m_live): 共{len(final_df)}条数据")
                     
                     if len(final_df) < 50:
                         logger.warning(f"⚠️ [数据预加载] {symbol} 数据量不足({len(final_df)}条)，AI策略可能无法正常工作!")
@@ -1625,17 +1662,18 @@ class LiveTradingEngine:
                 
             logger.info(f"📊 收到K线数据: {symbol} - 时间: {data.get('t')}, 收盘价: {data.get('c')}")
             
-            # 将K线数据保存到数据管理器
-            await self.data_manager.add_kline_data(symbol=symbol, data=data)
+            # 【关键修复】使用基础币种作为缓存键，与预加载保持一致
+            cache_symbol = self._extract_base_currency(symbol)  # ETH-USDT-SWAP -> ETH
+            await self.data_manager.add_kline_data(symbol=cache_symbol, data=data, interval="1m")
             
-            # 获取最新的15分钟K线数据
+            # 获取最新的1分钟K线数据（日内交易模式）
             df = await self.data_manager.fetch_recent_data(
-                symbol=symbol,
-                interval="15m",
-                limit=1000 # 增加限制，确保AI策略能看到完整的预加载数据
+                symbol=cache_symbol,  # 使用基础币种查询
+                interval="1m",  # 【关键修复】改为1分钟，与订阅周期一致
+                limit=1000  # 保持最新1000根1分钟K线
             )
             
-            logger.info(f"📊 [K线处理] {symbol} 缓存数据量: {len(df)}条")
+            logger.info(f"📊 [K线处理] {symbol} 缓存数据量 ({cache_symbol}_1m_live): {len(df)}条")
             
             if df.empty:
                 logger.warning(f"⚠️ [K线处理] {symbol} K线数据为空，跳过信号生成")
@@ -1647,99 +1685,13 @@ class LiveTradingEngine:
                 latest_close = df['close'].iloc[-1]
                 logger.info(f"📈 [K线处理] {symbol} 最新K线: 时间={latest_time}, 收盘价={latest_close:.2f}")
             
-            # 【问题1修复】保证金比例控制逻辑
-            try:
-                # 【修复】使用缓存获取余额，减少API调用频率
-                balance = await self.get_balance_cached()
-                account_capital = 0.0
-                
-                # 添加调试日志
-                logger.debug(f"获取到的余额数据: {balance}")
-                
-                # 【修复】累加所有稳定币余额（USDC + USDT）
-                for b in balance:
-                    asset = b.get('asset') or b.get('currency') or b.get('symbol', '')
-                    if asset.upper() in ['USDC', 'USDT']:
-                        # 尝试多种可能的字段名
-                        available = b.get('available') or b.get('availableBalance') or b.get('free') or b.get('availableBalance') or 0
-                        # 如果是字符串，转换为浮点数
-                        if isinstance(available, str):
-                            try:
-                                available = float(available)
-                            except:
-                                available = 0
-                        account_capital += float(available)  # 累加，不是break
-                        logger.info(f"找到 {asset} 余额: {float(available):.2f}")
-                
-                logger.info(f"💰 总账户余额 (USDC+USDT): {account_capital:.2f}")
-                
-                if account_capital <= 0:
-                    logger.warning(f"账户余额不足 (余额={account_capital:.2f})，跳过信号生成。余额数据: {balance}")
-                    return
-                
-                # 计算当前已占用保证金
-                total_margin_used = 0.0
-                async with self.position_lock:
-                    for pos in self.positions.values():
-                        # 【修复】使用开仓时的实际保证金，而不是持仓价值/杠杆
-                        # 保证金 = 开仓价格 × 数量 / 杠杆
-                        margin = float(pos.entry_price) * float(pos.quantity) / config.trading.LEVERAGE
-                        total_margin_used += margin
-                        logger.debug(f"📊 {pos.symbol} 入场价: ${pos.entry_price:.2f}, 数量: {pos.quantity}, 保证金=${margin:.4f}")
-                
-                # 检查是否有未成交订单
-                async with self.order_lock:
-                    pending_orders = [o for o in self.orders.values() 
-                                    if o.symbol == symbol and o.status in [OrderStatus.OPEN, OrderStatus.PENDING]]
-                    if pending_orders:
-                        logger.warning(f"⚠️ {symbol} 已有 {len(pending_orders)} 个未成交订单，跳过信号生成")
-                        return
-                
-                # 检查保证金占比是否超过10%上限
-                max_margin_allowed = account_capital * 0.10  # 10%上限
-                margin_ratio = total_margin_used / account_capital if account_capital > 0 else 0
-                
-                # 【关键修复】使用策略配置的保证金，而不是硬编码3%
-                # AI策略: 使用config中的margin参数（Dashboard传入的绝对值）
-                # 其他策略: 使用params.position_size（可能是比例或绝对值）
-                signal_margin_needed = account_capital * 0.03  # 默认3%（向后兼容）
-                
-                # 尝试从策略中获取配置的保证金
-                if symbol in self.strategies:
-                    strategy = self.strategies[symbol]
-                    # AI策略使用margin属性
-                    if hasattr(strategy, 'margin'):
-                        signal_margin_needed = float(strategy.margin)
-                        logger.debug(f"💰 使用AI策略配置的保证金: ${signal_margin_needed:.2f}")
-                    # 其他策略使用params.position_size
-                    elif hasattr(strategy, 'params') and hasattr(strategy.params, 'position_size'):
-                        position_size = float(strategy.params.position_size)
-                        # 判断是比例还是绝对值（<1视为比例）
-                        if position_size < 1:
-                            signal_margin_needed = account_capital * position_size
-                            logger.debug(f"💰 使用策略配置的保证金比例: {position_size*100:.1f}% = ${signal_margin_needed:.2f}")
-                        else:
-                            signal_margin_needed = position_size
-                            logger.debug(f"💰 使用策略配置的保证金绝对值: ${signal_margin_needed:.2f}")
-                
-                logger.info(f"💰 本次信号预计使用保证金: ${signal_margin_needed:.2f}")
-                
-                # 如果已有持仓，检查加上本次保证金是否超过上限
-                if total_margin_used > 0:
-                    total_after_order = total_margin_used + signal_margin_needed
-                    if total_after_order > max_margin_allowed:
-                        logger.warning(f"⚠️ {symbol} 保证金将超过上限: 当前=${total_margin_used:.2f}, 本次=${signal_margin_needed:.2f}, 总计=${total_after_order:.2f}, 上限=${max_margin_allowed:.2f} (10%)")
-                        return
-                elif signal_margin_needed > max_margin_allowed:
-                    # 即使没有持仓，单次保证金也不能超过10%
-                    logger.warning(f"⚠️ {symbol} 单次保证金超过上限: 需要=${signal_margin_needed:.2f}, 上限=${max_margin_allowed:.2f} (10%)")
-                    return
-                
-                logger.info(f"📊 保证金检查通过: 当前占用=${total_margin_used:.2f} ({margin_ratio*100:.2f}%), 本次需要=${signal_margin_needed:.2f}, 上限=${max_margin_allowed:.2f} (10%)")
-                
-            except Exception as e:
-                logger.error(f"检查保证金限制失败: {e}", exc_info=True)
-                return  # 出错时跳过信号生成，避免风险
+            # 【关键修复】移除K线处理时的余额和保证金检查
+            # 原因：
+            # 1. 每次K线推送（每分钟）都检查余额，过于频繁，浪费API调用
+            # 2. place_order中已经有完善的风控检查（包括余额、保证金、持仓限制）
+            # 3. 在下单时才检查更合理，不需要提前检查
+            # 
+            # 如果需要定期检查余额，可以在启动时检查一次，或者设置10分钟以上的缓存时间
                 
             # 计算技术指标
             logger.info(f"📊 [K线处理] 开始计算 {symbol} 技术指标，数据量: {len(df)}")

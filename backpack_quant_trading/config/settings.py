@@ -54,10 +54,10 @@ class DatabaseConfig:
 @dataclass
 class TradingConfig:
     """交易配置"""
-    MAX_POSITION_SIZE:float=0.1 #单笔最大仓位比例
-    MAX_DAILY_LOSS:float=0.5 #单日最大亏损
-    MAX_DRAWDOWN:float=0.15 #最大回撤
-    ENABLE_STOP_LOSS:bool=True #是否启用止损
+    MAX_POSITION_SIZE: float = 0.5  # 单笔最大仓位比例（修改为50%）
+    MAX_DAILY_LOSS: float = 0.5  # 单日最大亏损
+    MAX_DRAWDOWN: float = 0.15  # 最大回撤
+    ENABLE_STOP_LOSS: bool = True  # 是否启用止损
     STOP_LOSS_PERCENT:float=0.05 # 单个订单亏损达到 5% 时，自动卖出止损 (Ostium 默认)
     TAKE_PROFIT_PERCENT:float=0.20 # 单个订单盈利达到 20% 时，自动止盈卖出 (Ostium 默认)
     RISK_FREE_RATE:float=0.02  #无风险利率 -->年化2%

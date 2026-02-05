@@ -115,14 +115,28 @@ class GridTradingStrategy:
         self._monitor_task: Optional[asyncio.Task] = None
         
         # 冷却追踪：避免同一档位在短时间内反复开平
-        # grid_id -> last_action_time
         self._grid_cooldown: Dict[int, float] = {}
+        # --- 【新增】429 频率限制保护 ---
+        self._429_cooldown_until = 0.0
         
         # 统计数据
         self.total_trades = 0
-        self.total_profit = 0.0
+        self.total_profit = 0.0  # 【增强】累计已实现利润（平仓时更新）
         self.buy_count = 0
         self.sell_count = 0
+        self.total_fees = 0.0  # 【新增】累计手续费
+        self.unrealized_pnl = 0.0  # 【新增】未实现盈亏（估算）
+        self.peak_profit = 0.0  # 【新增】峰值利润（用于回撤计算）
+        self.max_drawdown = 0.0  # 【新增】最大回撤
+        
+        # 【新增】边界保护参数
+        self.stop_loss_pct = 0.50  # 总亏损超过 50% 触发停止
+        self.max_position_size = 0  # 最大持仓价值限制（启动时动态计算为余额的 20%）
+        self.max_position_pct = 0.20  # 持仓占余额比例上限 20%
+        self.current_position_value = 0.0  # 当前持仓总价值
+        self.daily_loss_limit = investment_per_grid * grid_count * 0.30  # 日内最大亏损 30%
+        self.daily_realized_pnl = 0.0  # 当日已实现盈亏
+        self.last_reset_date = datetime.now().date()  # 日盈亏重置日期
         
         # 策略层缓存：Subgraph 返回空时用 pair_id 尝试平仓，避免「平仓不了」
         self._cached_pair_id: Optional[int] = None
@@ -196,14 +210,24 @@ class GridTradingStrategy:
                     usdc_balance = balance.get('USDC', 0)
                     logger.info(f"💰 账户余额: {usdc_balance:.2f} USDC")
                     
+                    # 【修复】动态计算持仓上限为余额的 20%
+                    self.max_position_size = usdc_balance * self.max_position_pct
+                    logger.info(f"📊 持仓价值上限设置为余额的 {self.max_position_pct*100:.0f}%: ${self.max_position_size:.2f}")
+                    
                     # 计算总投资需求
                     total_investment = self.investment_per_grid * self.grid_count
                     if usdc_balance < total_investment:
                         logger.warning(f"⚠️ 余额可能不足: 需要 {total_investment:.2f} USDC, 当前 {usdc_balance:.2f} USDC")
                 else:
                     logger.warning(f"⚠️ 余额返回格式异常: {type(balance)}, 跳过余额检查")
+                    # 兜底：如果无法获取余额，使用保守估算
+                    self.max_position_size = self.investment_per_grid * self.grid_count * 2
+                    logger.info(f"📊 持仓价值上限（估算）: ${self.max_position_size:.2f}")
         except Exception as e:
-            logger.warning(f"⚠️ 查询余额失败: {e}，继续执行...")
+            logger.warning(f"⚠️ 查询余额失败: {e}，使用保守持仓上限...")
+            # 兜底：使用保守估算
+            self.max_position_size = self.investment_per_grid * self.grid_count * 2
+            logger.info(f"📊 持仓价值上限（估算）: ${self.max_position_size:.2f}")
         
         # 连接 WebSocket 并订阅价格（完全参考实盘）
         ws_connected = False
@@ -379,9 +403,31 @@ class GridTradingStrategy:
     async def _place_grid_order(self, grid: GridLevel):
         """下网格订单。增加 429 限频处理与挂单间隔。"""
         try:
-            # 【边界保护】对于 long_only 模式，绝不允许在当前价格上方挂买单
+            # 【边界保护 1】检查日内亏损限制
+            await self._check_daily_loss_limit()
+            
+            # 【边界保护 2】检查总亏损限制
+            if not await self._check_total_loss_limit():
+                logger.error(f"⚠️ 【边界保护】总亏损超限，拒绝开仓")
+                grid.status = "error"
+                return
+            
+            # 【边界保护 3】检查持仓价值限制
+            estimated_value = grid.quantity * grid.price
+            if self.max_position_size > 0 and self.current_position_value + estimated_value > self.max_position_size:
+                logger.warning(f"⚠️ 【边界保护】持仓价值将超限 (当前 ${self.current_position_value:.2f} + 本次 ${estimated_value:.2f} > 上限 ${self.max_position_size:.2f})，跳过该档位")
+                grid.status = "idle"
+                return
+            
+            # 【边界保护 4】对于 long_only 模式，绝不允许在当前价格上方挂买单
             if self.grid_mode == "long_only" and grid.side == "buy" and grid.price > self.current_price:
                 logger.debug(f"【网格】跳过价格上方的买单: ${grid.price:.2f} (当前 ${self.current_price:.2f})")
+                grid.status = "idle"
+                return
+            
+            # 【边界保护 5】对于 short_only 模式，绝不允许在当前价格下方挂卖单
+            if self.grid_mode == "short_only" and grid.side == "sell" and grid.price < self.current_price:
+                logger.debug(f"【网格】跳过价格下方的卖单: ${grid.price:.2f} (当前 ${self.current_price:.2f})")
                 grid.status = "idle"
                 return
 
@@ -505,6 +551,12 @@ class GridTradingStrategy:
         
         while self.running:
             try:
+                # --- 【新增】429 频率限制熔断 ---
+                now = time.time()
+                if now < self._429_cooldown_until:
+                    await asyncio.sleep(5)
+                    continue
+                # ----------------------------
                 if use_websocket:
                     # WebSocket 模式
                     if not self.ws_client._is_connected():
@@ -595,6 +647,11 @@ class GridTradingStrategy:
                         f_px = float(order.get('price') or 0) if order else None
                         await self._handle_filled_order(grid, fill_price=f_px)
                 except Exception as e:
+                    err_msg = str(e)
+                    if "429" in err_msg:
+                        logger.warning(f"⚠️ [网格] 触发 Backpack 频率限制 (429)，熔断 60 秒...")
+                        self._429_cooldown_until = time.time() + 60
+                        break # 退出当前检查，进入大循环冷却
                     logger.debug(f"检查开多/开空单 {grid.order_id} 失败: {e}")
 
         # 3. 处理【平仓单】的成交 -> 补回原开仓档位
@@ -628,6 +685,9 @@ class GridTradingStrategy:
                     if now - self._grid_cooldown.get(id(open_grid), 0) < 5: continue
                     self._grid_cooldown[id(open_grid)] = now
                     
+                    # 【新增】计算并统计利润
+                    await self._calculate_and_record_profit(info, order)
+                    
                     logger.warning(f"【网格】✅ 平仓成交: 档位 ${open_grid.price:.2f} 循环完成，准备补单")
                     open_grid.status = "idle" # 标记为 idle，由 Part 4 补单
                     open_grid.order_id = None
@@ -660,8 +720,8 @@ class GridTradingStrategy:
                     self._grid_cooldown[id(grid)] = now
                     await self._place_grid_order(grid)
     
-    async def _place_closing_order(self, price: float, side: str, quantity: float) -> Optional[str]:
-        """挂一笔限价平仓单，增加 429 容错与防重检查"""
+    async def _place_closing_order(self, price: float, side: str, quantity: float, open_price: Optional[float] = None) -> Optional[str]:
+        """挂一笔限价平仓单，增加 429 容错与防重检查。记录开仓价格用于后续利润计算。"""
         if not hasattr(self.api_client, 'execute_order'):
             return None
         try:
@@ -726,13 +786,18 @@ class GridTradingStrategy:
             grid.filled_time = datetime.now()
             self.total_trades += 1
             base = grid.price
+        
+        # 【新增】更新持仓价值
+        position_value = grid.quantity * base
+        self.current_position_value += position_value
+        logger.info(f"📊 【持仓统计】开仓 ${position_value:.2f}，总持仓: ${self.current_position_value:.2f}")
 
         if grid.side == "buy":
             self.buy_count += 1
             close_price = round(base + self.grid_spacing, self._px_precision)
             logger.warning(f"【网格】✅ 开多成交: ${grid.price:.2f} -> 挂平多单 @ ${close_price:.2f}")
-            oid = await self._place_closing_order(close_price, "SELL", grid.quantity)
-            info = {"open_grid": grid, "side": "buy", "_ts": time.time()}
+            oid = await self._place_closing_order(close_price, "SELL", grid.quantity, open_price=base)
+            info = {"open_grid": grid, "side": "buy", "_ts": time.time(), "open_price": base}
             if oid:
                 self._closing_orders[str(oid)] = info
             else:
@@ -741,8 +806,8 @@ class GridTradingStrategy:
             self.sell_count += 1
             close_price = round(base - self.grid_spacing, self._px_precision)
             logger.warning(f"【网格】✅ 开空成交: ${grid.price:.2f} -> 挂平空单 @ ${close_price:.2f}")
-            oid = await self._place_closing_order(close_price, "BUY", grid.quantity)
-            info = {"open_grid": grid, "side": "sell", "_ts": time.time()}
+            oid = await self._place_closing_order(close_price, "BUY", grid.quantity, open_price=base)
+            info = {"open_grid": grid, "side": "sell", "_ts": time.time(), "open_price": base}
             if oid:
                 self._closing_orders[str(oid)] = info
             else:
@@ -822,8 +887,93 @@ class GridTradingStrategy:
         
         logger.info(f"✅ 共取消 {cancelled_count} 个订单")
     
+    # ==================== 【新增】边界保护方法 ====================
+    
+    async def _check_daily_loss_limit(self):
+        """检查并重置日内亏损限制"""
+        today = datetime.now().date()
+        if today != self.last_reset_date:
+            self.daily_realized_pnl = 0.0
+            self.last_reset_date = today
+            logger.info(f"📅 日内盈亏已重置，新的一天开始: {today}")
+        
+        if self.daily_realized_pnl < -self.daily_loss_limit:
+            logger.error(f"⚠️ 【边界保护】日内亏损超限: ${self.daily_realized_pnl:.2f} < -${self.daily_loss_limit:.2f}，正在停止策略...")
+            await self.stop()
+    
+    async def _check_total_loss_limit(self) -> bool:
+        """检查总亏损是否超限"""
+        total_investment = self.investment_per_grid * self.grid_count
+        loss_threshold = total_investment * self.stop_loss_pct
+        
+        if self.total_profit < -loss_threshold:
+            logger.error(f"⚠️ 【边界保护】总亏损超限: ${self.total_profit:.2f} < -${loss_threshold:.2f} (投资 ${total_investment:.2f} 的 {self.stop_loss_pct*100:.0f}%)")
+            await self.stop()
+            return False
+        return True
+    
+    async def _calculate_and_record_profit(self, close_info: dict, order_data: dict = None):
+        """平仓后计算并记录利润，更新统计数据"""
+        open_grid = close_info.get("open_grid")
+        if not open_grid:
+            return
+        
+        open_price = close_info.get("open_price") or open_grid.price
+        open_side = close_info.get("side")  # 'buy' 或 'sell'
+        
+        # 尝试从订单数据获取平仓价格
+        close_price = None
+        if order_data and isinstance(order_data, dict):
+            close_price = float(order_data.get('price') or order_data.get('avgPrice') or 0)
+        
+        # 如果没有平仓价，使用理论平仓价（根据网格间距计算）
+        if not close_price or close_price == 0:
+            if open_side == "buy":
+                close_price = open_price + self.grid_spacing
+            else:
+                close_price = open_price - self.grid_spacing
+        
+        # 计算利润
+        if open_side == "buy":
+            # 多单: 平仓价 - 开仓价
+            profit = (close_price - open_price) * open_grid.quantity
+        else:
+            # 空单: 开仓价 - 平仓价
+            profit = (open_price - close_price) * open_grid.quantity
+        
+        # 计算手续费（假设 0.04% 的 taker 费率）
+        fee_rate = 0.0004
+        open_fee = open_price * open_grid.quantity * fee_rate
+        close_fee = close_price * open_grid.quantity * fee_rate
+        total_fee = open_fee + close_fee
+        
+        # 净利润 = 毛利 - 手续费
+        net_profit = profit - total_fee
+        
+        # 更新统计
+        self.total_profit += net_profit
+        self.total_fees += total_fee
+        self.daily_realized_pnl += net_profit
+        
+        # 更新持仓价值
+        position_value = open_grid.quantity * open_price
+        self.current_position_value = max(0, self.current_position_value - position_value)
+        
+        # 更新峰值和回撤
+        if self.total_profit > self.peak_profit:
+            self.peak_profit = self.total_profit
+        drawdown = self.peak_profit - self.total_profit
+        if drawdown > self.max_drawdown:
+            self.max_drawdown = drawdown
+        
+        logger.info(f"💰 【盈亏统计】平仓: {open_side.upper()} 开${open_price:.2f} 平${close_price:.2f} | "
+                   f"单笔毛利: ${profit:.2f} | 手续费: ${total_fee:.2f} | 净利: ${net_profit:.2f}")
+        logger.info(f"📊 【累计统计】总盈亏: ${self.total_profit:.2f} | 总手续费: ${self.total_fees:.2f} | "
+                   f"峰值: ${self.peak_profit:.2f} | 最大回撤: ${self.max_drawdown:.2f} | 持仓: ${self.current_position_value:.2f}")
+        logger.info(f"📅 【日内统计】已实现盈亏: ${self.daily_realized_pnl:.2f} / 限制: ${self.daily_loss_limit:.2f}")
+    
     def get_status(self) -> Dict:
-        """获取运行状态"""
+        """获取运行状态（增强版，包含详细盈亏统计）"""
         pending_orders = sum(1 for g in self.grid_levels if g.status == "pending")
         filled_orders = sum(1 for g in self.grid_levels if g.status == "filled")
         
@@ -836,7 +986,18 @@ class GridTradingStrategy:
             'sell_count': self.sell_count,
             'pending_orders': pending_orders,
             'filled_orders': filled_orders,
-            'grid_levels': len(self.grid_levels)
+            'grid_levels': len(self.grid_levels),
+            # 【新增】详细统计
+            'total_fees': self.total_fees,
+            'unrealized_pnl': self.unrealized_pnl,
+            'peak_profit': self.peak_profit,
+            'max_drawdown': self.max_drawdown,
+            'current_position_value': self.current_position_value,
+            'daily_realized_pnl': self.daily_realized_pnl,
+            'daily_loss_limit': self.daily_loss_limit,
+            'max_position_size': self.max_position_size,
+            'net_profit': self.total_profit - self.total_fees,
+            'win_rate': (self.total_profit / (self.total_trades * self.grid_spacing * self.investment_per_grid / self.current_price) if self.total_trades > 0 else 0)
         }
     
     def get_grid_levels_df(self) -> pd.DataFrame:

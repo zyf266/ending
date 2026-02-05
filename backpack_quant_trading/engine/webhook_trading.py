@@ -70,7 +70,7 @@ class WebhookTradingEngine:
         # 时区与休市
         self.beijing_tz = pytz.timezone('Asia/Shanghai')
         
-        # 从环境变量读取休市时间 (小时列表，如 "3,4,5,6,7,11,12,19,20")
+        # 从环境变量读取休市时间 (小时列表，如 "3,4,5,6,7,13,14,19,20")
         env_forbidden = os.getenv("OSTIUM_FORBIDDEN_HOURS")
         if env_forbidden:
             try:
@@ -78,9 +78,9 @@ class WebhookTradingEngine:
                 logger.info(f"使用自定义休市时间: {self.forbidden_hours}")
             except Exception as e:
                 logger.error(f"解析 OSTIUM_FORBIDDEN_HOURS 失败: {e}")
-                self.forbidden_hours = [3, 4, 5, 6, 7, 11, 12, 19, 20] # 默认
+                self.forbidden_hours = [3, 4, 5, 6, 7, 13, 14, 19, 20] # 默认
         else:
-            self.forbidden_hours = [3, 4, 5, 6, 7, 11, 12, 19, 20] # 默认
+            self.forbidden_hours = [3, 4, 5, 6, 7, 13, 14, 19, 20] # 默认
     
     async def initialize(self):
         """异步初始化：同步持仓状态"""
