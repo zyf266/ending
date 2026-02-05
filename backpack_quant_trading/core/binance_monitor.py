@@ -19,10 +19,13 @@ from backpack_quant_trading.config.settings import config
 logger = logging.getLogger(__name__)
 
 # 币安 REST API
-BINANCE_API_BASE = "https://api.binance.com"
+# 【修复】改用合约 API，获取更多币种（包括 1000SHIB、PEPE 等）
+BINANCE_API_BASE = "https://fapi.binance.com"  # 合约 API
+# BINANCE_API_BASE = "https://api.binance.com"  # 现货 API（已弃用）
 
 # K线级别映射：页面选项 -> 币安 interval
 TIMEFRAME_MAP = {
+    "1小时": "1h",
     "2小时": "2h",
     "4小时": "4h",
     "天": "1d",
@@ -36,13 +39,14 @@ DEFAULT_ETH_RATIO = 1.5
 
 def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Optional[List[Dict]]:
     """
-    从币安获取K线数据。
-    symbol: 如 ETHUSDT, BTCUSDT
+    从币安获取K线数据（永续合约）。
+    symbol: 如 ETHUSDT, BTCUSDT, 1000SHIBUSDT
     interval: 如 2h, 4h, 1d, 1w
     返回: [{"open_time": ts, "open": float, "high": float, "low": float, "close": float, ...}, ...]
     """
     try:
-        url = f"{BINANCE_API_BASE}/api/v3/klines"
+        # 【修复】使用合约 API 的 klines endpoint
+        url = f"{BINANCE_API_BASE}/fapi/v1/klines"
         params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
         resp = requests.get(url, params=params, timeout=15)
         resp.raise_for_status()
@@ -71,30 +75,33 @@ SYMBOLS_CACHE_TTL_SEC = 3600  # 缓存 1 小时，交易所上新不频繁
 
 
 def fetch_binance_symbols_usdt() -> List[str]:
-    """获取币安所有 USDT 交易对列表（带缓存，默认 1 小时内复用）"""
+    """获取币安所有 USDT 永续合约交易对列表（带缓存，默认 1 小时内复用）"""
     global _SYMBOLS_CACHE, _SYMBOLS_CACHE_TIME
     now = time.time()
     if _SYMBOLS_CACHE is not None and (now - _SYMBOLS_CACHE_TIME) < SYMBOLS_CACHE_TTL_SEC:
         return _SYMBOLS_CACHE
     try:
-        url = f"{BINANCE_API_BASE}/api/v3/exchangeInfo"
+        # 【修复】使用合约 API 的 exchangeInfo endpoint
+        url = f"{BINANCE_API_BASE}/fapi/v1/exchangeInfo"
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         symbols = []
         for s in data.get("symbols", []):
-            if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
+            # 合约市场：筛选 USDT 永续合约 (contractType=PERPETUAL)
+            if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING" and s.get("contractType") == "PERPETUAL":
                 symbols.append(s["symbol"])
         result = sorted(symbols)
         _SYMBOLS_CACHE = result
         _SYMBOLS_CACHE_TIME = now
-        logger.debug(f"币种列表已缓存，共 {len(result)} 个 USDT 交易对")
+        logger.info(f"币种列表已缓存，共 {len(result)} 个 USDT 永续合约")
         return result
     except Exception as e:
         logger.error(f"获取币安交易对失败: {e}")
         if _SYMBOLS_CACHE is not None:
             return _SYMBOLS_CACHE
-        return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"]
+        # 兜底：返回常用合约交易对
+        return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "1000SHIBUSDT", "1000PEPEUSDT", "DOGEUSDT"]
 
 
 def macd(close_prices: List[float], fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[List[float], List[float]]:

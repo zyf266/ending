@@ -1133,6 +1133,7 @@ def render_currency_monitor_layout():
                     dcc.Checklist(
                         id='currency-monitor-timeframes',
                         options=[
+                            {'label': ' 1小时', 'value': '1小时'},
                             {'label': ' 2小时', 'value': '2小时'},
                             {'label': ' 4小时', 'value': '4小时'},
                             {'label': ' 天', 'value': '天'},
@@ -1386,15 +1387,35 @@ def currency_monitor_refresh_pool(n, n_test, pathname, start_clicks, running, sy
     alerted = list(alerted_data) if alerted_data else []
     mon = get_monitor_instance()
 
-    # 模拟测试：点击后加入异动、发钉钉、变红 10 分钟
+    # 模拟测试：点击后加入异动、发钉钉、变红10分钟
     ctx = dash.callback_context
     if ctx.triggered and 'currency-monitor-test-btn' in ctx.triggered[0].get('prop_id', ''):
-        if mon and (n_test or 0) > 0:
-            mon.add_alerted_for_test(symbols or [], timeframes or [])
-            for s in (symbols or []):
-                for t in (timeframes or []):
-                    send_dingtalk_alert(str(s), str(t), "【模拟测试】品种涨幅强于ETH且满足连阳")
-
+        if (n_test or 0) > 0:
+            # 【修复】即使监视器未启动，也能发送测试消息
+            test_symbols = symbols or []
+            test_timeframes = timeframes or []
+                
+            if not test_symbols:
+                logger.warning("模拟测试失败：未选择币种")
+            elif not test_timeframes:
+                logger.warning("模拟测试失败：未选择K线级别")
+            else:
+                # 如果监视器已启动，加入异动列表
+                if mon:
+                    mon.add_alerted_for_test(test_symbols, test_timeframes)
+                    
+                # 发送钉钉测试消息
+                for s in test_symbols:
+                    for t in test_timeframes:
+                        try:
+                            success = send_dingtalk_alert(str(s), str(t), "【模拟测试】品种涨幅强于ETH且满足连阳")
+                            if success:
+                                logger.info(f"✅ 模拟测试成功：{s} {t} 钉钉消息已发送")
+                            else:
+                                logger.warning(f"⚠️ 模拟测试失败：{s} {t} 钉钉消息发送失败（请检查 DINGTALK_TOKEN）")
+                        except Exception as e:
+                            logger.error(f"❌ 模拟测试异常：{s} {t} - {e}")
+    
     if mon:
         alerted_pairs = mon.get_alerted_pairs()
         alerted = [f"{s}|{t}" for (s, t) in alerted_pairs]
@@ -2982,7 +3003,7 @@ def render_grid_trading_layout():
                                 {'label': ' 系统默认', 'value': 'default'},
                                 {'label': ' 手动输入', 'value': 'manual'}
                             ],
-                            value='default',
+                            value='manual',  # 【修复】默认使用手动输入模式，优先级最高
                             labelStyle={'display': 'inline-block', 'marginRight': '20px', 'fontSize': '14px'},
                             style={'paddingTop': '10px'}
                         )
@@ -3435,7 +3456,7 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
     trigger_id = prop_id.split('.')[0]
 
     def _filter_by_user(grids_dict):
-        """仅显示当前用户的网格"""
+        """仅显示当前用户启动的网格"""
         if not user_id:
             return {}
         my_ids = set(db_manager.get_user_instance_ids(user_id, 'grid'))
@@ -3460,27 +3481,36 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
     all_grids = _filter_by_user(all_grids_raw)
 
     def _create_api_client():
+        """【页面输入优先】若页面有填写密钥则使用页面输入，否则才回退到系统配置"""
+        _ak = (api_key or '').strip() if api_key else ''
+        _sk = (secret_key or '').strip() if secret_key else ''
+        _pp = (passphrase or '').strip() if passphrase else ''
+        _pk = (private_key or '').strip() if private_key else ''
         if exchange == 'backpack':
             from backpack_quant_trading.core.api_client import BackpackAPIClient
+            # Backpack 的 API Key/Secret 实为 ED25519 公钥/私钥，页面输入优先
             return BackpackAPIClient(
-                access_key=api_key if auth_mode == 'manual' else config.backpack.ACCESS_KEY,
-                refresh_key=secret_key if auth_mode == 'manual' else config.backpack.REFRESH_KEY
+                access_key=_ak if _ak else config.backpack.ACCESS_KEY,
+                refresh_key=_sk if _sk else config.backpack.REFRESH_KEY,
+                use_cookie_only=False,
+                ed25519_public_key=_ak if _ak else None,
+                ed25519_private_key=_sk if _sk else None
             )
         elif exchange == 'deepcoin':
             from backpack_quant_trading.core.deepcoin_client import DeepcoinAPIClient
             return DeepcoinAPIClient(
-                api_key=api_key if auth_mode == 'manual' else config.deepcoin.API_KEY,
-                secret_key=secret_key if auth_mode == 'manual' else config.deepcoin.SECRET_KEY,
-                passphrase=passphrase if auth_mode == 'manual' else config.deepcoin.PASSPHRASE
+                api_key=_ak if _ak else config.deepcoin.API_KEY,
+                secret_key=_sk if _sk else config.deepcoin.SECRET_KEY,
+                passphrase=_pp if _pp else config.deepcoin.PASSPHRASE
             )
         elif exchange == 'ostium':
             from backpack_quant_trading.core.ostium_client import OstiumAPIClient
-            return OstiumAPIClient(private_key=private_key if auth_mode == 'manual' else config.ostium.PRIVATE_KEY)
+            return OstiumAPIClient(private_key=_pk if _pk else config.ostium.PRIVATE_KEY)
         elif exchange in ('hyper', 'hip3', 'hip3_testnet'):
             from backpack_quant_trading.core.hyperliquid_client import HyperliquidAPIClient
             base = "https://api.hyperliquid-testnet.xyz" if exchange == 'hip3_testnet' else "https://api.hyperliquid.xyz"
-            pk = private_key if auth_mode == 'manual' else (getattr(config.hyperliquid, 'PRIVATE_KEY', '') if hasattr(config, 'hyperliquid') else '')
-            return HyperliquidAPIClient(private_key=pk or None, base_url=base)
+            cfg_pk = getattr(config.hyperliquid, 'PRIVATE_KEY', '') if hasattr(config, 'hyperliquid') else ''
+            return HyperliquidAPIClient(private_key=(_pk if _pk else cfg_pk) or None, base_url=base)
         raise ValueError(f"不支持的交易所: {exchange}")
 
     def _add_one(mode):

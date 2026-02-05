@@ -87,7 +87,13 @@ class ExchangeClient(Protocol):
 class BackpackAPIClient:
     """Backpack Exchange API 客户端"""
 
-    def __init__(self, access_key: str = None, refresh_key: str = None, public_only: bool = False):
+    def __init__(self, access_key: str = None, refresh_key: str = None, public_only: bool = False,
+                 use_cookie_only: bool = False, ed25519_public_key: str = None, ed25519_private_key: str = None):
+        """
+        use_cookie_only: 为 True 时仅使用 Access Key/Refresh Key（Cookie 认证）。
+        ed25519_public_key / ed25519_private_key: 页面输入的 Backpack API Key 和 API Secret，
+        即 ED25519 公钥和私钥（base64），优先级高于系统配置。
+        """
         self.base_url = config.backpack.API_BASE_URL
         self.public_only = public_only  # 标记：是否仅用于公共接口
         
@@ -99,29 +105,40 @@ class BackpackAPIClient:
             self.access_key = None
             self.refresh_key = None
         
-        # ED25519密钥认证（可选）
+        # ED25519密钥认证：优先使用页面传入的，否则使用系统配置（use_cookie_only 时跳过 config）
         self.private_key = None
         self.public_key = None
         self.ed25519_key = None
         
-        if not public_only:
-            private_key_b64 = config.backpack.PRIVATE_KEY
-            public_key_b64 = config.backpack.PUBLIC_KEY
-            
-            if private_key_b64 and public_key_b64:
+        if not public_only and not use_cookie_only:
+            # 1. 优先使用页面传入的 ED25519 密钥（Backpack API Key = 公钥, API Secret = 私钥/seed）
+            pub_b64 = (ed25519_public_key or '').strip() if ed25519_public_key else ''
+            priv_b64 = (ed25519_private_key or '').strip() if ed25519_private_key else ''
+            if pub_b64 and priv_b64:
                 try:
-                    self.private_key = base64.b64decode(private_key_b64)
-                    self.public_key = base64.b64decode(public_key_b64)
-                    self.ed25519_key = ed25519.Ed25519PrivateKey.from_private_bytes(
-                        self.private_key
-                    )
-                    logger.info("ED25519密钥已加载，将使用密钥认证")
+                    self.public_key = base64.b64decode(pub_b64)
+                    self.private_key = base64.b64decode(priv_b64)
+                    self.ed25519_key = ed25519.Ed25519PrivateKey.from_private_bytes(self.private_key)
+                    logger.info("ED25519密钥已从页面输入加载，将使用密钥认证")
                 except Exception as e:
-                    logger.warning(f"ED25519密钥加载失败，将使用Cookie认证: {e}")
-            else:
+                    logger.warning(f"页面输入的ED25519密钥解析失败: {e}，尝试使用系统配置")
+                    pub_b64 = priv_b64 = ''
+            # 2. 回退到系统配置
+            if not self.ed25519_key:
+                private_key_b64 = config.backpack.PRIVATE_KEY
+                public_key_b64 = config.backpack.PUBLIC_KEY
+                if private_key_b64 and public_key_b64:
+                    try:
+                        self.private_key = base64.b64decode(private_key_b64)
+                        self.public_key = base64.b64decode(public_key_b64)
+                        self.ed25519_key = ed25519.Ed25519PrivateKey.from_private_bytes(self.private_key)
+                        logger.info("ED25519密钥已从系统配置加载")
+                    except Exception as e:
+                        logger.warning(f"ED25519密钥加载失败: {e}，将使用Cookie认证")
+            if not self.ed25519_key:
                 logger.info("未配置ED25519密钥，将使用Cookie认证")
         else:
-            logger.info("🔓 Backpack客户端初始化为公共模式（仅获取行情）")
+            logger.info("🔓 Backpack客户端初始化为公共模式（仅获取行情）" if public_only else "使用Cookie认证")
         
         self.session = requests.Session()
         self._markets_cache = None
