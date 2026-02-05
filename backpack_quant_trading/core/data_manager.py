@@ -183,17 +183,26 @@ class DataManager:
                     if isinstance(timestamp_raw, (int, float)):
                         # 时间戳（秒或毫秒）
                         ts_val = int(timestamp_raw)
-                        timestamp = pd.to_datetime(ts_val, unit='ms' if len(str(ts_val)) > 10 else 's')
+                        # 【关键修复】转换为UTC时间，然后转为本地时区
+                        timestamp = pd.to_datetime(ts_val, unit='ms' if len(str(ts_val)) > 10 else 's', utc=True)
+                        timestamp = timestamp.tz_convert('Asia/Shanghai')  # 转为北京时间
+                        timestamp = timestamp.tz_localize(None)  # 移除时区信息，保留本地时间
                     elif isinstance(timestamp_raw, str):
                         # 如果是纯数字字符串
                         if timestamp_raw.isdigit():
                             ts_val = int(timestamp_raw)
-                            timestamp = pd.to_datetime(ts_val, unit='ms' if len(str(ts_val)) > 10 else 's')
+                            timestamp = pd.to_datetime(ts_val, unit='ms' if len(str(ts_val)) > 10 else 's', utc=True)
+                            timestamp = timestamp.tz_convert('Asia/Shanghai')
+                            timestamp = timestamp.tz_localize(None)
                         else:
                             # ISO格式字符串
-                            timestamp = pd.to_datetime(timestamp_raw)
+                            timestamp = pd.to_datetime(timestamp_raw, utc=True)
+                            timestamp = timestamp.tz_convert('Asia/Shanghai')
+                            timestamp = timestamp.tz_localize(None)
                     else: 
-                        timestamp = pd.to_datetime(timestamp_raw)
+                        timestamp = pd.to_datetime(timestamp_raw, utc=True)
+                        timestamp = timestamp.tz_convert('Asia/Shanghai')
+                        timestamp = timestamp.tz_localize(None)
                 except Exception as e:
                     logger.error(f"解析时间戳失败: {timestamp_raw}, 错误: {e}")
                     # 使用当前时间作为后备

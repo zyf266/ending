@@ -160,15 +160,15 @@ class RiskManager:
             # 平仓时，保证金会减少
             total_margin_after = total_margin_used - current_margin
 
-        # 计算最大允许保证金（基于账户资金的5%）
+        # 计算最大允许保证金（基于账户资金的MAX_POSITION_SIZE）
         if account_capital and account_capital > 0:
             max_margin = account_capital * self.trading_config.MAX_POSITION_SIZE
-            logger.debug(f"风控检查: 账户资金={account_capital:.2f}, 最大允许保证金={max_margin:.4f} (5%)")
+            margin_percent = int(self.trading_config.MAX_POSITION_SIZE * 100)
+            logger.debug(f"风控检查: 账户资金={account_capital:.2f}, 最大允许保证金={max_margin:.4f} ({margin_percent}%)")
         else:
-            # # 如果没有账户资金信息，基于本次保证金反推账户资金
-            # estimated_capital = margin_needed / self.trading_config.MAX_POSITION_SIZE if self.trading_config.MAX_POSITION_SIZE > 0 else margin_needed
-            # max_margin = estimated_capital * self.trading_config.MAX_POSITION_SIZE
-            logger.warning(f"风控检查: 未获取到账户资金，请先充值")
+            # 【关键修复】如果没有账户资金信息，设置为无限大（跳过保证金检查）
+            max_margin = float('inf')
+            logger.warning(f"风控检查: 未获取到账户资金，跳过保证金上限检查")
 
         if total_margin_after > max_margin:
             excess = total_margin_after - max_margin

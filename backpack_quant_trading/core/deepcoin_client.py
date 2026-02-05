@@ -203,9 +203,13 @@ class DeepcoinAPIClient:
         params = {"instType": "SWAP", "instId": self._map_symbol(symbol)}
         data = await self._request("GET", "/deepcoin/market/tickers", params=params)
         
+        # 【新增调试日志】记录API返回的原始数据
+        logger.debug(f"🔍 [Deepcoin Ticker] 请求: {symbol} -> {self._map_symbol(symbol)}")
+        logger.debug(f"🔍 [Deepcoin Ticker] API返回: {data}")
+        
         if isinstance(data, list) and len(data) > 0:
             ticker = data[0]
-            return {
+            result = {
                 "symbol": symbol,
                 "lastPrice": ticker.get("last"),
                 "highPrice": ticker.get("high24h"),
@@ -214,6 +218,10 @@ class DeepcoinAPIClient:
                 "quoteVolume": ticker.get("volCcy24h"),
                 "ts": ticker.get("ts")
             }
+            logger.info(f"✅ [Deepcoin Ticker] {symbol} 最新价格: {result.get('lastPrice')}")
+            return result
+        
+        logger.warning(f"⚠️ [Deepcoin Ticker] {symbol} 未返回数据")
         return {}
 
     async def get_depth(self, symbol: str, limit: int = 100) -> Dict:
@@ -398,7 +406,10 @@ class DeepcoinAPIClient:
         return {"status": "success", "results": results}
 
     async def get_open_orders(self, symbol: Optional[str] = None) -> List[Dict]:
-        params = {"limit": 100}
+        params = {
+            "limit": 100,
+            "index": "1"  # 【关键修复】Deepcoin API必填参数，默认1表示从第一页开始
+        }
         if symbol:
             params["instId"] = self._map_symbol(symbol)
         data = await self._request("GET", "/deepcoin/trade/v2/orders-pending", params=params)

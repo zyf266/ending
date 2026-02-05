@@ -30,11 +30,6 @@ logger = logging.getLogger(__name__)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import dash
-# 使用 React 16 避免 React 18 与 Dash/Plotly 组件的兼容性问题（空白页、Object 错误）
-try:
-    dash._dash_renderer._set_react_version("16.14.0")
-except Exception:
-    pass
 from dash import dcc, html, Input, Output, State, callback_context, ALL, MATCH
 import plotly.graph_objs as go
 from backpack_quant_trading.core.ai_adaptive import AIAdaptive
@@ -48,8 +43,15 @@ from web3 import Web3
 
 # 导入配置
 from backpack_quant_trading.config.settings import config
-from backpack_quant_trading.database.models import DatabaseManager
+from backpack_quant_trading.database.models import DatabaseManager, db_manager, UserInstance
 from backpack_quant_trading.main import STRATEGY_REGISTRY, EXCHANGE_REGISTRY, STRATEGY_DISPLAY_NAMES
+from backpack_quant_trading.core.binance_monitor import (
+    fetch_binance_symbols_usdt,
+    BinanceMonitorService,
+    get_monitor_instance,
+    set_monitor_instance,
+    send_dingtalk_alert,
+)
 
 # --- 精调 UI 颜色方案 (高级亮色主题) ---
 COLORS = {
@@ -103,6 +105,12 @@ INPUT_STYLE = {
 print(f"[DEBUG] 数据库URL: {config.database_url}")
 engine = create_engine(config.database_url)
 
+# 确保 user_instances 表存在（用于实例持久化与账户隔离）
+try:
+    UserInstance.__table__.create(engine, checkfirst=True)
+except Exception as e:
+    logger.warning(f"创建 user_instances 表失败（可忽略）: {e}")
+
 # 使用 React 16 避免 React 18 与 Dash/Plotly 组件的兼容性问题（空白页、Object 错误）
 try:
     dash._dash_renderer._set_react_version("16.14.0")
@@ -114,7 +122,7 @@ app = dash.Dash(
     title='Backpack量化交易终端', 
     suppress_callback_exceptions=True,
     update_title='加载中...',
-    serve_locally=True  # 【优化】强制从本地加载JS/CSS资源，不再请求国外CDN
+    serve_locally=True  # 本地加载，避免 CDN 慢；若遇空白页可尝试改为 False
 )
 app.scripts.config.serve_locally = True
 app.css.config.serve_locally = True
@@ -525,7 +533,7 @@ app.layout = html.Div([
                     ]),
                     
                     # 隐藏的数据存储
-                    dcc.Store(id='forbidden-ranges-store', data=[[3, 8]]),  # 默认凌晨3点到8点
+                    dcc.Store(id='forbidden-ranges-store', data=[[3, 8], [13, 15], [19, 21]]),  # 默认休市时间
                 ], style={
                     'backgroundColor': '#FFF7ED',
                     'padding': '15px',
@@ -566,7 +574,8 @@ app.layout = html.Div([
             html.Div(id='trading-page-container', className='page-container', style={'display': 'none'}),
             html.Div(id='dashboard-page-container', className='page-container', style={'display': 'none'}),
             html.Div(id='ai-lab-page-container', className='page-container', style={'display': 'none'}),
-            html.Div(id='grid-trading-page-container', className='page-container', style={'display': 'none'})
+            html.Div(id='grid-trading-page-container', className='page-container', style={'display': 'none'}),
+            html.Div(id='currency-monitor-page-container', className='page-container', style={'display': 'none'})
         ])
     ], style={'display': 'none'})
 ])
@@ -623,10 +632,15 @@ def get_sidebar(current_user, pathname):
                 html.Span("🎯", style={'marginRight': '8px', 'fontSize': '16px'}),
                 html.Span("合约网格", style={'fontSize': '14px', 'fontWeight': '500'})
             ], href='/grid-trading', className=f'nav-link {"active" if pathname == "/grid-trading" else ""}', id='nav-grid-trading'),
+
+            dcc.Link([
+                html.Span("🔔", style={'marginRight': '8px', 'fontSize': '16px'}),
+                html.Span("币种监视", style={'fontSize': '14px', 'fontWeight': '500'})
+            ], href='/currency-monitor', className=f'nav-link {"active" if pathname == "/currency-monitor" else ""}', id='nav-currency-monitor'),
         ], style={'flexGrow': '1'}),
 
-        # 侧边栏底部余额
-        html.Div(id='sidebar-balance-area', className='balance-card', style={'marginTop': 'auto', 'paddingTop': '20px'})  # 使用 auto 推到底部
+        # 侧边栏底部（余额已移除，因同步不稳定）
+        html.Div(id='sidebar-balance-area', style={'marginTop': 'auto', 'paddingTop': '20px', 'display': 'none'})
     ], className='sidebar')
 
 def get_header(current_user):
@@ -656,23 +670,26 @@ def get_header(current_user):
      Output('dashboard-page-container', 'children'),
      Output('ai-lab-page-container', 'children'),
      Output('grid-trading-page-container', 'children'),
+     Output('currency-monitor-page-container', 'children'),
      Output('trading-page-container', 'style'),
      Output('dashboard-page-container', 'style'),
      Output('ai-lab-page-container', 'style'),
-     Output('grid-trading-page-container', 'style')],
+     Output('grid-trading-page-container', 'style'),
+     Output('currency-monitor-page-container', 'style')],
     [Input('url', 'pathname'),
      Input('current-user-store', 'data')],
     [State('control-log-store', 'data'),
      State('trading-page-container', 'children'),
      State('dashboard-page-container', 'children'),
      State('ai-lab-page-container', 'children'),
-     State('grid-trading-page-container', 'children')]
+     State('grid-trading-page-container', 'children'),
+     State('currency-monitor-page-container', 'children')]
 )
-def display_page(pathname, current_user, control_log, trading_content, dashboard_content, ai_lab_content, grid_content):
+def display_page(pathname, current_user, control_log, trading_content, dashboard_content, ai_lab_content, grid_content, currency_monitor_content):
     """页面路由及显示逻辑 (支持状态持久化)"""
     if not current_user:
         # 未登录状态
-        return render_auth_layout(), {'display': 'block'}, {'display': 'none'}, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
+        return render_auth_layout(), {'display': 'block'}, {'display': 'none'}, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
     
     # 登录状态，显示主容器
     sidebar = get_sidebar(current_user, pathname)
@@ -694,14 +711,19 @@ def display_page(pathname, current_user, control_log, trading_content, dashboard
     g_content = dash.no_update
     if not grid_content:
         g_content = render_grid_trading_layout()
-    
+
+    cm_content = dash.no_update
+    if not currency_monitor_content:
+        cm_content = render_currency_monitor_layout()
+
     # 根据路径切换显示状态
     t_style = {'display': 'block'} if pathname == '/trading' or pathname == '/' else {'display': 'none'}
     d_style = {'display': 'block'} if pathname == '/dashboard' else {'display': 'none'}
     a_style = {'display': 'block'} if pathname == '/ai-lab' else {'display': 'none'}
     g_style = {'display': 'block'} if pathname == '/grid-trading' else {'display': 'none'}
-    
-    return dash.no_update, {'display': 'none'}, {'display': 'block'}, sidebar, header, t_content, d_content, a_content, g_content, t_style, d_style, a_style, g_style
+    cm_style = {'display': 'block'} if pathname == '/currency-monitor' else {'display': 'none'}
+
+    return dash.no_update, {'display': 'none'}, {'display': 'block'}, sidebar, header, t_content, d_content, a_content, g_content, cm_content, t_style, d_style, a_style, g_style, cm_style
 
 
 def render_auth_layout():
@@ -1052,6 +1074,498 @@ def render_ai_lab_layout():
     ])
 
 
+def render_currency_monitor_layout():
+    """币种监视布局：多选币种、K线级别、币种池、异动钉钉预警"""
+    return html.Div([
+        dcc.Store(id='currency-monitor-symbols-store', data=[]),
+        dcc.Store(id='currency-monitor-timeframes-store', data=[]),
+        dcc.Store(id='currency-monitor-alerted-store', data=[]),
+        dcc.Store(id='currency-monitor-running-store', data=False),
+        dcc.Store(id='currency-monitor-pending-remove', data=None),
+        dcc.Store(id='currency-monitor-clear-trigger', data=0),
+        dcc.ConfirmDialog(id='currency-monitor-remove-confirm', message='确定要移除该监视吗？', displayed=False),
+        dcc.Interval(id='currency-monitor-refresh', interval=5000, n_intervals=0),
+        html.Div([
+            html.H2('币种监视', style={
+                'margin': '0',
+                'fontWeight': '800',
+                'fontSize': '24px',
+                'color': COLORS['text']
+            }),
+            html.P('特别K-倍数判定策略，异动时钉钉预警', style={
+                'margin': '8px 0 0 0',
+                'color': COLORS['text_dim'],
+                'fontSize': '14px'
+            })
+        ], style={'marginBottom': '24px'}),
+
+        html.Div([
+            html.H3('监视配置', style={
+                'margin': '0 0 16px 0',
+                'fontSize': '18px',
+                'fontWeight': '700',
+                'color': COLORS['text']
+            }),
+            html.Div([
+                html.Div([
+                    html.Label('币种 (多选)', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
+                    html.Div([
+                        html.Button('全选', id='currency-monitor-select-all', style={
+                            'padding': '6px 12px', 'fontSize': '12px', 'marginRight': '8px', 'marginBottom': '8px',
+                            'backgroundColor': COLORS['accent'], 'color': 'white', 'border': 'none', 'borderRadius': '4px', 'cursor': 'pointer'
+                        }),
+                        html.Button('清空', id='currency-monitor-clear-all', style={
+                            'padding': '6px 12px', 'fontSize': '12px', 'marginBottom': '8px',
+                            'backgroundColor': COLORS['border'], 'color': COLORS['text'], 'border': 'none', 'borderRadius': '4px', 'cursor': 'pointer'
+                        }),
+                    ]),
+                    dcc.Dropdown(
+                        id='currency-monitor-symbols',
+                        options=[],
+                        value=[],
+                        multi=True,
+                        placeholder='选择要监视的币种...',
+                        style={'fontSize': '14px'}
+                    ),
+                ], style={'flex': '1', 'marginRight': '24px'}),
+                html.Div([
+                    html.Label('K线级别 (多选)', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
+                    dcc.Checklist(
+                        id='currency-monitor-timeframes',
+                        options=[
+                            {'label': ' 2小时', 'value': '2小时'},
+                            {'label': ' 4小时', 'value': '4小时'},
+                            {'label': ' 天', 'value': '天'},
+                            {'label': ' 周', 'value': '周'},
+                        ],
+                        value=[],
+                        labelStyle={'display': 'block', 'marginBottom': '6px', 'fontSize': '14px'},
+                        style={'padding': '8px'}
+                    ),
+                ], style={'flex': '0 0 180px'}),
+            ], style={'display': 'flex', 'marginBottom': '20px'}),
+
+            html.Div([
+                html.Button('开始监视', id='currency-monitor-start', className='btn-primary', style={'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}),
+                html.Button('停止监视', id='currency-monitor-stop', className='btn-danger', style={'marginRight': '12px', 'padding': '10px 24px', 'opacity': 0.5, 'cursor': 'not-allowed', 'pointerEvents': 'none'}),
+                html.Button('模拟测试', id='currency-monitor-test-btn', style={
+                    'padding': '10px 24px', 'backgroundColor': '#6B7280', 'color': 'white', 'border': 'none',
+                    'borderRadius': '5px', 'cursor': 'pointer', 'fontSize': '14px'
+                }, title='模拟异动，币种池变红 10 分钟并发送钉钉'),
+            ], style={'marginBottom': '20px'}),
+
+            html.Div([
+                html.Label('币种池 (异动时变红)', style={'fontWeight': '600', 'marginBottom': '8px', 'display': 'block', 'fontSize': '14px'}),
+                html.P('已有监视时，选择更多币种/级别后点击「开始监视」可追加；下方选择要移除的项后点击「移除」', style={
+                    'margin': '0 0 8px 0', 'color': COLORS['text_dim'], 'fontSize': '12px'
+                }),
+                html.Div(id='currency-monitor-pool', style={
+                    'display': 'flex', 'flexWrap': 'wrap', 'gap': '8px',
+                    'padding': '12px', 'backgroundColor': '#F9FAFB', 'borderRadius': '8px', 'minHeight': '60px',
+                    'border': '1px solid ' + COLORS['border']
+                }),
+                html.Div([
+                    dcc.Dropdown(
+                        id='currency-monitor-remove-select',
+                        placeholder='选择要移除的监视...',
+                        options=[],
+                        value=None,
+                        style={'width': '220px', 'fontSize': '13px'},
+                        clearable=True,
+                    ),
+                    html.Button('移除', id='currency-monitor-remove-btn', style={
+                        'padding': '8px 16px', 'fontSize': '13px', 'cursor': 'pointer',
+                        'backgroundColor': COLORS['danger'], 'color': 'white', 'border': 'none', 'borderRadius': '5px',
+                    }),
+                ], style={'display': 'flex', 'gap': '12px', 'alignItems': 'center', 'marginTop': '12px'}),
+            ]),
+        ], className='card-tech', style={'padding': '24px'}),
+    ])
+
+
+# --- 辅助：当 session 中无 id 时，从 DB 按 username 查回 user_id（兼容旧会话） ---
+def _resolve_user_id(current_user):
+    """从 current_user 获取 user_id；若无 id 但有 username，从 DB 查回"""
+    uid = (current_user or {}).get('id')
+    if uid is not None:
+        return uid
+    username = (current_user or {}).get('username')
+    if not username:
+        return None
+    try:
+        user = db_manager.get_user_by_username(username)
+        return user.id if user else None
+    except Exception as e:
+        logger.warning(f"按 username 查 user_id 失败: {e}")
+        return None
+
+
+# --- 币种监视相关回调 ---
+@app.callback(
+    Output('currency-monitor-symbols', 'options'),
+    [Input('url', 'pathname'),
+     Input('current-user-store', 'data')],
+    prevent_initial_call=True,
+)
+def currency_monitor_load_symbols(pathname, current_user):
+    """进入币种监视页时加载币安 USDT 交易对（仅登录后组件存在时更新）"""
+    if pathname != '/currency-monitor' or not current_user:
+        raise dash.exceptions.PreventUpdate
+    try:
+        symbols = fetch_binance_symbols_usdt()
+        return [{'label': s, 'value': s} for s in symbols]
+    except Exception as e:
+        logger.error(f"加载币种列表失败: {e}")
+        return [{'label': s, 'value': s} for s in ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT']]
+
+
+@app.callback(
+    Output('currency-monitor-symbols', 'value'),
+    Input('currency-monitor-select-all', 'n_clicks'),
+    Input('currency-monitor-clear-all', 'n_clicks'),
+    State('currency-monitor-symbols', 'options'),
+    prevent_initial_call=True
+)
+def currency_monitor_select_clear(select_clicks, clear_clicks, options):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    bid = ctx.triggered[0]['prop_id'].split('.')[0]
+    if bid == 'currency-monitor-select-all':
+        return [o['value'] for o in options] if options else []
+    if bid == 'currency-monitor-clear-all':
+        return []
+    raise dash.exceptions.PreventUpdate
+
+
+@app.callback(
+    [Output('currency-monitor-running-store', 'data', allow_duplicate=True),
+     Output('currency-monitor-start', 'style'),
+     Output('currency-monitor-stop', 'style'),
+     Output('currency-monitor-symbols', 'value', allow_duplicate=True),
+     Output('currency-monitor-timeframes', 'value', allow_duplicate=True),
+     Output('currency-monitor-clear-trigger', 'data', allow_duplicate=True)],
+    Input('currency-monitor-start', 'n_clicks'),
+    Input('currency-monitor-stop', 'n_clicks'),
+    State('currency-monitor-symbols', 'value'),
+    State('currency-monitor-timeframes', 'value'),
+    State('currency-monitor-running-store', 'data'),
+    State('current-user-store', 'data'),
+    prevent_initial_call=True
+)
+def currency_monitor_start_stop(start_clicks, stop_clicks, symbols, timeframes, running, current_user):
+    user_id = _resolve_user_id(current_user)
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    bid = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if bid == 'currency-monitor-start':
+        # 本次必须至少选择一个币种和一个级别，才有新增意义
+        if not symbols or not timeframes:
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+        # 【币种监视取消隔离】全局共享，所有账户看到同一配置
+        mon = get_monitor_instance()
+        base_pairs = []
+        
+        # 1. 优先从内存实例获取当前配对
+        if mon:
+            base_pairs = mon._pairs or []
+            logger.info(f"币种监视合并：从内存获取到已有配对 {base_pairs}")
+        
+        # 2. 如果内存没有，从全局配置恢复
+        if not base_pairs:
+            try:
+                cfg_result = db_manager.get_currency_monitor_config()
+                if cfg_result:
+                    _, cfg_json = cfg_result
+                    cfg = json.loads(cfg_json)
+                    if 'pairs' in cfg:
+                        base_pairs = [(str(p[0]).upper(), str(p[1])) for p in cfg['pairs']]
+                    else:
+                        base_pairs = [(s, t) for s in cfg.get('symbols', []) for t in cfg.get('timeframes', [])]
+                    logger.info(f"币种监视合并：从全局配置恢复到已有配对 {base_pairs}")
+            except Exception as e:
+                logger.error(f"合并时从数据库恢复配置失败: {e}")
+
+        # 3. 计算本次新增的配对
+        new_pairs = [(s, t) for s in (symbols or []) for t in (timeframes or [])]
+        
+        # 4. 合并去重
+        seen = set()
+        merged_pairs = []
+        for p in (base_pairs + new_pairs):
+            key = (str(p[0]).upper(), str(p[1]))
+            if key not in seen:
+                seen.add(key)
+                merged_pairs.append(key)
+
+        if not merged_pairs:
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+        logger.info(f"币种监视合并结果: {merged_pairs}")
+
+        # 先停掉旧实例，再用合并后的配对启动新实例
+        if mon:
+            mon.stop()
+
+        new_mon = BinanceMonitorService(pairs=merged_pairs, user_id=None)  # user_id=None 表示全局共享
+        set_monitor_instance(new_mon)
+        new_mon.start()
+        
+        cfg = json.dumps({'pairs': merged_pairs})
+        try:
+            db_manager.save_currency_monitor_config(cfg)
+            logger.info(f"币种监视已保存到全局配置: pairs={merged_pairs}")
+        except Exception as e:
+            logger.error(f"保存币种监视到 DB 失败: {e}")
+        # 成功启动后，清空上方多选框（用户需求：点完开始就清空，只在池子里显示）
+        # 同时设置 clear-trigger 触发专用清空回调，确保多选框被清空
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'padding': '10px 24px', 'cursor': 'pointer'}
+        return True, btn_start, btn_stop, [], [], round(time.time() * 1000)
+
+    if bid == 'currency-monitor-stop':
+        logger.info("币种监视：用户请求停止监视")
+        mon = get_monitor_instance()
+        if mon:
+            mon.stop()
+            set_monitor_instance(None)
+            db_manager.delete_currency_monitor_config()
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'padding': '10px 24px', 'opacity': 0.5, 'cursor': 'not-allowed', 'pointerEvents': 'none'}
+        # 停止监控时不强制清空上方多选框，交给用户自行调整
+        return False, btn_start, btn_stop, dash.no_update, dash.no_update, dash.no_update
+
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+
+@app.callback(
+    [Output('currency-monitor-symbols', 'value', allow_duplicate=True),
+     Output('currency-monitor-timeframes', 'value', allow_duplicate=True)],
+    [Input('currency-monitor-clear-trigger', 'data'),
+     Input('currency-monitor-start', 'n_clicks')],
+    prevent_initial_call=True,
+)
+def currency_monitor_clear_on_start(clear_trigger, start_clicks):
+    """开始监视后强制清空币种和K线级别多选框（由 clear-trigger 或 开始监视 按钮触发）"""
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    # 开始监视按钮点击 或 clear-trigger 更新时清空
+    tid = ctx.triggered[0]['prop_id'].split('.')[0]
+    if tid == 'currency-monitor-start' and (start_clicks or 0) > 0:
+        return [], []
+    if tid == 'currency-monitor-clear-trigger' and clear_trigger and clear_trigger > 0:
+        return [], []
+    raise dash.exceptions.PreventUpdate
+
+
+@app.callback(
+    [Output('currency-monitor-alerted-store', 'data'),
+     Output('currency-monitor-pool', 'children'),
+     Output('currency-monitor-remove-select', 'options'),
+     Output('currency-monitor-remove-select', 'value')],
+    [Input('currency-monitor-refresh', 'n_intervals'),
+     Input('currency-monitor-test-btn', 'n_clicks'),
+     Input('url', 'pathname'),
+     Input('currency-monitor-start', 'n_clicks'),
+     Input('currency-monitor-running-store', 'data')],
+    [State('currency-monitor-symbols', 'value'),
+     State('currency-monitor-timeframes', 'value'),
+     State('currency-monitor-alerted-store', 'data'),
+     State('current-user-store', 'data')],
+    prevent_initial_call=False,
+)
+def currency_monitor_refresh_pool(n, n_test, pathname, start_clicks, running, symbols, timeframes, alerted_data, current_user):
+    """定时刷新异动状态和币种池显示（仅币种监视页、已登录时更新，避免多输出冲突）"""
+    if pathname != '/currency-monitor' or not current_user:
+        raise dash.exceptions.PreventUpdate
+
+    alerted = list(alerted_data) if alerted_data else []
+    mon = get_monitor_instance()
+
+    # 模拟测试：点击后加入异动、发钉钉、变红 10 分钟
+    ctx = dash.callback_context
+    if ctx.triggered and 'currency-monitor-test-btn' in ctx.triggered[0].get('prop_id', ''):
+        if mon and (n_test or 0) > 0:
+            mon.add_alerted_for_test(symbols or [], timeframes or [])
+            for s in (symbols or []):
+                for t in (timeframes or []):
+                    send_dingtalk_alert(str(s), str(t), "【模拟测试】品种涨幅强于ETH且满足连阳")
+
+    if mon:
+        alerted_pairs = mon.get_alerted_pairs()
+        alerted = [f"{s}|{t}" for (s, t) in alerted_pairs]
+        # 【修复】使用真实的配对列表，彻底解决笛卡尔积显示错误
+        display_pairs = mon._pairs
+    else:
+        # 兼容性处理：如果没有运行中的监视器，尝试使用传入的 symbols/timeframes
+        display_pairs = [(s, t) for s in (symbols or []) for t in (timeframes or [])]
+
+    pool_items = []
+    remove_options = []
+    for s, t in display_pairs:
+        key = f"{s}|{t}"
+        remove_options.append({'label': f'{s} {t}', 'value': key})
+        is_alerted = key in alerted
+        color = COLORS['danger'] if is_alerted else '#2563EB'
+        pool_items.append(
+            html.Span(
+                f"{s} {t}",
+                style={
+                    'display': 'inline-block',
+                    'padding': '6px 12px',
+                    'borderRadius': '6px',
+                    'backgroundColor': '#fff',
+                    'border': f'1px solid {color}',
+                    'color': color,
+                    'fontSize': '13px',
+                    'fontWeight': '600',
+                }
+            )
+        )
+    if not pool_items:
+        pool_items = [html.Span('请选择币种和K线级别后开始监视', style={'color': COLORS['text_dim'], 'fontSize': '14px'})]
+    return alerted, pool_items, remove_options, dash.no_update
+
+
+@app.callback(
+    [Output('currency-monitor-alerted-store', 'data', allow_duplicate=True),
+     Output('currency-monitor-pool', 'children', allow_duplicate=True),
+     Output('currency-monitor-remove-select', 'options', allow_duplicate=True),
+     Output('currency-monitor-remove-select', 'value', allow_duplicate=True),
+     Output('currency-monitor-symbols', 'value', allow_duplicate=True),
+     Output('currency-monitor-timeframes', 'value', allow_duplicate=True),
+     Output('currency-monitor-running-store', 'data', allow_duplicate=True),
+     Output('currency-monitor-start', 'style', allow_duplicate=True),
+     Output('currency-monitor-stop', 'style', allow_duplicate=True)],
+    Input('currency-monitor-remove-btn', 'n_clicks'),
+    State('currency-monitor-remove-select', 'value'),
+    State('current-user-store', 'data'),
+    prevent_initial_call=True,
+)
+def currency_monitor_remove_pair(n_clicks, selected_value, current_user):
+    """选择要移除的项后点击「移除」按钮执行移除（避免动态组件 pattern-matching 问题）"""
+    if not n_clicks or not selected_value or not current_user:
+        raise dash.exceptions.PreventUpdate
+
+    parts = str(selected_value).split('|', 1)
+    if len(parts) != 2:
+        raise dash.exceptions.PreventUpdate
+    symbol, timeframe = str(parts[0]).strip(), str(parts[1]).strip()
+    if not symbol or not timeframe:
+        raise dash.exceptions.PreventUpdate
+
+    mon = get_monitor_instance()
+    if not mon:
+        raise dash.exceptions.PreventUpdate
+
+    mon.remove_pair(symbol, timeframe)
+    logger.info(f"币种监视已移除: {symbol} {timeframe}")
+
+    if not mon._pairs:
+        mon.stop()
+        set_monitor_instance(None)
+        db_manager.delete_currency_monitor_config()
+        symbols, timeframes = [], []
+        running = False
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'marginRight': '12px', 'padding': '10px 24px', 'opacity': 0.5, 'cursor': 'not-allowed', 'pointerEvents': 'none'}
+    else:
+        cfg = json.dumps({'pairs': [[s, t] for s, t in mon._pairs]})
+        db_manager.save_currency_monitor_config(cfg)
+        symbols, timeframes = mon.symbols, mon.timeframes
+        running = True
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+
+    pairs = mon.get_alerted_pairs() if mon else set()
+    alerted = [f"{s}|{t}" for (s, t) in pairs]
+
+    pool_items = []
+    remove_options = []
+    for s, t in (mon._pairs if mon and mon._pairs else []):
+        key = f"{s}|{t}"
+        remove_options.append({'label': f'{s} {t}', 'value': key})
+        is_alerted = key in alerted
+        color = COLORS['danger'] if is_alerted else '#2563EB'
+        pool_items.append(
+            html.Span(
+                f"{s} {t}",
+                style={
+                    'display': 'inline-block',
+                    'padding': '6px 12px',
+                    'borderRadius': '6px',
+                    'backgroundColor': '#fff',
+                    'border': f'1px solid {color}',
+                    'color': color,
+                    'fontSize': '13px',
+                    'fontWeight': '600',
+                }
+            )
+        )
+    if not pool_items:
+        pool_items = [html.Span('请选择币种和K线级别后开始监视', style={'color': COLORS['text_dim'], 'fontSize': '14px'})]
+
+    return alerted, pool_items, remove_options, None, symbols, timeframes, running, btn_start, btn_stop
+
+
+@app.callback(
+    [Output('currency-monitor-symbols', 'value', allow_duplicate=True),
+     Output('currency-monitor-timeframes', 'value', allow_duplicate=True),
+     Output('currency-monitor-running-store', 'data', allow_duplicate=True),
+     Output('currency-monitor-start', 'style', allow_duplicate=True),
+     Output('currency-monitor-stop', 'style', allow_duplicate=True)],
+    [Input('currency-monitor-refresh', 'n_intervals'),
+     Input('url', 'pathname'),
+     Input('current-user-store', 'data')],
+    prevent_initial_call=True,
+)
+def currency_monitor_restore_state(n, pathname, current_user):
+    """周期性将后台监视器状态同步到前端（币种监视全局共享，刷新后恢复）"""
+    if pathname != '/currency-monitor' or not current_user:
+        raise dash.exceptions.PreventUpdate
+
+    mon = get_monitor_instance()
+
+    # 【币种监视取消隔离】无监视器时从全局配置恢复并启动
+    if not mon:
+        try:
+            cfg_result = db_manager.get_currency_monitor_config()
+            if cfg_result:
+                _, cfg_json = cfg_result
+                cfg = json.loads(cfg_json)
+                if 'pairs' in cfg:
+                    pairs = [(str(p[0]).upper(), str(p[1])) for p in cfg['pairs']]
+                else:
+                    pairs = [(s, t) for s in cfg.get('symbols', []) for t in cfg.get('timeframes', [])]
+                if pairs:
+                    new_mon = BinanceMonitorService(pairs=pairs, user_id=None)
+                    set_monitor_instance(new_mon)
+                    new_mon.start()
+                    logger.info(f"从全局配置恢复并启动币种监视: {pairs}")
+        except Exception as e:
+            logger.warning(f"从 DB 恢复币种监视失败: {e}")
+
+    mon = get_monitor_instance()
+
+    if mon:
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'padding': '10px 24px', 'cursor': 'pointer'}
+        return dash.no_update, dash.no_update, True, btn_start, btn_stop
+
+    if db_manager.get_currency_monitor_config():
+        btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+        btn_stop = {'padding': '10px 24px', 'opacity': 0.5, 'cursor': 'not-allowed', 'pointerEvents': 'none'}
+        return dash.no_update, dash.no_update, False, btn_start, btn_stop
+
+    btn_start = {'marginRight': '12px', 'padding': '10px 24px', 'cursor': 'pointer'}
+    btn_stop = {'padding': '10px 24px', 'opacity': 0.5, 'cursor': 'not-allowed', 'pointerEvents': 'none'}
+    return dash.no_update, dash.no_update, False, btn_start, btn_stop
+
+
 # 删除旧的 render_auth_area 回调，逻辑已合并至 display_page
 
 
@@ -1101,7 +1615,7 @@ def handle_auth(login_clicks, register_clicks, username, password, current_user)
             password_hash = generate_password_hash(password)
             user = db_manager.create_user(username, password_hash, role=role)
             print(f"[DEBUG] 注册成功: {username}, role={role}")
-            return {'username': user.username, 'role': user.role}, '注册成功并已登录'
+            return {'id': user.id, 'username': user.username, 'role': user.role}, '注册成功并已登录'
         except Exception as e:
             print(f"[DEBUG] 注册过程发生异常: {e}")
             import traceback
@@ -1118,12 +1632,15 @@ def handle_auth(login_clicks, register_clicks, username, password, current_user)
             if not check_password_hash(user.password_hash, password):
                 return dash.no_update, '密码错误'
             print(f"[DEBUG] 登录成功: {username}")
-            return {'username': user.username, 'role': user.role}, ''
+            return {'id': user.id, 'username': user.username, 'role': user.role}, ''
         except Exception as e:
             print(f"[DEBUG] 登录过程发生异常: {e}")
             return dash.no_update, f'登录失败: {str(e)}'
     
     return dash.no_update, dash.no_update
+
+# 注：已移除 sync_user_id_from_db，因其会错误覆盖当前用户（如 zzz）为其他用户（zyf）
+# 当 session 无 id 时，_resolve_user_id 会按 username 从 DB 查回，但不修改 store，避免覆盖
 
 # 单独处理登出逻辑
 @app.callback(
@@ -1432,26 +1949,22 @@ def render_forbidden_ranges_tags(ranges):
     Output('add-strategy-modal', 'style'),
     [Input('btn-add-strategy', 'n_clicks'),
      Input('btn-modal-close', 'n_clicks'),
-     Input('startup-success-dialog', 'submit_n_clicks')],  # 改为监听成功对话框的确认
-    prevent_initial_call=True
+     Input('startup-success-dialog', 'submit_n_clicks'),
+     Input('url', 'pathname'),
+     Input('current-user-store', 'data')],
 )
-def toggle_modal(n_add, n_close, n_success):
+def toggle_modal(n_add, n_close, n_success, pathname, current_user):
+    """弹窗仅在用户实际点击「增加策略」时显示；刷新/登录/路由变化时强制关闭"""
     ctx = dash.callback_context
-    if not ctx.triggered: 
-        return dash.no_update
-    
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    # 点击"增加策略"按钮显示弹窗
-    if trigger_id == 'btn-add-strategy':
-        return {**MODAL_BASE_STYLE, 'display': 'flex'}
-    
-    # 点击"取消返回"按钮或启动成功确认后关闭弹窗
-    if trigger_id in ['btn-modal-close', 'startup-success-dialog']:
+    if not ctx.triggered:
         return {**MODAL_BASE_STYLE, 'display': 'none'}
-    
-    # 其他情况保持不变
-    return dash.no_update
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # 必须：trigger 来自按钮 且 n_add>0（用户真实点击），否则一律关闭
+    if trigger_id == 'btn-add-strategy' and (n_add or 0) > 0:
+        return {**MODAL_BASE_STYLE, 'display': 'flex'}
+    return {**MODAL_BASE_STYLE, 'display': 'none'}
 
 
 def is_port_in_use(port: int, host: str = '127.0.0.1') -> bool:
@@ -1545,49 +2058,53 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
     trigger_id = ctx.triggered[0]['prop_id'] if ctx.triggered else ""
     current_instances = current_instances or []
     
-    # 首次加载或刷新时，尝试恢复实例列表
-    if not current_instances and is_port_in_use(8005):
+    # 首次加载或刷新时，从数据库恢复当前用户的实例（仅显示本账户的）
+    user_id = (user or {}).get('id')
+    if not current_instances and is_port_in_use(8005) and user_id:
         try:
-            response = requests.get("http://127.0.0.1:8005/instances", timeout=5)
-            if response.status_code == 200:
-                instances_data = response.json()
-                webhook_instances = instances_data.get('instances', [])
-                if webhook_instances:
-                    # 尝试寻找 Webhook 服务的 PID
+            # 获取当前用户在 DB 中登记的实盘 instance_id 列表
+            my_live_ids = set(db_manager.get_user_instance_ids(user_id, 'live'))
+            if not my_live_ids:
+                pass
+            else:
+                response = requests.get("http://127.0.0.1:8005/instances", timeout=5)
+                if response.status_code == 200:
+                    instances_data = response.json()
+                    webhook_instances = instances_data.get('instances', [])
                     w_pid = get_webhook_pid()
-                    logger.info(f"🔄 页面加载/刷新，从 Webhook 服务恢复 {len(webhook_instances)} 个实例")
                     for inst_info in webhook_instances:
+                        inst_id = inst_info.get('instance_id', inst_info) if isinstance(inst_info, dict) else inst_info
+                        if inst_id not in my_live_ids:
+                            continue  # 非本账户实例，跳过
                         if isinstance(inst_info, str):
-                            # 兼容旧版本，如果返回的是字符串 ID
-                            inst_id = inst_info
                             recovered_platform = 'hyperliquid' if inst_id.startswith('hl_') else 'ostium'
                             recovered_symbol = 'USD/JPY'
                             recovered_strategy = f'{recovered_platform.capitalize()} ({inst_id})'
                         else:
-                            # 新版本返回对象
-                            inst_id = inst_info['instance_id']
-                            recovered_platform = inst_info['exchange']
-                            recovered_symbol = inst_info['symbol']
-                            recovered_strategy = inst_info['strategy']
-
+                            recovered_platform = inst_info.get('exchange', 'ostium')
+                            recovered_symbol = inst_info.get('symbol', 'USD/JPY')
+                            recovered_strategy = inst_info.get('strategy', inst_id)
                         current_instances.append({
                             'id': inst_id,
-                            'pid': w_pid,  # 使用 Webhook 服务的 PID
+                            'pid': w_pid,
                             'platform': recovered_platform,
                             'strategy_name': recovered_strategy,
                             'symbol': recovered_symbol,
-                            'start_time': '--:--', # Webhook 服务暂未持久化启动时间
-                            'balance': '同步中...',
+                            'start_time': '--:--',
+                            'balance': '--',
                             'webhook_instance_id': inst_id,
                             'status': 'running'
                         })
+                    if current_instances:
+                        logger.info(f"🔄 恢复当前用户 {len(current_instances)} 个实盘实例")
         except Exception as e:
             logger.debug(f"恢复实例列表失败: {e}")
 
     # 1. 停止逻辑
     if 'btn-stop-instance' in trigger_id:
         try:
-            prop_dict = json.loads(trigger_id.split('.')[0])
+            import json as _json
+            prop_dict = _json.loads(trigger_id.split('.')[0])
             instance_id = prop_dict['index']
             new_instances = []
             for inst in current_instances:
@@ -1603,6 +2120,8 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
                             response = requests.post(unregister_url, timeout=5)
                             if response.status_code == 200:
                                 logger.info(f"✅ Webhook 实例 {webhook_instance_id} 已注销")
+                                if user_id:
+                                    db_manager.delete_user_instance(user_id, 'live', webhook_instance_id)
                             else:
                                 logger.warning(f"⚠️ 注销 Webhook 实例失败: HTTP {response.status_code}")
                         except Exception as e:
@@ -1616,6 +2135,8 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
                                 for child in proc.children(recursive=True): child.kill()
                                 proc.kill()
                                 logger.info(f"✅ 停止实例: {inst['id']} (PID: {inst['pid']})")
+                                if user_id:
+                                    db_manager.delete_user_instance(user_id, 'live', inst['id'])
                         except Exception as e:
                             logger.warning(f"⚠️ 停止进程失败: {e}")
                 else:
@@ -1712,7 +2233,12 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
                 'status': 'registering'  # 标记为注册中
             }
             current_instances.append(new_instance)
-            
+            if user_id:
+                import json
+                # 仅存平台/策略/交易对等元数据，不存 API Key、私钥等敏感信息
+                cfg = json.dumps({'platform': platform, 'strategy': strategy_display_name, 'symbol': symbol})
+                db_manager.save_user_instance(user_id, 'live', instance_id, cfg)
+
             # 立即返回，不等待注册完成
             logger.info(f"⏳ 实例 {instance_id} 已添加到列表，后台异步注册中...")
             
@@ -1804,16 +2330,22 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
                 f.write(f"\n{'='*20} [{datetime.now().strftime('%H:%M:%S')}] Launching Instance: {platform} {'='*20}\n")
                 process = subprocess.Popen(cmd, env=env, stdout=f, stderr=subprocess.STDOUT, cwd=project_root)
             
+            inst_id = f"{platform}_{strategy}_{datetime.now().strftime('%H%M%S')}"
             new_instance = {
-                'id': f"{platform}_{strategy}_{datetime.now().strftime('%H%M%S')}",
+                'id': inst_id,
                 'pid': process.pid,
                 'platform': platform,
                 'strategy_name': STRATEGY_DISPLAY_NAMES.get(strategy, strategy),
                 'symbol': symbol,
                 'start_time': datetime.now().strftime('%H:%M'),
-                'balance': '同步中...'
+                'balance': '--'
             }
             current_instances.append(new_instance)
+            if user_id:
+                import json
+                # 仅存元数据，不存 API Key、私钥
+                cfg = json.dumps({'platform': platform, 'strategy': strategy, 'symbol': symbol})
+                db_manager.save_user_instance(user_id, 'live', inst_id, cfg)
             return current_instances, True
         except Exception as e: print(f"Launch Error: {e}")
 
@@ -2858,12 +3390,14 @@ from backpack_quant_trading.strategy.grid_strategy import grid_manager
      State('grid-count', 'value'),
      State('grid-investment-per-grid', 'value'),
      State('grid-leverage', 'value'),
-     State('grid-mode', 'value')],
+     State('grid-mode', 'value'),
+     State('current-user-store', 'data')],
     prevent_initial_call=True
 )
 def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
-    exchange, auth_mode, api_key, secret_key, passphrase, private_key, symbol, price_lower, price_upper, grid_count, investment, leverage, grid_mode):
+    exchange, auth_mode, api_key, secret_key, passphrase, private_key, symbol, price_lower, price_upper, grid_count, investment, leverage, grid_mode, current_user):
     """管理网格交易启动/停止（点击启动新增实例，每卡片有停止按钮）"""
+    user_id = (current_user or {}).get('id')
     ctx = dash.callback_context
     if not ctx.triggered:
         return dash.no_update
@@ -2900,6 +3434,13 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
     prop_id = ctx.triggered[0]['prop_id']
     trigger_id = prop_id.split('.')[0]
 
+    def _filter_by_user(grids_dict):
+        """仅显示当前用户的网格"""
+        if not user_id:
+            return {}
+        my_ids = set(db_manager.get_user_instance_ids(user_id, 'grid'))
+        return {k: v for k, v in grids_dict.items() if k in my_ids}
+
     # 停止单个实例（卡片上的停止按钮）
     if 'btn-stop-grid-instance' in trigger_id:
         try:
@@ -2907,13 +3448,16 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
             grid_id = tid.get('index', '')
             if grid_id:
                 grid_manager.stop(str(grid_id))
+                if user_id:
+                    db_manager.delete_user_instance(user_id, 'grid', str(grid_id))
         except Exception:
             pass
-        all_grids = grid_manager.get_all()
+        all_grids = _filter_by_user(grid_manager.get_all())
         return _render_grid_cards(all_grids)
 
     # 以下为原主表单逻辑
-    all_grids = grid_manager.get_all()
+    all_grids_raw = grid_manager.get_all()
+    all_grids = _filter_by_user(all_grids_raw)
 
     def _create_api_client():
         if exchange == 'backpack':
@@ -2959,11 +3503,19 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
             exchange=exchange or 'backpack',
             instance_id=instance_id
         )
+        if ok and user_id:
+            # 仅存交易对/模式/交易所，不存 API Key、私钥
+            cfg = json.dumps({'symbol': symbol, 'grid_mode': mode, 'exchange': exchange or 'backpack'})
+            db_manager.save_user_instance(user_id, 'grid', msg if isinstance(msg, str) else instance_id, cfg)
         return ok, msg
 
-    # 停止全部
+    # 停止全部（仅停止当前用户的网格）
     if 'btn-stop-grid' in trigger_id and n_stop:
-        grid_manager.stop_all()
+        my_ids = set(db_manager.get_user_instance_ids(user_id, 'grid')) if user_id else set()
+        for gid in my_ids:
+            grid_manager.stop(str(gid))
+            if user_id:
+                db_manager.delete_user_instance(user_id, 'grid', str(gid))
         return html.P("🛑 已停止全部网格", style={'color': COLORS['text_dim'], 'textAlign': 'center', 'padding': '40px'})
 
     # 同时启动多单+空单
@@ -2982,7 +3534,7 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
         try:
             ok1, msg1 = _add_one('long_only')
             ok2, msg2 = _add_one('short_only')
-            all_grids = grid_manager.get_all()
+            all_grids = _filter_by_user(grid_manager.get_all())
             status = _render_grid_cards(all_grids)
             if not ok1 and not ok2:
                 return html.Div([html.P(f"⚠️ {msg1}; {msg2}", style={'color': COLORS['danger']}), status])
@@ -3005,14 +3557,14 @@ def manage_grid_trading(n_start, n_start_both, n_stop, n_stops, n_refresh,
             return html.Div([html.P("⚠️ 价格下限必须小于上限", style={'color': COLORS['danger'], 'textAlign': 'center', 'padding': '20px'})])
         try:
             ok, msg = _add_one(grid_mode or 'long_short')
-            all_grids = grid_manager.get_all()
+            all_grids = _filter_by_user(grid_manager.get_all())
             if not ok:
                 return html.Div([html.P(f"⚠️ {msg}", style={'color': COLORS['danger']}), _render_grid_cards(all_grids)])
             return _render_grid_cards(all_grids)
         except Exception as e:
             return html.Div([html.P(f"❌ 启动失败: {e}", style={'color': COLORS['danger'], 'textAlign': 'center', 'padding': '20px'})])
 
-    # 刷新状态
+    # 刷新状态（仅显示当前用户的网格）
     return _render_grid_cards(all_grids)
 
 
@@ -3147,6 +3699,19 @@ def update_grid_logs(n_intervals):
         return html.P(f'日志加载失败: {str(e)}', style={'color': '#FF6B6B', 'textAlign': 'center', 'padding': '40px'})
 
 
+# --- Dash 验证布局：列出所有页面可能出现的组件，避免前端出现
+# "A nonexistent object was used in an `Input`" 的红色报错（例如 btn-add-strategy） ---
+app.validation_layout = html.Div([
+    app.layout,
+    # 使用占位用户构建各个页面的完整布局，供 Dash 校验回调依赖
+    render_trading_layout({'username': 'validation', 'role': 'user'}, control_log=""),
+    render_dashboard_layout(),
+    render_ai_lab_layout(),
+    render_currency_monitor_layout(),
+    render_grid_trading_layout(),
+])
+
+
 if __name__ == '__main__':
-    # 启用 debug 模式但关闭前端报错弹窗，提供更干净的界面
-    app.run(host='0.0.0.0', port=8050, debug=True, dev_tools_ui=False)
+    # 启用 debug 模式但关闭前端报错弹窗；dev_tools_props_check=False 减少 React 校验导致的 Object 错误
+    app.run(host='0.0.0.0', port=8050, debug=True, dev_tools_ui=False, dev_tools_props_check=False)

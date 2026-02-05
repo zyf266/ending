@@ -1,2002 +1,502 @@
-# Nonces and API wallets
+https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-api-information
+WebSocket Streams for Binance
+General WSS information
+The base endpoint is: wss://stream.binance.com:9443 or wss://stream.binance.com:443.
+Streams can be accessed either in a single raw stream or in a combined stream.
+Raw streams are accessed at /ws/<streamName>
+Combined streams are accessed at /stream?streams=<streamName1>/<streamName2>/<streamName3>
+Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
+All symbols for streams are lowercase
+A single connection to stream.binance.com is only valid for 24 hours; expect to be disconnected at the 24 hour mark
+The WebSocket server will send a ping frame every 20 seconds.
+If the WebSocket server does not receive a pong frame back from the connection within a minute the connection will be disconnected.
+When you receive a ping, you must send a pong with a copy of ping's payload as soon as possible.
+Unsolicited pong frames are allowed, but will not prevent disconnection. It is recommended that the payload for these pong frames are empty.
+The base endpoint wss://data-stream.binance.vision can be subscribed to receive only market data messages.
+User data stream is NOT available from this URL.
+All time and timestamp related fields are milliseconds by default. To receive the information in microseconds, please add the parameter timeUnit=MICROSECOND or timeUnit=microsecond in the URL.
+For example: /stream?streams=btcusdt@trade&timeUnit=MICROSECOND
+If your request contains a symbol name containing non-ASCII characters, then the stream events may contain non-ASCII characters encoded in UTF-8.
+[All Market Mini Tickers Stream](#all-market-mini-tickers-stream and All Market Rolling Window Statistics Streams events may contain non-ASCII characters encoded in UTF-8.
+WebSocket Limits
+WebSocket connections have a limit of 5 incoming messages per second. A message is considered:
+A PING frame
+A PONG frame
+A JSON controlled message (e.g. subscribe, unsubscribe)
+A connection that goes beyond the limit will be disconnected; IPs that are repeatedly disconnected may be banned.
+A single connection can listen to a maximum of 1024 streams.
+There is a limit of 300 connections per attempt every 5 minutes per IP.
+Live Subscribing/Unsubscribing to streams
+The following data can be sent through the WebSocket instance in order to subscribe/unsubscribe from streams. Examples can be seen below.
+The id is used as an identifier to uniquely identify the messages going back and forth. The following formats are accepted:
+64-bit signed integer
+alphanumeric strings; max length 36
+null
+In the response, if the result received is null this means the request sent was a success for non-query requests (e.g. Subscribing/Unsubscribing).
+Subscribe to a stream
+Request
 
-### Background&#x20;
-
-A decentralized L1 must prevent replay attacks. When a user signs a USDC transfer transaction, the receiver cannot broadcast it multiple times to drain the sender's wallet. To solve this Ethereum stores a "nonce" for each address, which is a number that starts at 0. Each transaction must use exactly "nonce + 1" to be included.
-
-### API wallets
-
-These are also known as `agent wallets` in the docs. A master account can approve API wallets to sign on behalf of the master account or any of the sub-accounts.&#x20;
-
-Note that API wallets are only used to sign. To query the account data associated with a master or sub-account, you must pass in the actual address of that account. A common pitfall is to use the agent wallet which leads to an empty result.
-
-### API wallet pruning
-
-API wallets and their associated nonce state may be pruned in the following cases:
-
-1. The wallet is deregistered. This happens to an existing unnamed API Wallet when an ApproveAgent action is sent to register a new unnamed API Wallet. This also happens to an existing named API Wallet when an ApproveAgent action is sent with a matching name.
-2. The wallet expires.
-3. The account that registered the agent no longer has funds.
-
-**Important:** for those using API wallets programmatically, it is **strongly** suggested to not reuse their addresses. Once an agent is deregistered, its used nonce state may be pruned. Generate a new agent wallet on future use to avoid unexpected behavior. For example, previously signed actions can be replayed once the nonce set is pruned.
-
-### Hyperliquid nonces&#x20;
-
-Ethereum's design does not work for an onchain order book. A market making strategy can send thousands of orders and cancels in a second. Requiring a precise ordering of inclusion on the blockchain will break any strategy.
-
-On Hyperliquid, the 100 highest nonces are stored per address. Every new transaction must have nonce larger than the smallest nonce in this set and also never have been used before. Nonces are tracked per signer, which is the user address if signed with private key of the address, or the agent address if signed with an API wallet.&#x20;
-
-Nonces must be within `(T - 2 days, T + 1 day)`, where `T` is the unix millisecond timestamp on the block of the transaction.
-
-The following steps may help port over an automated strategy from a centralized exchange:
-
-1. Use a API wallet per trading process. Note that nonces are stored per signer (i.e. private key), so separate subaccounts signed by the same API wallet will share the nonce tracker of the API wallet. It's recommended to use separate API wallets for different subaccounts.
-2. In each trading process, have a task that periodically batches order and cancel requests every 0.1 seconds. It is recommended to batch IOC and GTC orders separately from ALO orders because ALO order-only batches are prioritized by the validators.
-3. The trading logic tasks send orders and cancels to the batching task.
-4. For each batch of orders or cancels, fetch and increment an atomic counter that ensures a unique nonce for the address. The atomic counter can be fast-forwarded to current unix milliseconds if needed.
-
-This structure is robust to out-of-order transactions within 2 seconds, which should be sufficient for an automated strategy geographically near an API server.
-
-### Suggestions for subaccount and vault users
-
-Note that nonces are stored per signer, which is the address of the private key used to sign the transaction. Therefore, it's recommended that each trading process or frontend session use a separate private key for signing. In particular, a single API wallet signing for a user, vault, or subaccount all share the same nonce set.
-
-If users want to use multiple subaccounts in parallel, it would easier to generate two separate API wallets under the master account, and use one API wallet for each subaccount. This avoids collisions between the nonce set used by each subaccount.
-# Perpetuals
-
-## Retrieve all perpetual dexs
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description |
-| -------------------------------------- | ------ | ----------- |
-| type<mark style="color:red;">\*</mark> | String | "perpDexs"  |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```json
-[
-  null,
-  {
-    "name": "test",
-    "fullName": "test dex",
-    "deployer": "0x5e89b26d8d66da9888c835c9bfcc2aa51813e152",
-    "oracleUpdater": null,
-    "feeRecipient": null,
-    "assetToStreamingOiCap": [["COIN1", "100000.0"], ["COIN2", "200000.0"]],
-    "assetToFundingMultiplier": [["COIN1", "1.0"], ["COIN2", "2.0"]]
-  }
-]
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve perpetuals metadata (universe and margin tables)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                      |
-| -------------------------------------- | ------ | -------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "meta"                                                                           |
-| dex                                    | String | Perp dex name. Defaults to the empty string which represents the first perp dex. |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```json
 {
-    "universe": [
-        {
-            "name": "BTC",
-            "szDecimals": 5,
-            "maxLeverage": 50
-        },
-        {
-            "name": "ETH",
-            "szDecimals": 4,
-            "maxLeverage": 50
-        },
-        {
-            "name": "HPOS",
-            "szDecimals": 0,
-            "maxLeverage": 3,
-            "onlyIsolated": true
-        },
-        {
-            "name": "LOOM",
-            "szDecimals": 1,
-            "maxLeverage": 3,
-            "isDelisted": true,
-            "marginMode": "strictIsolated", // "strictIsolated" means margin cannot be removed, "noCross" means only isolated margin allowed
-            "onlyIsolated": true // deprecated. Means either "strictIsolated" or "noCross"
-        }
-    ],
-    "marginTables": [
-        [
-            50,
-            {
-                "description": "",
-                "marginTiers": [
-                    {
-                        "lowerBound": "0.0",
-                        "maxLeverage": 50
-                    }
-                ]
-            }
-        ],
-        [
-            51,
-            {
-                "description": "tiered 10x",
-                "marginTiers": [
-                    {
-                        "lowerBound": "0.0",
-                        "maxLeverage": 10
-                    },
-                    {
-                        "lowerBound": "3000000.0",
-                        "maxLeverage": 5
-                    }
-                ]
-            }
-        ]
-    ]
+    "method": "SUBSCRIBE",
+    "params": ["btcusdt@aggTrade", "btcusdt@depth"],
+    "id": 1
 }
-```
 
-{% endtab %}
-{% endtabs %}
+Response
 
-## Retrieve perpetuals asset contexts (includes mark price, current funding, open interest, etc.)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                      |
-| -------------------------------------- | ------ | -------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "metaAndAssetCtxs"                                                               |
-| dex                                    | String | Perp dex name. Defaults to the empty string which represents the first perp dex. |
-
-{% tabs %}
-{% tab title="200: OK Successful Response (first perp dex)" %}
-
-```json
-[
 {
-     "universe": [
-        {
-            "name": "BTC",
-            "szDecimals": 5,
-            "maxLeverage": 50
-        },
-        {
-            "name": "ETH",
-            "szDecimals": 4,
-            "maxLeverage": 50
-        },
-        {
-            "name": "HPOS",
-            "szDecimals": 0,
-            "maxLeverage": 3,
-            "onlyIsolated": true
-        }
-    ],
-    "marginTables":[
-         [
-            50,
-            {
-               "description":"",
-               "marginTiers":[
-                  {
-                     "lowerBound":"0.0",
-                     "maxLeverage":50
-                  }
-               ]
-            }
-         ]
-     ],
-     "collateralToken":0
-},
-[
-    {
-        "dayNtlVlm":"1169046.29406",
-         "funding":"0.0000125",
-         "impactPxs":[
-            "14.3047",
-            "14.3444"
-         ],
-         "markPx":"14.3161",
-         "midPx":"14.314",
-         "openInterest":"688.11",
-         "oraclePx":"14.32",
-         "premium":"0.00031774",
-         "prevDayPx":"15.322"
-    },
-    {
-         "dayNtlVlm":"1426126.295175",
-         "funding":"0.0000125",
-         "impactPxs":[
-            "6.0386",
-            "6.0562"
-         ],
-         "markPx":"6.0436",
-         "midPx":"6.0431",
-         "openInterest":"1882.55",
-         "oraclePx":"6.0457",
-         "premium":"0.00028119",
-         "prevDayPx":"6.3611"
-      },
-      {
-         "dayNtlVlm":"809774.565507",
-         "funding":"0.0000125",
-         "impactPxs":[
-            "8.4505",
-            "8.4722"
-         ],
-         "markPx":"8.4542",
-         "midPx":"8.4557",
-         "openInterest":"2912.05",
-         "oraclePx":"8.4585",
-         "premium":"0.00033694",
-         "prevDayPx":"8.8097"
-      }
-]
-]
-```
+    "result": null,
+    "id": 1
+}
 
-{% endtab %}
+Unsubscribe to a stream
+Request
 
-{% tab title="200: OK Successful Response (HIP-3 dex)" %}
-
-```json
-[
-   {
-      "universe":[
-         {
-            "szDecimals":4,
-            "name":"xyz:XYZ100",
-            "maxLeverage":20,
-            "marginTableId":20,
-            "onlyIsolated":true,
-            "marginMode":"strictIsolated",
-            "growthMode":"enabled",
-            "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-         },
-         {
-            "szDecimals":3,
-            "name":"xyz:TSLA",
-            "maxLeverage":10,
-            "marginTableId":10,
-            "onlyIsolated":true,
-            "marginMode":"strictIsolated",
-            "growthMode":"enabled",
-            "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-         },
-         {
-            "szDecimals":3,
-            "name":"xyz:NVDA",
-            "maxLeverage":10,
-            "marginTableId":10,
-            "onlyIsolated":true,
-            "marginMode":"strictIsolated",
-            "growthMode":"enabled",
-            "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-         }
-      ],
-      "marginTables":[
-         [
-            50,
-            {
-               "description":"",
-               "marginTiers":[
-                  {
-                     "lowerBound":"0.0",
-                     "maxLeverage":50
-                  }
-               ]
-            }
-         ]
-      ],
-      "collateralToken":0
-   },
-   [
-      {
-         "funding":"0.0002110251",
-         "openInterest":"0.0854",
-         "prevDayPx":"25956.0",
-         "dayNtlVlm":"462.9758",
-         "premium":"0.0031136686",
-         "oraclePx":"25372.0",
-         "markPx":"25451.0",
-         "midPx":"25451.0",
-         "impactPxs":[
-            "24946.0",
-            "25956.0"
-         ],
-         "dayBaseVlm":"0.0183"
-      },
-      {
-         "funding":"0.0",
-         "openInterest":"12.208",
-         "prevDayPx":"447.49",
-         "dayNtlVlm":"0.0",
-         "premium":null,
-         "oraclePx":"450.78",
-         "markPx":"465.13",
-         "midPx":"464.92",
-         "impactPxs":null,
-         "dayBaseVlm":"0.0"
-      },
-      {
-         "funding":"0.0",
-         "openInterest":"9.43",
-         "prevDayPx":"177.0",
-         "dayNtlVlm":"2192.853",
-         "premium":null,
-         "oraclePx":"188.15",
-         "markPx":"177.06",
-         "midPx":null,
-         "impactPxs":null,
-         "dayBaseVlm":"12.389"
-      }
-   ]
-]
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve user's perpetuals account summary
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-See a user's open positions and margin summary for perpetuals trading
-
-#### Headers
-
-| Name                                           | Type | Description        |
-| ---------------------------------------------- | ---- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> |      | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                                          |
-| -------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "clearinghouseState"                                                                                 |
-| user<mark style="color:red;">\*</mark> | String | Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000. |
-| dex                                    | String | Perp dex name. Defaults to the empty string which represents the first perp dex.                     |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```json
 {
-  "assetPositions": [
-    {
-      "position": {
-        "coin": "ETH",
-        "cumFunding": {
-          "allTime": "514.085417",
-          "sinceChange": "0.0",
-          "sinceOpen": "0.0"
-        },
-        "entryPx": "2986.3",
-        "leverage": {
-          "rawUsd": "-95.059824",
-          "type": "isolated",
-          "value": 20
-        },
-        "liquidationPx": "2866.26936529",
-        "marginUsed": "4.967826",
-        "maxLeverage": 50,
-        "positionValue": "100.02765",
-        "returnOnEquity": "-0.0026789",
-        "szi": "0.0335",
-        "unrealizedPnl": "-0.0134"
-      },
-      "type": "oneWay"
+    "method": "UNSUBSCRIBE",
+    "params": ["btcusdt@depth"],
+    "id": 312
+}
+
+Response
+
+{
+    "result": null,
+    "id": 312
+}
+
+Listing Subscriptions
+Request
+
+{
+    "method": "LIST_SUBSCRIPTIONS",
+    "id": 3
+}
+
+Response
+
+{
+    "result": ["btcusdt@aggTrade"],
+    "id": 3
+}
+
+Setting Properties
+Currently, the only property that can be set is whether combined stream payloads are enabled or not. The combined property is set to false when connecting using /ws/ ("raw streams") and true when connecting using /stream/.
+
+Request
+
+{
+    "method": "SET_PROPERTY",
+    "params": ["combined", true],
+    "id": 5
+}
+
+Response
+
+{
+    "result": null,
+    "id": 5
+}
+
+Retrieving Properties
+Request
+
+{
+    "method": "GET_PROPERTY",
+    "params": ["combined"],
+    "id": 2
+}
+
+Response
+
+{
+    "result": true, // Indicates that combined is set to true.
+    "id": 2
+}
+
+Error Messages
+Error Message	Description
+{"code": 0, "msg": "Unknown property","id": %s}	Parameter used in the SET_PROPERTY or GET_PROPERTY was invalid
+{"code": 1, "msg": "Invalid value type: expected Boolean"}	Value should only be true or false
+{"code": 2, "msg": "Invalid request: property name must be a string"}	Property name provided was invalid
+{"code": 2, "msg": "Invalid request: request ID must be an unsigned integer"}	Parameter id had to be provided or the value provided in the id parameter is an unsupported type
+{"code": 2, "msg": "Invalid request: unknown variant %s, expected one of SUBSCRIBE, UNSUBSCRIBE, LIST_SUBSCRIPTIONS, SET_PROPERTY, GET_PROPERTY at line 1 column 28"}	Possible typo in the provided method or provided method was neither of the expected values
+{"code": 2, "msg": "Invalid request: too many parameters"}	Unnecessary parameters provided in the data
+{"code": 2, "msg": "Invalid request: property name must be a string"}	Property name was not provided
+{"code": 2, "msg": "Invalid request: missing field method at line 1 column 73"}	method was not provided in the data
+{"code":3,"msg":"Invalid JSON: expected value at line %s column %s"}	JSON data sent has incorrect syntax.
+Detailed Stream information
+Aggregate Trade Streams
+The Aggregate Trade Streams push trade information that is aggregated for a single taker order.
+
+Stream Name: <symbol>@aggTrade
+
+Update Speed: Real-time
+
+Payload:
+
+{
+    "e": "aggTrade",        // Event type
+    "E": 1672515782136,     // Event time
+    "s": "BNBBTC",          // Symbol
+    "a": 12345,             // Aggregate trade ID
+    "p": "0.001",           // Price
+    "q": "100",             // Quantity
+    "f": 100,               // First trade ID
+    "l": 105,               // Last trade ID
+    "T": 1672515782136,     // Trade time
+    "m": true,              // Is the buyer the market maker?
+    "M": true               // Ignore
+}
+
+Trade Streams
+The Trade Streams push raw trade information; each trade has a unique buyer and seller.
+
+Stream Name: <symbol>@trade
+
+Update Speed: Real-time
+
+Payload:
+
+{
+    "e": "trade",           // Event type
+    "E": 1672515782136,     // Event time
+    "s": "BNBBTC",          // Symbol
+    "t": 12345,             // Trade ID
+    "p": "0.001",           // Price
+    "q": "100",             // Quantity
+    "T": 1672515782136,     // Trade time
+    "m": true,              // Is the buyer the market maker?
+    "M": true               // Ignore
+}
+
+Kline/Candlestick Streams for UTC
+The Kline/Candlestick Stream push updates to the current klines/candlestick every second in UTC+0 timezone
+
+Kline/Candlestick chart intervals:
+
+s-> seconds; m -> minutes; h -> hours; d -> days; w -> weeks; M -> months
+
+1s
+1m
+3m
+5m
+15m
+30m
+1h
+2h
+4h
+6h
+8h
+12h
+1d
+3d
+1w
+1M
+Stream Name: <symbol>@kline_<interval>
+
+Update Speed: 1000ms for 1s, 2000ms for the other intervals
+
+Payload:
+
+{
+    "e": "kline",               // Event type
+    "E": 1672515782136,         // Event time
+    "s": "BNBBTC",              // Symbol
+    "k": {
+        "t": 1672515780000,     // Kline start time
+        "T": 1672515839999,     // Kline close time
+        "s": "BNBBTC",          // Symbol
+        "i": "1m",              // Interval
+        "f": 100,               // First trade ID
+        "L": 200,               // Last trade ID
+        "o": "0.0010",          // Open price
+        "c": "0.0020",          // Close price
+        "h": "0.0025",          // High price
+        "l": "0.0015",          // Low price
+        "v": "1000",            // Base asset volume
+        "n": 100,               // Number of trades
+        "x": false,             // Is this kline closed?
+        "q": "1.0000",          // Quote asset volume
+        "V": "500",             // Taker buy base asset volume
+        "Q": "0.500",           // Taker buy quote asset volume
+        "B": "123456"           // Ignore
     }
-  ],
-  "crossMaintenanceMarginUsed": "0.0",
-  "crossMarginSummary": {
-    "accountValue": "13104.514502",
-    "totalMarginUsed": "0.0",
-    "totalNtlPos": "0.0",
-    "totalRawUsd": "13104.514502"
-  },
-  "marginSummary": {
-    "accountValue": "13109.482328",
-    "totalMarginUsed": "4.967826",
-    "totalNtlPos": "100.02765",
-    "totalRawUsd": "13009.454678"
-  },
-  "time": 1708622398623,
-  "withdrawable": "13104.514502"
 }
-```
 
-{% endtab %}
-{% endtabs %}
+Kline/Candlestick Streams with timezone offset
+The Kline/Candlestick Stream push updates to the current klines/candlestick every second in UTC+8 timezone
 
-## Retrieve a user's funding history or non-funding ledger updates
+Kline/Candlestick chart intervals:
 
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
+Supported intervals: See Kline/Candlestick chart intervals
 
-Note: Non-funding ledger updates include deposits, transfers, and withdrawals.
+UTC+8 timezone offset:
 
-#### Headers
+Kline intervals open and close in the UTC+8 timezone. For example the 1d klines will open at the beginning of the UTC+8 day, and close at the end of the UTC+8 day.
+Note that E (event time), t (start time) and T (close time) in the payload are Unix timestamps, which are always interpreted in UTC.
+Stream Name: <symbol>@kline_<interval>@+08:00
 
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
+Update Speed: 1000ms for 1s, 2000ms for the other intervals
 
-#### Request Body
+Payload:
 
-| Name                                        | Type   | Description                                                                                  |
-| ------------------------------------------- | ------ | -------------------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark>      | String | "userFunding" or "userNonFundingLedgerUpdates"                                               |
-| user<mark style="color:red;">\*</mark>      | String | Address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000. |
-| startTime<mark style="color:red;">\*</mark> | int    | Start time in milliseconds, inclusive                                                        |
-| endTime                                     | int    | End time in milliseconds, inclusive. Defaults to current time.                               |
+{
+    "e": "kline",               // Event type
+    "E": 1672515782136,         // Event time
+    "s": "BNBBTC",              // Symbol
+    "k": {
+        "t": 1672515780000,     // Kline start time
+        "T": 1672515839999,     // Kline close time
+        "s": "BNBBTC",          // Symbol
+        "i": "1m",              // Interval
+        "f": 100,               // First trade ID
+        "L": 200,               // Last trade ID
+        "o": "0.0010",          // Open price
+        "c": "0.0020",          // Close price
+        "h": "0.0025",          // High price
+        "l": "0.0015",          // Low price
+        "v": "1000",            // Base asset volume
+        "n": 100,               // Number of trades
+        "x": false,             // Is this kline closed?
+        "q": "1.0000",          // Quote asset volume
+        "V": "500",             // Taker buy base asset volume
+        "Q": "0.500",           // Taker buy quote asset volume
+        "B": "123456"           // Ignore
+    }
+}
 
-{% tabs %}
-{% tab title="200: OK Successful Response (first perp dex)" %}
+Individual Symbol Mini Ticker Stream
+24hr rolling window mini-ticker statistics. These are NOT the statistics of the UTC day, but a 24hr rolling window for the previous 24hrs.
 
-```json
+Stream Name: <symbol>@miniTicker
+
+Update Speed: 1000ms
+
+Payload:
+
+{
+    "e": "24hrMiniTicker",     // Event type
+    "E": 1672515782136,        // Event time
+    "s": "BNBBTC",             // Symbol
+    "c": "0.0025",             // Close price
+    "o": "0.0010",             // Open price
+    "h": "0.0025",             // High price
+    "l": "0.0010",             // Low price
+    "v": "10000",              // Total traded base asset volume
+    "q": "18"                  // Total traded quote asset volume
+}
+
+All Market Mini Tickers Stream
+24hr rolling window mini-ticker statistics for all symbols that changed in an array. These are NOT the statistics of the UTC day, but a 24hr rolling window for the previous 24hrs. Note that only tickers that have changed will be present in the array.
+
+Stream Name: !miniTicker@arr
+
+Update Speed: 1000ms
+
+Payload:
+
 [
     {
-        "delta": {
-            "coin": "ETH",
-            "fundingRate": "0.0000417",
-            "szi": "49.1477",
-            "type": "funding",
-            "usdc":" -3.625312",
-            "nSamples": null
-        },
-        "hash": "0xa166e3fa63c25663024b03f2e0da011a00307e4017465df020210d3d432e7cb8",
-        "time": 1681222254710
-    },
-    ...
-]
-```
-
-{% endtab %}
-
-{% tab title="200: OK Successful Response (HIP-3 dex)" %}
-
-```json
-[
-   {
-      "delta":{
-           "type": "funding",
-           "coin": "xyz:XYZ100",
-           "usdc": "2.378343",
-           "szi": "-15.0",
-           "fundingRate": "0.00000625",
-           "nSamples": null
-      },
-      "time": 1767654000068,
-      "hash": "0xa166e3fa63c25663024b03f2e0da011a00307e4017465df020210d3d432e7cb9"
-   },
-   ...
-]
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve historical funding rates
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                    |
-| ------------------------------------------- | ------ | -------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark>      | String | "fundingHistory"                                               |
-| coin<mark style="color:red;">\*</mark>      | String | Coin, e.g. "ETH"                                               |
-| startTime<mark style="color:red;">\*</mark> | int    | Start time in milliseconds, inclusive                          |
-| endTime                                     | int    | End time in milliseconds, inclusive. Defaults to current time. |
-
-{% tabs %}
-{% tab title="200: OK (first perp dex)" %}
-
-<pre class="language-json"><code class="lang-json">[
-    {
-        "coin":"ETH",
-        "fundingRate": "-0.00022196",
-        "premium": "-0.00052196",
-        "time":1683849600076
-<strong>    }
-</strong>]
-</code></pre>
-
-{% endtab %}
-
-{% tab title="200: OK (HIP-3 dex)" %}
-
-```json
-[ 
-    {
-        "coin": "xyz:XYZ100",
-        "fundingRate": "-0.00022196",
-        "premium": "-0.00052196",
-        "time": 1683849600076
+        // Same as <symbol>@miniTicker payload
     }
 ]
-```
 
-{% endtab %}
-{% endtabs %}
+Individual Symbol Ticker Streams
+24hr rolling window ticker statistics for a single symbol. These are NOT the statistics of the UTC day, but a 24hr rolling window for the previous 24hrs.
 
-## Retrieve predicted funding rates for different venues
+Stream Name: <symbol>@ticker
 
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
+Update Speed: 1000ms
 
-Note that predicted funding rates is only supported for the first perp dex.
+Payload:
 
-#### Headers
+{
+    "e": "24hrTicker",      // Event type
+    "E": 1672515782136,     // Event time
+    "s": "BNBBTC",          // Symbol
+    "p": "0.0015",          // Price change
+    "P": "250.00",          // Price change percent
+    "w": "0.0018",          // Weighted average price
+    "x": "0.0009",          // First trade(F)-1 price (first trade before the 24hr rolling window)
+    "c": "0.0025",          // Last price
+    "Q": "10",              // Last quantity
+    "b": "0.0024",          // Best bid price
+    "B": "10",              // Best bid quantity
+    "a": "0.0026",          // Best ask price
+    "A": "100",             // Best ask quantity
+    "o": "0.0010",          // Open price
+    "h": "0.0025",          // High price
+    "l": "0.0010",          // Low price
+    "v": "10000",           // Total traded base asset volume
+    "q": "18",              // Total traded quote asset volume
+    "O": 0,                 // Statistics open time
+    "C": 86400000,          // Statistics close time
+    "F": 0,                 // First trade ID
+    "L": 18150,             // Last trade Id
+    "n": 18151              // Total number of trades
+}
 
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
+Individual Symbol Rolling Window Statistics Streams
+Rolling window ticker statistics for a single symbol, computed over multiple windows.
 
-#### Request Body
+Stream Name: <symbol>@ticker_<window_size>
 
-| Name                                   | Type   | Description         |
-| -------------------------------------- | ------ | ------------------- |
-| type<mark style="color:red;">\*</mark> | String | "predictedFundings" |
+Window Sizes: 1h,4h,1d
 
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
+Update Speed: 1000ms
 
-```json
+Note: This stream is different from the <symbol>@ticker stream. The open time "O" always starts on a minute, while the closing time "C" is the current time of the update. As such, the effective window might be up to 59999ms wider than <window_size>.
+
+Payload:
+
+{
+    "e": "1hTicker",        // Event type
+    "E": 1672515782136,     // Event time
+    "s": "BNBBTC",          // Symbol
+    "p": "0.0015",          // Price change
+    "P": "250.00",          // Price change percent
+    "o": "0.0010",          // Open price
+    "h": "0.0025",          // High price
+    "l": "0.0010",          // Low price
+    "c": "0.0025",          // Last price
+    "w": "0.0018",          // Weighted average price
+    "v": "10000",           // Total traded base asset volume
+    "q": "18",              // Total traded quote asset volume
+    "O": 0,                 // Statistics open time
+    "C": 1675216573749,     // Statistics close time
+    "F": 0,                 // First trade ID
+    "L": 18150,             // Last trade Id
+    "n": 18151              // Total number of trades
+}
+
+All Market Rolling Window Statistics Streams
+Rolling window ticker statistics for all market symbols, computed over multiple windows. Note that only tickers that have changed will be present in the array.
+
+Stream Name: !ticker_<window-size>@arr
+
+Window Size: 1h,4h,1d
+
+Update Speed: 1000ms
+
+Payload:
+
 [
-  [
-    "AVAX",
-    [
-      [
-        "BinPerp",
-        {
-          "fundingRate": "0.0001",
-          "nextFundingTime": 1733961600000
-        }
-      ],
-      [
-        "HlPerp",
-        {
-          "fundingRate": "0.0000125",
-          "nextFundingTime": 1733958000000
-        }
-      ],
-      [
-        "BybitPerp",
-        {
-          "fundingRate": "0.0001",
-          "nextFundingTime": 1733961600000
-        }
-      ]
-    ]
-  ],...
+    {
+        // Same as <symbol>@ticker_<window_size> payload,
+        // one for each symbol updated within the interval.
+    }
 ]
-```
 
-{% endtab %}
-{% endtabs %}
+Individual Symbol Book Ticker Streams
+Pushes any update to the best bid or ask's price or quantity in real-time for a specified symbol. Multiple <symbol>@bookTicker streams can be subscribed to over one connection.
 
-## Query perps at open interest caps
+Stream Name: <symbol>@bookTicker
 
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
+Update Speed: Real-time
 
-#### Headers
+Payload:
 
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                                     |
-| -------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "perpsAtOpenInterestCap"                                                                        |
-| dex                                    | String | Perp dex name of builder-deployed dex market. If not specified, then the first perp dex is used |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```json
-["BADGER","CANTO","FTM","LOOM","PURR"]
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve information about the Perp Deploy Auction
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description               |
-| -------------------------------------- | ------ | ------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "perpDeployAuctionStatus" |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```json
 {
-  "startTimeSeconds": 1747656000,
-  "durationSeconds": 111600,
-  "startGas": "500.0",
-  "currentGas": "500.0",
-  "endGas": null
+    "u": 400900217,         // order book updateId
+    "s": "BNBUSDT",         // symbol
+    "b": "25.35190000",     // best bid price
+    "B": "31.21000000",     // best bid qty
+    "a": "25.36520000",     // best ask price
+    "A": "40.66000000"      // best ask qty
 }
-```
 
-{% endtab %}
-{% endtabs %}
+Average Price
+Average price streams push changes in the average price over a fixed time interval.
 
-## Retrieve User's Active Asset Data
+Stream Name: <symbol>@avgPrice
 
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
+Update Speed: 1000ms
 
-#### Headers
+Payload:
 
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                                                                                         |
-| -------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "activeAssetData"                                                                                                                                   |
-| user<mark style="color:red;">\*</mark> | String | Address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000.                                                        |
-| coin<mark style="color:red;">\*</mark> | String | Coin, e.g. "ETH". See [here](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint#perpetuals-vs-spot) for more details. |
-
-{% tabs %}
-{% tab title="200: OK (first perp dex)" %}
-
-```json
 {
-  "user": "0xb65822a30bbaaa68942d6f4c43d78704faeabbbb",
-  "coin": "APT",
-  "leverage": {
-    "type": "cross",
-    "value": 3
-  },
-  "maxTradeSzs": ["24836370.4400000013", "24836370.4400000013"],
-  "availableToTrade": ["37019438.0284740031", "37019438.0284740031"],
-  "markPx": "4.4716"
+    "e": "avgPrice",           // Event type
+    "E": 1693907033000,        // Event time
+    "s": "BTCUSDT",            // Symbol
+    "i": "5m",                 // Average price interval
+    "w": "25776.86000000",     // Average price
+    "T": 1693907032213         // Last trade time
 }
-```
 
-{% endtab %}
+Partial Book Depth Streams
+Top <levels> bids and asks, pushed every second. Valid <levels> are 5, 10, or 20.
 
-{% tab title="200: OK (HIP-3 dex)" %}
+Stream Names: <symbol>@depth<levels> OR <symbol>@depth<levels>@100ms
 
-```json
+Update Speed: 1000ms or 100ms
+
+Payload:
+
 {
-   "user": "0xa15099a30bbf2e68942d6f4c43d70d04faeab0a0",
-   "coin": "xyz:XYZ100",
-   "leverage":{
-      "type": "isolated",
-      "value": 20,
-      "rawUsd": "0.0"
-   },
-   "maxTradeSzs": [
-      "0.0",
-      "0.0"
-   ],
-   "availableToTrade": [
-      "0.0",
-      "0.0"
-   ],
-   "markPx": "25451.0"
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve Builder-Deployed Perp Market Limits
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                    |
-| -------------------------------------- | ------ | ------------------------------------------------------------------------------ |
-| type<mark style="color:red;">\*</mark> | String | "perpDexLimits"                                                                |
-| dex<mark style="color:red;">\*</mark>  | String | Perp dex name of builder-deployed dex market. The empty string is not allowed. |
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{
-  "totalOiCap": "10000000.0",
-  "oiSzCapPerPerp": "10000000000.0",
-  "maxTransferNtl": "100000000.0",
-  "coinToOiCap": [["COIN1", "100000.0"], ["COIN2", "200000.0"]],
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Get Perp Market Status
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description                                                                                   |
-| -------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
-| type<mark style="color:red;">\*</mark> | String | "perpDexStatus"                                                                               |
-| dex<mark style="color:red;">\*</mark>  | String | Perp dex name of builder-deployed dex market. The empty string represents the first perp dex. |
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{
-  "totalNetDeposit": "4103492112.4478230476"
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Retrieve all perpetuals metadata (universe and margin tables)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/info`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                   | Type   | Description    |
-| -------------------------------------- | ------ | -------------- |
-| type<mark style="color:red;">\*</mark> | String | "allPerpMetas" |
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-[ // first perp dex
-    [
-        {
-            "universe":[
-                {
-                    "name":"BTC",
-                    "szDecimals":5,
-                    "maxLeverage":50
-                },
-                {
-                    "name":"ETH",
-                    "szDecimals":4,
-                    "maxLeverage":50
-                },
-                {
-                    "name":"HPOS",
-                    "szDecimals":0,
-                    "maxLeverage":3,
-                    "onlyIsolated":true
-                }
-            ],
-            "marginTables":[
-                [
-                    50,
-                    {
-                        "description":"",
-                        "marginTiers":[
-                            {
-                                "lowerBound":"0.0",
-                                "maxLeverage":50
-                            }
-                        ]
-                    }
-                ]
-            ],
-            "collateralToken":0
-        },
+    "lastUpdateId": 160,     // Last update ID
+    "bids": [                // Bids to be updated
         [
-            {
-                "dayNtlVlm":"1169046.29406",
-                "funding":"0.0000125",
-                "impactPxs":[
-                    "14.3047",
-                    "14.3444"
-                ],
-                "markPx":"14.3161",
-                "midPx":"14.314",
-                "openInterest":"688.11",
-                "oraclePx":"14.32",
-                "premium":"0.00031774",
-                "prevDayPx":"15.322"
-            },
-            {
-                "dayNtlVlm":"1426126.295175",
-                "funding":"0.0000125",
-                "impactPxs":[
-                    "6.0386",
-                    "6.0562"
-                ],
-                "markPx":"6.0436",
-                "midPx":"6.0431",
-                "openInterest":"1882.55",
-                "oraclePx":"6.0457",
-                "premium":"0.00028119",
-                "prevDayPx":"6.3611"
-            },
-            {
-                "dayNtlVlm":"809774.565507",
-                "funding":"0.0000125",
-                "impactPxs":[
-                    "8.4505",
-                    "8.4722"
-                ],
-                "markPx":"8.4542",
-                "midPx":"8.4557",
-                "openInterest":"2912.05",
-                "oraclePx":"8.4585",
-                "premium":"0.00033694",
-                "prevDayPx":"8.8097"
-            }
+            "0.0024",        // Price level to be updated
+            "10"             // Quantity
         ]
     ],
-    [ // second perp dex
-        {
-            "universe":[
-                {
-                    "szDecimals":4,
-                    "name":"xyz:XYZ100",
-                    "maxLeverage":20,
-                    "marginTableId":20,
-                    "onlyIsolated":true,
-                    "marginMode":"strictIsolated",
-                    "growthMode":"enabled",
-                    "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-                },
-                {
-                    "szDecimals":3,
-                    "name":"xyz:TSLA",
-                    "maxLeverage":10,
-                    "marginTableId":10,
-                    "onlyIsolated":true,
-                    "marginMode":"strictIsolated",
-                    "growthMode":"enabled",
-                    "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-                },
-                {
-                    "szDecimals":3,
-                    "name":"xyz:NVDA",
-                    "maxLeverage":10,
-                    "marginTableId":10,
-                    "onlyIsolated":true,
-                    "marginMode":"strictIsolated",
-                    "growthMode":"enabled",
-                    "lastGrowthModeChangeTime":"2025-11-23T17:21:40.390706535"
-                }
-            ],
-            "marginTables":[
-                [
-                    50,
-                    {
-                        "description":"",
-                        "marginTiers":[
-                            {
-                                "lowerBound":"0.0",
-                                "maxLeverage":50
-                            }
-                        ]
-                    }
-                ]
-            ],
-            "collateralToken":0
-        },
+    "asks": [                // Asks to be updated
         [
-            {
-                "funding":"0.0002110251",
-                "openInterest":"0.0854",
-                "prevDayPx":"25956.0",
-                "dayNtlVlm":"462.9758",
-                "premium":"0.0031136686",
-                "oraclePx":"25372.0",
-                "markPx":"25451.0",
-                "midPx":"25451.0",
-                "impactPxs":[
-                    "24946.0",
-                    "25956.0"
-                ],
-                "dayBaseVlm":"0.0183"
-            },
-            {
-                "funding":"0.0",
-                "openInterest":"12.208",
-                "prevDayPx":"447.49",
-                "dayNtlVlm":"0.0",
-                "premium":null,
-                "oraclePx":"450.78",
-                "markPx":"465.13",
-                "midPx":"464.92",
-                "impactPxs":null,
-                "dayBaseVlm":"0.0"
-            },
-            {
-                "funding":"0.0",
-                "openInterest":"9.43",
-                "prevDayPx":"177.0",
-                "dayNtlVlm":"2192.853",
-                "premium":null,
-                "oraclePx":"188.15",
-                "markPx":"177.06",
-                "midPx":null,
-                "impactPxs":null,
-                "dayBaseVlm":"12.389"
-            }
+            "0.0026",        // Price level to be updated
+            "100"            // Quantity
         ]
     ]
-]
-```
-
-{% endtab %}
-{% endtabs %}
-# Exchange endpoint
-
-### Asset
-
-Many of the requests take asset as an input. For perpetuals this is the index in the `universe` field returned by the`meta` response. For spot assets, use `10000 + index` where `index` is the corresponding index in `spotMeta.universe`. For example, when submitting an order for `PURR/USDC`, the asset that should be used is `10000` because its asset index in the spot metadata is `0`.
-
-### Subaccounts and vaults
-
-Subaccounts and vaults do not have private keys. To perform actions on behalf of a subaccount or vault signing should be done by the master account and the vaultAddress field should be set to the address of the subaccount or vault. The basic\_vault.py example in the Python SDK demonstrates this.
-
-### Expires After
-
-Some actions support an optional field `expiresAfter` which is a timestamp in milliseconds after which the action will be rejected. User-signed actions such as Core USDC transfer do not support the `expiresAfter` field. Note that actions consume 5x the usual address-based rate limit when canceled due to a stale `expiresAfter` field.&#x20;
-
-See the Python SDK for details on how to incorporate this field when signing.&#x20;
-
-## Place an order
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-See Python SDK for full featured examples on the fields of the order request.
-
-For limit orders, TIF (time-in-force) sets the behavior of the order upon first hitting the book.
-
-ALO (add liquidity only, i.e. "post only") will be canceled instead of immediately matching.
-
-IOC (immediate or cancel) will have the unfilled part canceled instead of resting.
-
-GTC (good til canceled) orders have no special behavior.
-
-Client Order ID (cloid) is an optional 128 bit hex string, e.g. `0x1234567890abcdef1234567890abcdef`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                              |       |                                                                                                                                                      |                                                                                                       |              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "order",<br>  "orders": \[{</p><p>    "a": Number,</p><p>    "b": Boolean,</p><p>    "p": String,</p><p>    "s": String,</p><p>    "r": Boolean,</p><p>    "t": {</p><p>      "limit": {</p><p>        "tif": "Alo" | "Ioc" | "Gtc" </p><p>      } or</p><p>      "trigger": {</p><p>         "isMarket": Boolean,</p><p>         "triggerPx": String,</p><p>         "tpsl": "tp" | "sl"</p><p>       }</p><p>    },</p><p>    "c": Cloid (optional)</p><p>  }],</p><p>  "grouping": "na" | "normalTpsl" | "positionTpsl",</p><p>  "builder": Optional({"b": "address", "f": Number})</p><p>}<br><br>Meaning of keys:<br>a is asset<br>b is isBuy<br>p is price<br>s is size<br>r is reduceOnly<br>t is type<br>c is cloid (client order id)<br><br>Meaning of keys in optional builder argument:<br>b is the address the should receive the additional fee<br>f is the size of the fee in tenths of a basis point e.g. if f is 10, 1bp of the order notional  will be charged to the user and sent to the builder</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                 |       |                                                                                                                                                      |                                                                                                       |              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                          |       |                                                                                                                                                      |                                                                                                       |              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                                                                                   |       |                                                                                                                                                      |                                                                                                       |              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                                                |       |                                                                                                                                                      |                                                                                                       |              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-
-{% tabs %}
-{% tab title="200: OK Successful Response (resting)" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"order",
-      "data":{
-         "statuses":[
-            {
-               "resting":{
-                  "oid":77738308
-               }
-            }
-         ]
-      }
-   }
 }
-```
 
-{% endtab %}
+Diff. Depth Stream
+Order book price and quantity depth updates used to locally manage an order book.
 
-{% tab title="200: OK Error Response" %}
+Stream Name: <symbol>@depth OR <symbol>@depth@100ms
 
-```
+Update Speed: 1000ms or 100ms
+
+Payload:
+
 {
-   "status":"ok",
-   "response":{
-      "type":"order",
-      "data":{
-         "statuses":[
-            {
-               "error":"Order must have minimum value of $10."
-            }
-         ]
-      }
-   }
-}
-```
-
-{% endtab %}
-
-{% tab title="200: OK Successful Response (filled)" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"order",
-      "data":{
-         "statuses":[
-            {
-               "filled":{
-                  "totalSz":"0.02",
-                  "avgPx":"1891.4",
-                  "oid":77747314
-               }
-            }
-         ]
-      }
-   }
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Cancel order(s)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                      |
-| ------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "cancel",</p><p>  "cancels": \[</p><p>    {</p><p>      "a": Number,</p><p>      "o": Number</p><p>    }</p><p>  ]</p><p>}<br><br>Meaning of keys:<br>a is asset<br>o is oid (order id)</p> |
-|                                             |        |                                                                                                                                                                                                                  |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                         |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                  |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                                                                   |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                        |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"cancel",
-      "data":{
-         "statuses":[
-            "success"
-         ]
-      }
-   }
-}
-```
-
-{% endtab %}
-
-{% tab title="200: OK Error Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"cancel",
-      "data":{
-         "statuses":[
-            {
-               "error":"Order was never placed, already canceled, or filled."
-            }
-         ]
-      }
-   }
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Cancel order(s) by cloid
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`&#x20;
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                        |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "cancelByCloid",</p><p>  "cancels": \[</p><p>    {</p><p>      "asset": Number,</p><p>      "cloid": String</p><p>    }</p><p>  ]</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                           |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                    |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                     |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                          |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-{% endtab %}
-
-{% tab title="200: OK Error Response" %}
-
-{% endtab %}
-{% endtabs %}
-
-## Schedule cancel (dead man's switch)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`&#x20;
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                    |
-| ------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "scheduleCancel",</p><p>  "time": number (optional)</p><p>}</p>                                                           |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                       |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000 |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                      |
-
-Schedule a cancel-all operation at a future time. Not including time will remove the scheduled cancel operation. The time must be at least 5 seconds after the current time. Once the time comes, all open orders will be canceled and a trigger count will be incremented. The max number of triggers per day is 10. This trigger count is reset at 00:00 UTC.
-
-## Modify an order
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange` &#x20;
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                            |                                                                                                                                                                                                                   |       |                                                                                                                                                      |                                                                                                                                                                                                                                       |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "modify",</p><p>  "oid": Number                                                                                                   | Cloid,</p><p>  "order": {</p><p>    "a": Number,</p><p>    "b": Boolean,</p><p>    "p": String,</p><p>    "s": String,</p><p>    "r": Boolean,</p><p>    "t": {</p><p>      "limit": {</p><p>        "tif": "Alo" | "Ioc" | "Gtc" </p><p>      } or</p><p>      "trigger": {</p><p>         "isMarket": Boolean,</p><p>         "triggerPx": String,</p><p>         "tpsl": "tp" | "sl"</p><p>       }</p><p>    },</p><p>    "c": Cloid (optional)</p><p>  }</p><p>}<br><br>Meaning of keys:<br>a is asset<br>b is isBuy<br>p is price<br>s is size<br>r is reduceOnly<br>t is type<br>c is cloid (client order id)</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                               |                                                                                                                                                                                                                   |       |                                                                                                                                                      |                                                                                                                                                                                                                                       |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                        |                                                                                                                                                                                                                   |       |                                                                                                                                                      |                                                                                                                                                                                                                                       |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000 |                                                                                                                                                                                                                   |       |                                                                                                                                                      |                                                                                                                                                                                                                                       |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                              |                                                                                                                                                                                                                   |       |                                                                                                                                                      |                                                                                                                                                                                                                                       |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-{% endtab %}
-
-{% tab title="200: OK Error Response" %}
-
-{% endtab %}
-{% endtabs %}
-
-## Modify multiple orders
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                            |                                                                                                                                                                                                                                     |       |                                                                                                                                                                |                                                                                                                                                                                                                                                          |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "batchModify",</p><p>  "modifies": \[{</p><p>    "oid": Number                                                                    | Cloid,</p><p>    "order": {</p><p>      "a": Number,</p><p>      "b": Boolean,</p><p>      "p": String,</p><p>      "s": String,</p><p>      "r": Boolean,</p><p>      "t": {</p><p>        "limit": {</p><p>          "tif": "Alo" | "Ioc" | "Gtc" </p><p>        } or</p><p>        "trigger": {</p><p>           "isMarket": Boolean,</p><p>           "triggerPx": String,</p><p>           "tpsl": "tp" | "sl"</p><p>         }</p><p>      },</p><p>      "c": Cloid (optional)</p><p>    }</p><p>  }]</p><p>}<br><br>Meaning of keys:<br>a is asset<br>b is isBuy<br>p is price<br>s is size<br>r is reduceOnly<br>t is type<br>c is cloid (client order id)</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                               |                                                                                                                                                                                                                                     |       |                                                                                                                                                                |                                                                                                                                                                                                                                                          |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                        |                                                                                                                                                                                                                                     |       |                                                                                                                                                                |                                                                                                                                                                                                                                                          |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000 |                                                                                                                                                                                                                                     |       |                                                                                                                                                                |                                                                                                                                                                                                                                                          |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                              |                                                                                                                                                                                                                                     |       |                                                                                                                                                                |                                                                                                                                                                                                                                                          |
-
-## Update leverage
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Update cross or isolated leverage on a coin.&#x20;
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                         |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "updateLeverage",</p><p>  "asset": index of coin,</p><p>  "isCross": true or false if updating cross-leverage,</p><p>  "leverage": integer representing new leverage, subject to leverage constraints on that coin</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                            |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                     |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                                                                                              |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                                                           |
-
-{% tabs %}
-{% tab title="200: OK Successful response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Update isolated margin
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Add or remove margin from isolated position
-
-Note that to target a specific leverage instead of a USDC value of margin change, there is an alternate action `{"type": "topUpIsolatedOnlyMargin", "asset": <asset>, "leverage": <float string>}`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                             |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "updateIsolatedMargin",</p><p>  "asset": index of coin,</p><p>  "isBuy": true, (this parameter won't have any effect until hedge mode is introduced)</p><p>  "ntli": int representing amount to add or remove with 6 decimals, e.g. 1000000 for 1 usd,</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                         |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                                                                                                                                  |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                                                                                               |
-
-{% tabs %}
-{% tab title="200: OK Successful response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Core USDC transfer
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Send usd to another address. This transfer does not touch the EVM bridge. The signature format is human readable for wallet interfaces.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "usdSend",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "destination": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,</p><p>   "amount": amount of usd to send as a string, e.g. "1" for 1 usd,</p><p>     "time": current timestamp in milliseconds as a Number, should match nonce</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Core spot transfer
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Send spot assets to another address. This transfer does not touch the EVM bridge. The signature format is human readable for wallet interfaces.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "spotSend",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "destination": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,<br>  "token": tokenName:tokenId; e.g. "PURR:0xc4bf3f870c0e9465323c0b6ed28096c2",</p><p>   "amount": amount of token to send as a string, e.g. "0.01",</p><p>     "time": current timestamp in milliseconds as a Number, should match nonce</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-```
-Example sign typed data for generating the signature:
-{
-  "types": {
-    "HyperliquidTransaction:SpotSend": [
-      {
-        "name": "hyperliquidChain",
-        "type": "string"
-      },
-      {
-        "name": "destination",
-        "type": "string"
-      },
-      {
-        "name": "token",
-        "type": "string"
-      },
-      {
-        "name": "amount",
-        "type": "string"
-      },
-      {
-        "name": "time",
-        "type": "uint64"
-      }
+    "e": "depthUpdate",     // Event type
+    "E": 1672515782136,     // Event time
+    "s": "BNBBTC",          // Symbol
+    "U": 157,               // First update ID in event
+    "u": 160,               // Final update ID in event
+    "b": [                  // Bids to be updated
+        [
+            "0.0024",       // Price level to be updated
+            "10"            // Quantity
+        ]
+    ],
+    "a": [                  // Asks to be updated
+        [
+            "0.0026",       // Price level to be updated
+            "100"           // Quantity
+        ]
     ]
-  },
-  "primaryType": "HyperliquidTransaction:SpotSend",
-  "domain": {
-    "name": "HyperliquidSignTransaction",
-    "version": "1",
-    "chainId": 42161,
-    "verifyingContract": "0x0000000000000000000000000000000000000000"
-  },
-  "message": {
-    "destination": "0x0000000000000000000000000000000000000000",
-    "token": "PURR:0xc1fb593aeffbeb02f85e0308e9956a90",
-    "amount": "0.1",
-    "time": 1716531066415,
-    "hyperliquidChain": "Mainnet"
-  }
 }
-```
 
-## Initiate a withdrawal request
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-This method is used to initiate the withdrawal flow. After making this request, the L1 validators will sign and send the withdrawal request to the bridge contract. There is a $1 fee for withdrawing at the time of this writing and withdrawals take approximately 5 minutes to finalize.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{<br>  "type": "withdraw3",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "amount": amount of usd to send as a string, e.g. "1" for 1 usd,</p><p>  "time": current timestamp in milliseconds as a Number, should match nonce,</p><p>  "destination": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds, must match the nonce in the action Object above                                                                                                                                                                                                                                                                                                                                                                                                             |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-{% tabs %}
-{% tab title="200: OK " %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Transfer from Spot account to Perp account (and vice versa)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-This method is used to transfer USDC from the user's spot wallet to perp wallet and vice versa.
-
-**Headers**
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | "application/json" |
-
-**Body**
-
-<table><thead><tr><th>Name</th><th width="200">Type</th><th>Description</th></tr></thead><tbody><tr><td>action<mark style="color:red;">*</mark></td><td>Object</td><td><p>{</p><p>  "type": "usdClassTransfer",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p> "amount": amount of usd to transfer as a string, e.g. "1" for 1 usd. If you want to use this action for a subaccount, you can include subaccount: address after the amount, e.g. "1" subaccount:0x0000000000000000000000000000000000000000,</p><p>  "toPerp": true if (spot -> perp) else false,</p><p>"nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p></td></tr><tr><td>nonce<mark style="color:red;">*</mark></td><td>Number</td><td>Recommended to use the current timestamp in milliseconds, must match the nonce in the action Object above</td></tr><tr><td>signature<mark style="color:red;">*</mark></td><td>Object</td><td></td></tr></tbody></table>
-
-**Response**
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Send Asset
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-This generalized method is used to transfer tokens between different perp DEXs, spot balance, users, and/or sub-accounts. Use "" to specify the default USDC perp DEX and "spot" to specify spot. Only the collateral token can be transferred to or from a perp DEX.
-
-#### Headers
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-#### Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "sendAsset",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),</p><p>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "destination": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,</p><p>  "sourceDex": name of perp dex to transfer from,</p><p>  "destinationDex": name of the perp dex to transfer to,</p><p>  "token": tokenName:tokenId; e.g. "PURR:0xc4bf3f870c0e9465323c0b6ed28096c2",</p><p>  "amount": amount of token to send as a string; e.g. "0.01",</p><p>  "fromSubAccount": address in 42-character hexadecimal format or empty string if not from a subaccount,</p><p>  "nonce": current timestamp in milliseconds as a Number, should match nonce</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds, must match the nonce in the action Object above                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-
-#### Response
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Deposit into staking
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-This method is used to transfer native token from the user's spot account into staking for delegating to validators.&#x20;
-
-#### Headers
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-#### Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "cDeposit",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p> "wei": amount of wei to transfer as a number,</p><p>"nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds, must match the nonce in the action Object above                                                                                                                                                                                                                                                                                          |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                    |
-
-#### Response
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Withdraw from staking
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-This method is used to transfer native token from staking into the user's spot account. Note that transfers from staking to spot account go through a 7 day unstaking queue.
-
-#### Headers
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-#### Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "cWithdraw",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p> "wei": amount of wei to transfer as a number,</p><p>"nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds, must match the nonce in the action Object above                                                                                                                                                                                                                                                                                           |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                     |
-
-#### Response
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Delegate or undelegate stake from validator
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Delegate or undelegate native tokens to or from a validator. Note that delegations to a particular validator have a lockup duration of 1 day.
-
-#### Headers
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-#### Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "tokenDelegate",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "validator": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,<br>"isUndelegate": boolean,</p><p>"wei": number,</p><p>"nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
-#### Response
-
-{% tabs %}
-{% tab title="200: OK" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Deposit or withdraw from a vault
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Add or remove funds from a vault.
-
-**Headers**
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-**Body**
-
-| Name                                        | Type   | Description                                                                                                                                                                                                         |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "vaultTransfer",</p><p>  "vaultAddress": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,<br>"isDeposit": boolean,</p><p>"usd": number</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | number | Recommended to use the current timestamp in milliseconds                                                                                                                                                            |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                     |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                           |
-
-**Response**
-
-{% tabs %}
-{% tab title="200" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Approve an API wallet
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Approves an API Wallet (also sometimes referred to as an Agent Wallet). See [here](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/nonces-and-api-wallets#api-wallets) for more details.
-
-**Headers**
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-**Body**
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{<br>  "type": "approveAgent",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "agentAddress": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,</p><p>"agentName": Optional name for the API wallet. An account can have 1 unnamed approved wallet and up to 3 named ones. And additional 2 named agents are allowed per subaccount,</p><p>  "nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-
-**Response**
-
-{% tabs %}
-{% tab title="200" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Approve a builder fee
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-Approve a maximum fee rate for a builder.
-
-**Headers**
-
-| Name                                           | Value              |
-| ---------------------------------------------- | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | `application/json` |
-
-**Body**
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{<br>  "type": "approveBuilderFee",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),<br>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "maxFeeRate": the maximum allowed builder fee rate as a percent string; e.g. "0.001%",</p><p>  "builder": address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000,</p><p>  "nonce": current timestamp in milliseconds as a Number, must match nonce in outer request body</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-
-**Response**
-
-{% tabs %}
-{% tab title="200" %}
-
-```json
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Place a TWAP order
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "twapOrder",<br>  "twap": {</p><p>    "a": Number,</p><p>    "b": Boolean,</p><p>    "s": String,</p><p>    "r": Boolean,</p><p>    "m": Number,</p><p>    "t": Boolean</p><p>  }</p><p>  }<br><br>Meaning of keys:<br>a is asset<br>b is isBuy<br>s is size<br>r is reduceOnly</p><p>m is minutes<br>t is randomize</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                                                                                                                                                                                                                      |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                                                                                                                                                                                                               |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its Onchain address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000                                                                                                                                                                                        |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                                                                                                                                                                                                                     |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"twapOrder",
-      "data":{
-         "status": {
-            "running":{
-               "twapId":77738308
-            }
-         }
-      }
-   }
-}
-```
-
-{% endtab %}
-
-{% tab title="200: OK Error Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"twapOrder",
-      "data":{
-         "status": {
-            "error":"Invalid TWAP duration: 1 min(s)"
-         }
-      }
-   }
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Cancel a TWAP order
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                                                      |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "twapCancel",</p><p>   "a": Number,</p><p>   "t": Number</p><p>}<br><br>Meaning of keys:<br>a is asset<br>t is twap\_id</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                                                         |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                                                                  |
-| vaultAddress                                | String | If trading on behalf of a vault or subaccount, its address in 42-character hexadecimal format; e.g. 0x0000000000000000000000000000000000000000   |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                                                                                        |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"twapCancel",
-      "data":{
-         "status": "success"
-      }
-   }
-}
-```
-
-{% endtab %}
-
-{% tab title="200: OK Error Response" %}
-
-```
-{
-   "status":"ok",
-   "response":{
-      "type":"twapCancel",
-      "data":{
-         "status": {
-            "error": "TWAP was never placed, already canceled, or filled."
-         }
-      }
-   }
-}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Reserve Additional Actions
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`&#x20;
-
-Instead of trading to increase the address based rate limits, this action allows reserving additional actions for 0.0005 USDC per request. The cost is paid from the Perps balance.&#x20;
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                        |
-| ------------------------------------------- | ------ | ---------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "reserveRequestWeight",</p><p>   "weight": Number</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                           |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                    |
-| expiresAfter                                | Number | Timestamp in milliseconds                                                          |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Invalidate Pending Nonce (noop)
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`&#x20;
-
-This action does not do anything (no operation), but causes the nonce to be marked as used. This can be a more effective way to cancel in-flight orders than the cancel action.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                              |
-| ------------------------------------------- | ------ | -------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "noop"</p><p>}</p>                  |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds |
-| signature<mark style="color:red;">\*</mark> | Object |                                                          |
-| expiresAfter                                | Number | Timestamp in milliseconds                                |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Enable HIP-3 DEX abstraction
-
-<mark style="color:green;">`POST`</mark> `https://api.hyperliquid.xyz/exchange`&#x20;
-
-If set, actions on HIP-3 perps will automatically transfer collateral from validator-operated USDC perps balance for HIP-3 DEXs where USDC is the collateral token, and spot otherwise. When HIP-3 DEX abstraction is active, collateral is returned to the same source (validator-operated USDC perps or spot balance) when released from positions or open orders.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-<table><thead><tr><th width="106.30859375">Name</th><th width="159.5078125">Type</th><th>Description</th></tr></thead><tbody><tr><td>action<mark style="color:red;">*</mark></td><td>Object</td><td><p>{</p><p>  "type": "userDexAbstraction",</p><p>  "hyperliquidChain": "Mainnet" (on testnet use "Testnet" instead),</p><p>  "signatureChainId": the id of the chain used when signing in hexadecimal format; e.g. "0xa4b1" for Arbitrum,</p><p>  "user": address in 42-character hexadecimal format. Can be a sub-account of the user,</p><p>  "enabled": boolean,</p><p>  "nonce": current timestamp in milliseconds as a Number, should match nonce</p><p>}</p></td></tr><tr><td>nonce<mark style="color:red;">*</mark></td><td>Number</td><td>Recommended to use the current timestamp in milliseconds</td></tr><tr><td>signature<mark style="color:red;">*</mark></td><td>Object</td><td></td></tr></tbody></table>
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Enable HIP-3 DEX abstraction (agent)
-
-Same effect as UserDexAbstraction above, but only works if setting the value from `null` to `true`.
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                  |
-| ------------------------------------------- | ------ | ------------------------------------------------------------ |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "agentEnableDexAbstraction"</p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds     |
-| signature<mark style="color:red;">\*</mark> | Object |                                                              |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-
-## Validator vote on risk-free rate for aligned quote asset
-
-#### Headers
-
-| Name                                           | Type   | Description        |
-| ---------------------------------------------- | ------ | ------------------ |
-| Content-Type<mark style="color:red;">\*</mark> | String | "application/json" |
-
-#### Request Body
-
-| Name                                        | Type   | Description                                                                                                 |
-| ------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
-| action<mark style="color:red;">\*</mark>    | Object | <p>{</p><p>  "type": "validatorL1Stream",</p><p>  "riskFreeRate": String // e.g. "0.04" for 4% </p><p>}</p> |
-| nonce<mark style="color:red;">\*</mark>     | Number | Recommended to use the current timestamp in milliseconds                                                    |
-| signature<mark style="color:red;">\*</mark> | Object |                                                                                                             |
-
-{% tabs %}
-{% tab title="200: OK Successful Response" %}
-
-```
-{'status': 'ok', 'response': {'type': 'default'}}
-```
-
-{% endtab %}
-{% endtabs %}
-# Signing
-
-It is recommended to use an existing SDK instead of manually generating signatures. There are many potential ways in which signatures can be wrong. An incorrect signature results in recovering a different signer based on the signature and payload and results in one of the following errors:\
-`"L1 error: User or API Wallet 0x0123... does not exist."`\
-`Must deposit before performing actions. User: 0x123...`\
-where the returned address does not match the public address of the wallet you are signing with. The returned address also changes for different inputs.\
-An incorrect signature does not indicate why it is incorrect which makes debugging more challenging. To debug this it is recommended to read through the Python SDK carefully and make sure the implementation matches exactly. If that doesn't work, add logging to find where the output diverges.
-
-Some common errors:\
-1\. Not realizing that there are two signing schemes (the Python SDK methods are `sign_l1_action` vs `sign_user_signed_action`).\
-2\. Not realizing that the order of fields matter for msgpack.\
-3\. Issues with trailing zeroes on numbers.\
-4\. Issues with upper case characters in address fields. It is recommended to lowercase any address before signing and sending. Sometimes the field is parsed as bytes, causing it to be lowercased automatically across the network.\
-5\. Believing that the signature must be correct because calling recover signer locally results in the correct address. The payload for recover signer is constructed based on the action and does not necessarily match.
+How to manage a local order book correctly
+Open a WebSocket connection to wss://stream.binance.com:9443/ws/bnbbtc@depth.
+Buffer the events received from the stream. Note the U of the first event you received.
+Get a depth snapshot from https://api.binance.com/api/v3/depth?symbol=BNBBTC&limit=5000.
+If the lastUpdateId from the snapshot is strictly less than the U from step 2, go back to step 3.
+In the buffered events, discard any event where u is <= lastUpdateId of the snapshot. The first buffered event should now have lastUpdateId within its [U;u] range.
+Set your local order book to the snapshot. Its update ID is lastUpdateId.
+Apply the update procedure below to all buffered events, and then to all subsequent events received.
+To apply an event to your local order book, follow this update procedure:
+
+Decide whether the update event can be applied:
+If the event last update ID (u) is less than the update ID of your local order book, ignore the event.
+If the event first update ID (U) is greater than the update ID of your local order book + 1, you have missed some events.
+Discard your local order book and restart the process from the beginning.
+Normally, U of the next event is equal to u + 1 of the previous event.
+For each price level in bids (b) and asks (a), set the new quantity in the order book:
+If the price level does not exist in the order book, insert it with new quantity.
+If the quantity is zero, remove the price level from the order book.
+Set the order book update ID to the last update ID (u) in the processed event.
+[!NOTE] Since depth snapshots retrieved from the API have a limit on the number of price levels (5000 on each side maximum), you won't learn the quantities for the levels outside of the initial snapshot unless they change.
+So be careful when using the information for those levels, since they might not reflect the full view of the order book.
+However, for most use cases, seeing 5000 levels on each side is enough to understand the market and trade effectively.

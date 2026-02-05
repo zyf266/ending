@@ -50,7 +50,7 @@ class HyperliquidTradingEngine:
         self.is_stopped = False
         self.lock = None
         self.beijing_tz = pytz.timezone('Asia/Shanghai')
-        self.forbidden_hours = [3, 4, 5, 6, 7, 11, 12, 19, 20]
+        self.forbidden_hours = [3, 4, 5, 6, 7, 13, 14, 19, 20]
         # 自愈逻辑（与 Ostium 一致）：连续相同开仓信号视为信号丢失
         self.last_signal = None   # 上一笔 signal：'buy'/'sell'/'close'
         self.last_intent = None  # 上一笔意图：'open'/'close'
