@@ -25,6 +25,8 @@ pymysql>=1.1.0
 # 加密和安全
 cryptography>=41.0.0
 werkzeug>=3.0.0
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
 
 # 配置管理
 python-dotenv>=1.0.0
@@ -32,6 +34,7 @@ python-dotenv>=1.0.0
 # 数据可视化
 matplotlib>=3.7.0
 plotly>=5.18.0
+mplfinance>=0.12.10
 dash>=2.11.0
 
 # 技术指标

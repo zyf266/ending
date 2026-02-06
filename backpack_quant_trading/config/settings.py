@@ -16,12 +16,12 @@ class BackpackConfig:
     API_BASE_URL: str = "https://api.backpack.exchange"
     #WebSocket接口地址(异步接口：用于实时推送行情，订单成交数据)
     WS_BASE_URL: str = "wss://ws.backpack.exchange"
-    #API密钥
+    #API密钥（公钥/API Key）
     API_KEY: str = os.getenv("BACKPACK_API_KEY", "")
-    #交易所私钥
-    PRIVATE_KEY: str = os.getenv("BACKPACK_PRIVATE_KEY", "")
-    #交易所公钥
-    PUBLIC_KEY: str = os.getenv("BACKPACK_PUBLIC_KEY", "")
+    #交易所私钥（API Secret / ED25519 私钥，页面输入时会设置 BACKPACK_API_SECRET）
+    PRIVATE_KEY: str = os.getenv("BACKPACK_PRIVATE_KEY") or os.getenv("BACKPACK_API_SECRET", "")
+    #交易所公钥（ED25519 公钥，页面输入时会设置 BACKPACK_API_KEY）
+    PUBLIC_KEY: str = os.getenv("BACKPACK_PUBLIC_KEY") or os.getenv("BACKPACK_API_KEY", "")
     #默认请求窗口时长
     DEFAULT_WINDOW: int = 5000
     #最大请求窗口时长

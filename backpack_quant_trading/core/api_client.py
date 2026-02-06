@@ -348,25 +348,45 @@ class BackpackAPIClient:
         return await asyncio.to_thread(self._request, "GET", "/api/v1/capital", instruction="balanceQuery")
 
     async def get_balance(self) -> Dict[str, float]:
-        """获取余额（兼容 Backpack 的 list 返回格式）"""
-        balances = await self.get_balances()
-        # Backpack 返回格式通常是: [{'asset': 'USDC', 'available': '100.0', 'locked': '0.0'}, ...]
-        # 或者是一个以资产名为键的字典
-        
+        """获取余额（兼容 Backpack 的多种返回格式，含 available/locked/limit/lent 等）"""
+        raw = await self.get_balances()
+        logger.debug(f"Backpack get_balances 原始响应: {raw}")
+
+        # 处理包装格式：{"balances": [...]} 或 {"capital": [...]}
+        balances = raw
+        if isinstance(raw, dict) and "balances" in raw:
+            balances = raw["balances"]
+        elif isinstance(raw, dict) and "capital" in raw:
+            balances = raw["capital"]
+
+        def _to_float(v):
+            try:
+                return float(v or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        def _sum_balance(item: dict) -> float:
+            """累加所有可能表示余额的字段（含借出 lent、limit 等）"""
+            total = 0.0
+            for k in ("available", "locked", "lockedBalance", "limit", "lent", "borrowed", "onOrder"):
+                total += _to_float(item.get(k))
+            return total
+
         result = {}
         if isinstance(balances, list):
             for item in balances:
-                if isinstance(item, dict) and 'asset' in item:
-                    asset = item['asset']
-                    available = float(item.get('available') or 0)
-                    result[asset] = available
+                if isinstance(item, dict) and "asset" in item:
+                    asset = item["asset"]
+                    result[asset] = _sum_balance(item)
         elif isinstance(balances, dict):
             for asset, info in balances.items():
                 if isinstance(info, dict):
-                    result[asset] = float(info.get('available') or info.get('limit', 0))
+                    result[asset] = _sum_balance(info)
                 else:
-                    result[asset] = float(info)
-        
+                    result[asset] = _to_float(info)
+
+        if result:
+            logger.info(f"Backpack 解析后余额: {result}")
         return result
 
     async def get_server_time(self) -> int:

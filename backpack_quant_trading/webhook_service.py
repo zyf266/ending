@@ -271,12 +271,18 @@ async def get_balance(instance_id: str):
     engine = engine_instances[instance_id]
     
     try:
-        # 查询链上余额
-        balance = await engine.client.get_balance()
+        balance_raw = await engine.client.get_balance()
+        # Ostium 可能返回 tuple/dict（已在 ostium_client 统一为 dict），Hyperliquid 返回 float
+        if isinstance(balance_raw, dict):
+            balance = float(balance_raw.get("USDC", balance_raw.get("usdc", 0.0)))
+        elif isinstance(balance_raw, (tuple, list)) and len(balance_raw) >= 2:
+            balance = float(balance_raw[1])  # (collateral, usdc)
+        else:
+            balance = float(balance_raw)
         return {
             "status": "success",
             "instance_id": instance_id,
-            "balance": float(balance),
+            "balance": balance,
             "symbol": engine.symbol
         }
     except Exception as e:
