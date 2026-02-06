@@ -509,6 +509,18 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get_user_by_id(self, user_id: int):
+        """根据 ID 获取用户"""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter_by(id=user_id).first()
+            if user:
+                session.refresh(user)
+                session.expunge(user)
+            return user
+        finally:
+            session.close()
+
     def create_user(self, username: str, password_hash: str, role: str = 'user'):
         """创建新用户"""
         session = self.get_session()
@@ -572,7 +584,7 @@ class DatabaseManager:
             session.close()
 
     def get_currency_monitor_config(self) -> Optional[tuple]:
-        """获取币种监视的全局配置（不限用户），返回 (instance_id, config_json) 或 None"""
+        """获取币种监视的全局配置（不按用户隔离，兼容旧逻辑）"""
         session = self.get_session()
         try:
             row = session.query(UserInstance).filter_by(
@@ -582,12 +594,28 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get_currency_monitor_config_for_user(self, user_id: int) -> Optional[tuple]:
+        """获取指定用户的币种监视配置"""
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                user_id=user_id, instance_type='currency_monitor', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
     def save_currency_monitor_config(self, config_json: str):
-        """保存币种监视的全局配置（使用第一个用户 id 作为存储键，先清理旧的多用户数据）"""
-        self.delete_currency_monitor_config()  # 清理旧数据，避免多用户残留
+        """保存币种监视的全局配置（使用第一个用户 id 作为存储键）"""
+        self.delete_currency_monitor_config()
         uid = self.get_first_user_id()
         if uid is not None:
             self.save_user_instance(uid, 'currency_monitor', 'singleton', config_json)
+
+    def save_currency_monitor_config_for_user(self, user_id: int, config_json: str):
+        """保存指定用户的币种监视配置"""
+        self.delete_currency_monitor_config_for_user(user_id)
+        self.save_user_instance(user_id, 'currency_monitor', 'singleton', config_json)
 
     def delete_currency_monitor_config(self):
         """删除币种监视的全局配置"""
@@ -602,6 +630,10 @@ class DatabaseManager:
             raise e
         finally:
             session.close()
+
+    def delete_currency_monitor_config_for_user(self, user_id: int):
+        """删除指定用户的币种监视配置"""
+        self.delete_user_instance(user_id, 'currency_monitor', 'singleton')
 
     def delete_user_instance(self, user_id: int, instance_type: str, instance_id: str):
         """删除用户实例归属（停止时调用）"""

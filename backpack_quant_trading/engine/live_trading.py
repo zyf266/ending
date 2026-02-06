@@ -1,8 +1,9 @@
 import asyncio
-import websockets
 import json
+import os
 import time
 import uuid
+import websockets
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Callable, Any
 from decimal import Decimal
@@ -396,6 +397,9 @@ class LiveTradingEngine:
         # 用于将WebSocket收到的symbol映射到策略注册的symbol
         self.symbol_mapping: Dict[str, str] = {}  # {"ETH_USDT_PERP": "ETH-USDT-SWAP"}
 
+        # 【仪表盘余额】子进程实例ID，用于将余额写入 live_balances.json 供 API 读取
+        self._instance_id = os.environ.get("LIVE_INSTANCE_ID", "")
+
     def generate_order_id(self) -> str:
         """生成唯一订单ID"""
         self._order_counter += 1
@@ -504,6 +508,9 @@ class LiveTradingEngine:
             logger.info("正在加载账户余额...")
             await self.load_balances()
             logger.info("账户余额加载成功")
+            pv = float(self.get_portfolio_value())
+            logger.info(f"💾 组合价值: {pv:.2f} USD, instance_id={self._instance_id}")
+            self._write_balance_to_file(pv)  # 立即写入供仪表盘显示
             
             logger.info("正在加载持仓...")
             await self.load_positions()
@@ -740,34 +747,48 @@ class LiveTradingEngine:
             # 【修复】使用缓存获取余额
             balances = await self.get_balance_cached()
             logger.debug(f"获取到的余额原始数据: {balances}")
-            
+
             async with self.balance_lock:
                 self.balances.clear()
-                for bal in balances:
-                    asset = bal.get("asset") or bal.get("currency") or bal.get("symbol", "")
-                    # 尝试多种可能的字段名
-                    available = bal.get("available") or bal.get("availableBalance") or bal.get("free") or 0
-                    locked = bal.get("locked") or bal.get("lockedBalance") or 0
-                    
-                    # 如果是字符串，转换为数值
-                    if isinstance(available, str):
-                        try:
-                            available = float(available)
-                        except:
-                            available = 0
-                    if isinstance(locked, str):
-                        try:
-                            locked = float(locked)
-                        except:
-                            locked = 0
-                    
-                    self.balances[asset] = AccountBalance(
-                        asset=asset,
-                        available=Decimal(str(available)),
-                        locked=Decimal(str(locked)),
-                        total=Decimal(str(available)) + Decimal(str(locked))
-                    )
-                    logger.debug(f"加载余额: {asset} - 可用={available}, 锁定={locked}, 总计={available + locked}")
+                # 兼容两种格式：List[Dict]（Deepcoin 等）和 Dict[str, float]（Backpack get_balance）
+                if isinstance(balances, dict):
+                    for asset, available in balances.items():
+                        if not asset:
+                            continue
+                        av = float(available) if isinstance(available, (int, float)) else float(available or 0)
+                        self.balances[asset] = AccountBalance(
+                            asset=asset,
+                            available=Decimal(str(av)),
+                            locked=Decimal("0"),
+                            total=Decimal(str(av))
+                        )
+                        logger.debug(f"加载余额: {asset} - 可用={av}, 总计={av}")
+                else:
+                    for bal in balances or []:
+                        if not isinstance(bal, dict):
+                            continue
+                        asset = bal.get("asset") or bal.get("currency") or bal.get("symbol", "")
+                        if not asset:
+                            continue
+                        available = bal.get("available") or bal.get("availableBalance") or bal.get("free") or 0
+                        locked = bal.get("locked") or bal.get("lockedBalance") or 0
+                        if isinstance(available, str):
+                            try:
+                                available = float(available)
+                            except Exception:
+                                available = 0
+                        if isinstance(locked, str):
+                            try:
+                                locked = float(locked)
+                            except Exception:
+                                locked = 0
+                        self.balances[asset] = AccountBalance(
+                            asset=asset,
+                            available=Decimal(str(available)),
+                            locked=Decimal(str(locked)),
+                            total=Decimal(str(available)) + Decimal(str(locked))
+                        )
+                        logger.debug(f"加载余额: {asset} - 可用={available}, 锁定={locked}, 总计={available + locked}")
             logger.info(f"已加载余额, 共 {len(self.balances)} 种资产")
         except Exception as e:
             logger.error(f"加载余额失败: {e}", exc_info=True)
@@ -954,21 +975,27 @@ class LiveTradingEngine:
                 account_capital = 0.0
                 try:
                     balance = await self.get_balance_cached()
-                    # 【修复】累加所有稳定币余额（USDC + USDT），而不是只取第一个
-                    for b in balance:
-                        asset = b.get('asset') or b.get('currency') or b.get('symbol', '')
-                        if asset.upper() in ['USDC', 'USDT']:
-                            # 尝试多种可能的字段名
-                            available = b.get('available') or b.get('availableBalance') or b.get('free') or b.get('availableBalance') or 0
-                            # 如果是字符串，转换为浮点数
-                            if isinstance(available, str):
-                                try:
-                                    available = float(available)
-                                except:
-                                    available = 0
-                            account_capital += float(available)  # 累加，不是break
-                            logger.debug(f"找到 {asset} 余额: {float(available):.2f}")
-                    logger.info(f"💰 风控检查使用的总账户余额 (USDC+USDT): {account_capital:.2f}")
+                    # 兼容 Dict[str, float] 和 List[Dict] 格式，累加 USDC/USDT/USD
+                    if isinstance(balance, dict):
+                        for asset, amt in balance.items():
+                            if asset and asset.upper() in ['USDC', 'USDT', 'USD']:
+                                account_capital += float(amt or 0)
+                                logger.debug(f"找到 {asset} 余额: {float(amt or 0):.2f}")
+                    else:
+                        for b in balance or []:
+                            if not isinstance(b, dict):
+                                continue
+                            asset = b.get('asset') or b.get('currency') or b.get('symbol', '')
+                            if asset and asset.upper() in ['USDC', 'USDT', 'USD']:
+                                available = b.get('available') or b.get('availableBalance') or b.get('free') or b.get('limit') or 0
+                                if isinstance(available, str):
+                                    try:
+                                        available = float(available)
+                                    except Exception:
+                                        available = 0
+                                account_capital += float(available)
+                                logger.debug(f"找到 {asset} 余额: {float(available):.2f}")
+                    logger.info(f"💰 风控检查使用的总账户余额 (USDC+USDT+USD): {account_capital:.2f}")
                 except Exception as e:
                     logger.error(f"获取账户余额失败: {e}")
 
@@ -2037,14 +2064,32 @@ class LiveTradingEngine:
         return f"待成交订单: {len(self.orders)}"
 
     def get_portfolio_value(self) -> Decimal:
-        """计算组合价值"""
+        """计算组合价值（包含 USDC、USDT、USD 等稳定币）"""
         total = Decimal("0")
         for bal in self.balances.values():
-            if bal.asset in ["USDC", "USDT"]:
+            a = (bal.asset or "").upper().replace(" ", "")
+            if a in ("USDC", "USDT", "USD") or "USDC" in a or "USDT" in a or a == "USDOLLAR":
                 total += bal.total
         for pos in self.positions.values():
             total += pos.quantity * pos.mark_price
         return total
+
+    def _write_balance_to_file(self, portfolio_value: float):
+        """将账户余额写入 live_balances.json，供仪表盘 API 读取显示"""
+        if not self._instance_id:
+            return
+        try:
+            balances_path = self.config.log_dir / "live_balances.json"
+            data = {}
+            if balances_path.exists():
+                try:
+                    data = json.loads(balances_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            data[self._instance_id] = {"balance": portfolio_value, "updated_at": time.time()}
+            balances_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            logger.debug(f"写入余额文件失败: {e}")
 
     async def _snapshot_loop(self):
 
@@ -2055,10 +2100,10 @@ class LiveTradingEngine:
                 # 获取当前总资产价值
                 portfolio_value = self.get_portfolio_value()
                 
-                # 获取现金余额
+                # 获取现金余额（USDC、USDT、USD）
                 cash_balance = 0.0
                 async with self.balance_lock:
-                    for asset in ['USDC', 'USDT']:
+                    for asset in ['USDC', 'USDT', 'USD']:
                         if asset in self.balances:
                             cash_balance += float(self.balances[asset].available)
                 
@@ -2081,6 +2126,7 @@ class LiveTradingEngine:
                     daily_return=daily_return,
                     source='deepcoin' if hasattr(self.exchange_client, '__class__') and 'Deepcoin' in self.exchange_client.__class__.__name__ else 'backpack'
                 )
+                self._write_balance_to_file(portfolio_value_float)  # 供仪表盘显示账户余额
                 logger.debug(f"📸 资产快照已保存: 总资产=${portfolio_value:.2f}, 现金=${cash_balance:.2f}, 持仓=${position_value:.2f}")
                 
             except Exception as e:

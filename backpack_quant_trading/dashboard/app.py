@@ -53,6 +53,33 @@ from backpack_quant_trading.core.binance_monitor import (
     send_dingtalk_alert,
 )
 
+
+def _resolve_symbol(user_input: str, platform: str) -> str:
+    """将简写（如 ETH、BTC）解析为交易所完整交易对格式"""
+    s = (user_input or "").strip().upper()
+    if not s:
+        return user_input or ""
+    if "_PERP" in s or "-SWAP" in s or "-PERP" in s:
+        return s
+    if "_" in s:
+        return s
+    if "-" in s and len(s) > 6:
+        return s
+    if "/" in s:
+        base = s.split("/")[0]
+        if platform == "backpack":
+            return f"{base}_USDC_PERP"
+        if platform == "deepcoin":
+            return f"{base}-USDT-SWAP"
+        return s
+    base = s
+    if platform == "backpack":
+        return f"{base}_USDC_PERP"
+    if platform == "deepcoin":
+        return f"{base}-USDT-SWAP"
+    return s
+
+
 # --- 精调 UI 颜色方案 (高级亮色主题) ---
 COLORS = {
     'bg': '#F0F2F5',         # 浅灰底色
@@ -430,13 +457,13 @@ app.layout = html.Div([
                 # 第二排：交易对、保证金、杠杆
                 html.Div([
                     html.Div([
-                        html.Label("交易对 (Symbol)", style={
+                        html.Label("交易对 (支持 ETH、BTC 等简写，自动解析)", style={
                             'fontWeight': '700', 
                             'marginBottom': '6px',
                             'display': 'block',
                             'fontSize': '16px'
                         }),
-                        dcc.Input(id='modal-symbol', type='text', value='ETH/USDC', style=INPUT_STYLE),
+                        dcc.Input(id='modal-symbol', type='text', value='ETH', placeholder='ETH / BTC / SOL...', style=INPUT_STYLE),
                     ], style={'flex': '1'}),
                     html.Div([
                         html.Label("下单保证金 (Margin)", style={
@@ -2081,43 +2108,90 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
     
     # 首次加载或刷新时，从数据库恢复当前用户的实例（仅显示本账户的）
     user_id = (user or {}).get('id')
-    if not current_instances and is_port_in_use(8005) and user_id:
+    if not current_instances and user_id:
         try:
-            # 获取当前用户在 DB 中登记的实盘 instance_id 列表
             my_live_ids = set(db_manager.get_user_instance_ids(user_id, 'live'))
-            if not my_live_ids:
-                pass
-            else:
-                response = requests.get("http://127.0.0.1:8005/instances", timeout=5)
-                if response.status_code == 200:
-                    instances_data = response.json()
-                    webhook_instances = instances_data.get('instances', [])
-                    w_pid = get_webhook_pid()
-                    for inst_info in webhook_instances:
-                        inst_id = inst_info.get('instance_id', inst_info) if isinstance(inst_info, dict) else inst_info
-                        if inst_id not in my_live_ids:
-                            continue  # 非本账户实例，跳过
-                        if isinstance(inst_info, str):
-                            recovered_platform = 'hyperliquid' if inst_id.startswith('hl_') else 'ostium'
-                            recovered_symbol = 'USD/JPY'
-                            recovered_strategy = f'{recovered_platform.capitalize()} ({inst_id})'
-                        else:
-                            recovered_platform = inst_info.get('exchange', 'ostium')
-                            recovered_symbol = inst_info.get('symbol', 'USD/JPY')
-                            recovered_strategy = inst_info.get('strategy', inst_id)
-                        current_instances.append({
-                            'id': inst_id,
-                            'pid': w_pid,
-                            'platform': recovered_platform,
-                            'strategy_name': recovered_strategy,
-                            'symbol': recovered_symbol,
-                            'start_time': '--:--',
-                            'balance': '--',
-                            'webhook_instance_id': inst_id,
-                            'status': 'running'
-                        })
-                    if current_instances:
-                        logger.info(f"🔄 恢复当前用户 {len(current_instances)} 个实盘实例")
+            added_ids = set()
+            if my_live_ids:
+                # 1. 从 Webhook 恢复 Ostium/Hyperliquid 实例
+                if is_port_in_use(8005):
+                    response = requests.get("http://127.0.0.1:8005/instances", timeout=5)
+                    if response.status_code == 200:
+                        instances_data = response.json()
+                        webhook_instances = instances_data.get('instances', [])
+                        w_pid = get_webhook_pid()
+                        for inst_info in webhook_instances:
+                            inst_id = inst_info.get('instance_id', inst_info) if isinstance(inst_info, dict) else inst_info
+                            if inst_id not in my_live_ids:
+                                continue
+                            if isinstance(inst_info, str):
+                                recovered_platform = 'hyperliquid' if inst_id.startswith('hl_') else 'ostium'
+                                recovered_symbol = 'USD/JPY'
+                                recovered_strategy = f'{recovered_platform.capitalize()} ({inst_id})'
+                            else:
+                                recovered_platform = inst_info.get('exchange', 'ostium')
+                                recovered_symbol = inst_info.get('symbol', 'USD/JPY')
+                                recovered_strategy = inst_info.get('strategy', inst_id)
+                            current_instances.append({
+                                'id': inst_id,
+                                'pid': w_pid,
+                                'platform': recovered_platform,
+                                'strategy_name': recovered_strategy,
+                                'symbol': recovered_symbol,
+                                'start_time': '--:--',
+                                'balance': '--',
+                                'webhook_instance_id': inst_id,
+                                'status': 'running'
+                            })
+                            added_ids.add(inst_id)
+                # 2. 从 DB + live_pids 恢复 Backpack/Deepcoin 子进程实例
+                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                log_dir = os.path.join(project_root, 'backpack_quant_trading', 'log')
+                pids_path = os.path.join(log_dir, 'live_pids.json')
+                balances_path = os.path.join(log_dir, 'live_balances.json')
+                pids = {}
+                balances = {}
+                if os.path.exists(pids_path):
+                    try:
+                        pids = json.load(open(pids_path, encoding='utf-8'))
+                    except Exception:
+                        pass
+                if os.path.exists(balances_path):
+                    try:
+                        balances = json.load(open(balances_path, encoding='utf-8'))
+                    except Exception:
+                        pass
+                configs = {iid: c for iid, c in db_manager.get_user_instance_configs(user_id, 'live')}
+                for iid in my_live_ids:
+                    if iid in added_ids:
+                        continue
+                    cfg = configs.get(iid)
+                    try:
+                        obj = json.loads(cfg) if cfg else {}
+                    except Exception:
+                        obj = {}
+                    if obj.get('platform') in ['ostium', 'hyperliquid']:
+                        continue
+                    raw_strategy = obj.get('strategy', '')
+                    strategy_display = STRATEGY_DISPLAY_NAMES.get(raw_strategy, raw_strategy)
+                    bal_str = '--'
+                    if iid in balances:
+                        b = balances[iid].get('balance')
+                        if b is not None:
+                            bal_str = f'{float(b):,.2f}'
+                    current_instances.append({
+                        'id': iid,
+                        'pid': pids.get(iid, 0),
+                        'platform': obj.get('platform', 'backpack'),
+                        'strategy_name': strategy_display,
+                        'symbol': obj.get('symbol', ''),
+                        'start_time': '--:--',
+                        'balance': bal_str,
+                        'status': 'running'
+                    })
+                    added_ids.add(iid)
+                if current_instances:
+                    logger.info(f"🔄 恢复当前用户 {len(current_instances)} 个实盘实例")
         except Exception as e:
             logger.debug(f"恢复实例列表失败: {e}")
 
@@ -2168,6 +2242,9 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
 
     # 2. 启动逻辑 (注入完整参数)
     if 'btn-modal-launch' in trigger_id and n_launch:
+        # 解析交易对：ETH/BTC 等简写 -> 交易所完整格式
+        symbol = _resolve_symbol(symbol or "", platform or "backpack")
+
         # 特殊处理：Ostium 和 Hyperliquid 使用 Webhook 模式，需要检测 8005 端口是否已启动
         if platform in ['ostium', 'hyperliquid']:
             webhook_port = 8005
@@ -2312,9 +2389,11 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
             
             return current_instances, True
         
-        # 非-Ostium 平台的启动逻辑
+        # 非-Ostium 平台的启动逻辑 (Backpack / Deepcoin)
+        inst_id = f"{platform}_{strategy}_{datetime.now().strftime('%H%M%S')}"
         env = os.environ.copy()
         env['PYTHONIOENCODING'] = 'utf-8'
+        env['LIVE_INSTANCE_ID'] = inst_id  # 供子进程写入余额到 live_balances.json
         # 将密钥注入环境变量，供子进程读取
         if platform == 'backpack':
             env['BACKPACK_API_KEY'] = str(api_key or "")
@@ -2350,8 +2429,7 @@ def manage_instances(n_launch, n_monitor, n_balance, n_stops, current_instances,
             with open(log_path, 'a', encoding='utf-8') as f:
                 f.write(f"\n{'='*20} [{datetime.now().strftime('%H:%M:%S')}] Launching Instance: {platform} {'='*20}\n")
                 process = subprocess.Popen(cmd, env=env, stdout=f, stderr=subprocess.STDOUT, cwd=project_root)
-            
-            inst_id = f"{platform}_{strategy}_{datetime.now().strftime('%H%M%S')}"
+
             new_instance = {
                 'id': inst_id,
                 'pid': process.pid,

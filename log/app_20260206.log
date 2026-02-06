@@ -1,0 +1,191 @@
+2026-02-06 10:28:50 | INFO     | backpack_quant_trading.core.binance_monitor:334 | 币种监视已启动: ['AEROUSDT'], ['1小时']
+2026-02-06 10:28:50 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:28:53 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:28:53 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:28:54 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:29:54 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:29:59 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:29:59 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:30:01 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:31:02 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:31:14 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:31:15 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:31:20 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:32:20 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:32:22 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:32:22 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:32:24 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:33:24 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:33:30 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:33:30 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:33:34 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:34:34 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:34:39 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:34:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:34:40 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:35:40 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:35:47 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:35:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:35:49 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:36:49 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:36:50 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:36:51 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:36:58 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:37:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:38:00 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:38:01 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:38:03 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:39:03 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:39:04 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:39:04 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:39:05 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:40:05 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:40:06 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:40:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:40:06 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:41:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:41:07 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:41:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:41:09 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:42:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:42:20 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:42:20 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:42:22 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:43:22 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:43:35 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:43:35 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:43:39 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:44:41 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:44:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:44:58 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/exchangeInfo HTTP/1.1" 200 None
+2026-02-06 10:44:59 | INFO     | backpack_quant_trading.core.binance_monitor:97 | 币种列表已缓存，共 544 个 USDT 永续合约
+2026-02-06 10:44:59 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:44:59 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:45:01 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:46:01 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:46:02 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:46:03 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:46:04 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:47:04 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:47:05 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:47:05 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:47:06 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:48:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:48:07 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:48:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:48:09 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:49:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:49:11 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:49:11 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:49:12 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:50:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:50:23 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:50:23 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:50:25 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:51:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:51:26 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:51:26 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:51:27 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:52:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:52:33 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:52:33 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:52:34 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:53:34 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:53:36 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:53:37 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:53:38 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:54:38 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:54:39 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:54:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:54:41 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:55:41 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:55:45 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:55:45 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:55:46 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:56:46 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:56:52 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:56:52 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:56:53 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:57:53 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:57:58 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:57:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:57:59 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:59:00 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:59:18 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 10:59:18 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 10:59:19 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:00:20 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:00:21 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:00:23 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:00:24 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:01:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:01:25 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:01:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:01:27 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:02:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:02:28 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:02:28 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:02:30 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:03:30 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:03:32 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:03:32 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:03:33 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:04:33 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:04:35 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:04:35 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:04:36 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:05:36 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:05:37 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:05:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:05:46 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:06:46 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:06:47 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:06:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:06:49 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:07:49 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:08:00 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=AEROUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:08:00 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:08:09 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 11:08:29 | INFO     | backpack_quant_trading.core.binance_monitor:342 | 币种监视已停止
+2026-02-06 11:22:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:23:00 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/exchangeInfo HTTP/1.1" 200 None
+2026-02-06 11:23:00 | INFO     | backpack_quant_trading.core.binance_monitor:97 | 币种列表已缓存，共 544 个 USDT 永续合约
+2026-02-06 11:25:02 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-02-06 11:25:02 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-06 11:27:35 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-02-06 11:27:36 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-06 11:33:05 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:33:22 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=800 HTTP/1.1" 200 None
+2026-02-06 11:33:22 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-02-06 11:33:23 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-06 11:35:14 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:35:25 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=800 HTTP/1.1" 200 None
+2026-02-06 11:35:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-02-06 11:35:26 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-06 11:42:37 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:42:39 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=800 HTTP/1.1" 200 None
+2026-02-06 11:42:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-02-06 11:42:40 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-06 11:45:22 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 11:45:24 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/exchangeInfo HTTP/1.1" 200 None
+2026-02-06 11:45:24 | INFO     | backpack_quant_trading.core.binance_monitor:147 | 币种列表已缓存，共 544 个 USDT 永续合约
+2026-02-06 13:38:29 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-17' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 13:38:30 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-16' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 13:38:30 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-18' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 13:38:30 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-15' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 13:38:30 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-19' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-12' coro=<BaseSelectorEventLoop._accept_connection2() running at F:\pycharm\Lib\asyncio\selector_events.py:213>>
+2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-13' coro=<BaseSelectorEventLoop._accept_connection2() running at F:\pycharm\Lib\asyncio\selector_events.py:213>>
+2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-14' coro=<BaseSelectorEventLoop._accept_connection2() running at F:\pycharm\Lib\asyncio\selector_events.py:213>>
+2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-15' coro=<BaseSelectorEventLoop._accept_connection2() running at F:\pycharm\Lib\asyncio\selector_events.py:213>>
+2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
+task: <Task pending name='Task-11' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>

@@ -55,6 +55,8 @@ class BacktestEngine:
         self.trades: List[Trade] = []
         self.portfolio_values = []
         self.dates = []
+        self._last_exit_bar: Dict[str, int] = {}
+        self._cooldown_bars = 20  # 平仓后 20 根 K 线内不开新仓
 
         # 回测配置
         self.commission_rate = 0.001  # 0.1% 手续费
@@ -83,7 +85,7 @@ class BacktestEngine:
             logger.info(f"🔥 预热期: 跳过前{warmup_bars}根K线")
             all_dates = all_dates[warmup_bars:]
 
-        for current_date in all_dates:
+        for bar_idx, current_date in enumerate(all_dates):
             current_data = {}
             for symbol, df in data.items():
                 if current_date in df.index:
@@ -95,10 +97,56 @@ class BacktestEngine:
             if not current_data:
                 continue
 
+            # 【关键】先检查止盈止损，若有持仓且满足平仓条件则平仓
+            for symbol, df in current_data.items():
+                if symbol not in self.positions:
+                    continue
+                hist = df.loc[:current_date].copy() if current_date in df.index else df[df.index <= current_date].copy()
+                if len(hist) < 2:
+                    continue
+                # 需先计算技术指标，否则 exit 检查会缺 RSI 等列
+                if hasattr(strategy, 'calculate_technical_indicators'):
+                    hist = strategy.calculate_technical_indicators(hist)
+                if hist.empty or 'RSI' not in hist.columns:
+                    continue
+                latest = hist.iloc[-1]
+                price = float(latest.get('close', 0))
+                for side in ['long', 'short']:
+                    pos = self.positions[symbol][side]
+                    if pos['qty'] <= 0:
+                        continue
+                    pos_dict = {
+                        'symbol': symbol, 'side': side,
+                        'entry_price': pos['entry_price'], 'quantity': pos['qty'],
+                        'current_price': price
+                    }
+                    should_exit = False
+                    if hasattr(strategy, 'check_long_exit_conditions') and side == 'long':
+                        should_exit, _ = strategy.check_long_exit_conditions(hist, pos_dict)
+                    elif hasattr(strategy, 'check_short_exit_conditions') and side == 'short':
+                        should_exit, _ = strategy.check_short_exit_conditions(hist, pos_dict)
+                    if should_exit:
+                        from ..strategy.base import Signal
+                        from decimal import Decimal
+                        self._last_exit_bar[symbol] = bar_idx
+                        close_signal = Signal(
+                            symbol=symbol,
+                            action='sell' if side == 'long' else 'buy',
+                            price=Decimal(str(price)),
+                            quantity=Decimal(str(pos['qty'])),
+                            reason='止盈/止损'
+                        )
+                        self.execute_trade(close_signal, current_date)
+                        break  # 已平仓，跳出
+
             import asyncio
             signals = await strategy.calculate_signal(current_data)
 
             for signal in signals:
+                # 冷静期：平仓后 N 根 K 线内不开新仓
+                if signal.symbol in self._last_exit_bar:
+                    if bar_idx - self._last_exit_bar[signal.symbol] < self._cooldown_bars:
+                        continue
                 self.execute_trade(signal, current_date)
                             
             # 记录资金曲线
@@ -155,7 +203,10 @@ class BacktestEngine:
             logger.warning(f"资金不足，无法开多")
             return
         
-        self.positions[symbol]['long'] = {'qty': quantity, 'entry_price': actual_price, 'margin': margin}
+        self.positions[symbol]['long'] = {
+            'qty': quantity, 'entry_price': actual_price, 'margin': margin,
+            'entry_time': current_date
+        }
         self.capital -= trade_value
         
         self.trades.append(Trade(
@@ -185,7 +236,10 @@ class BacktestEngine:
             logger.warning(f"资金不足，无法开空")
             return
         
-        self.positions[symbol]['short'] = {'qty': quantity, 'entry_price': actual_price, 'margin': margin}
+        self.positions[symbol]['short'] = {
+            'qty': quantity, 'entry_price': actual_price, 'margin': margin,
+            'entry_time': current_date
+        }
         self.capital -= trade_value
         
         self.trades.append(Trade(
@@ -208,12 +262,13 @@ class BacktestEngine:
         final_pnl = pnl - commission
         
         self.capital += pos['margin'] + final_pnl
+        entry_time = pos.get('entry_time', current_date)
         self.positions[symbol]['long'] = {'qty': 0, 'entry_price': 0, 'margin': 0}
         
         self.trades.append(Trade(
             symbol=symbol, action='sell', quantity=pos['qty'],
             entry_price=pos['entry_price'], exit_price=actual_price,
-            entry_time=current_date, exit_time=current_date,
+            entry_time=entry_time, exit_time=current_date,
             pnl=final_pnl, pnl_percent=(final_pnl/pos['margin'])*100,
             commission=commission, reason=reason
         ))
@@ -233,12 +288,13 @@ class BacktestEngine:
         final_pnl = pnl - commission
         
         self.capital += pos['margin'] + final_pnl
+        entry_time = pos.get('entry_time', current_date)
         self.positions[symbol]['short'] = {'qty': 0, 'entry_price': 0, 'margin': 0}
         
         self.trades.append(Trade(
             symbol=symbol, action='buy', quantity=pos['qty'],
             entry_price=pos['entry_price'], exit_price=actual_price,
-            entry_time=current_date, exit_time=current_date,
+            entry_time=entry_time, exit_time=current_date,
             pnl=final_pnl, pnl_percent=(final_pnl/pos['margin'])*100,
             commission=commission, reason=reason
         ))
@@ -271,11 +327,12 @@ class BacktestEngine:
         drawdowns = (portfolio_series - rolling_max) / rolling_max
         max_drawdown = abs(drawdowns.min()) * 100
 
-        # 计算胜率
-        winning_trades = [t for t in self.trades if t.pnl > 0]
-        losing_trades = [t for t in self.trades if t.pnl < 0]
+        # 计算胜率（只统计已平仓交易）
+        closed_trades = [t for t in self.trades if t.exit_price is not None]
+        winning_trades = [t for t in closed_trades if t.pnl > 0]
+        losing_trades = [t for t in closed_trades if t.pnl < 0]
 
-        win_rate = len(winning_trades) / len(self.trades) * 100 if self.trades else 0
+        win_rate = len(winning_trades) / len(closed_trades) * 100 if closed_trades else 0
 
         # 计算盈利因子
         total_profit = sum(t.pnl for t in winning_trades)
@@ -289,7 +346,7 @@ class BacktestEngine:
         result.max_drawdown = max_drawdown
         result.win_rate = win_rate
         result.profit_factor = profit_factor
-        result.total_trades = len(self.trades)
+        result.total_trades = len(closed_trades)
         result.winning_trades = len(winning_trades)
         result.losing_trades = len(losing_trades)
         result.trades = self.trades

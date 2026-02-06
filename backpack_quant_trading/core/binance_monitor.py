@@ -37,6 +37,58 @@ DEFAULT_LOOKBACK = 4
 DEFAULT_ETH_RATIO = 1.5
 
 
+def fetch_binance_klines_batch(
+    symbol: str,
+    interval: str,
+    total_limit: int = 1500,
+    batch_size: int = 1000,
+) -> Optional[List[Dict]]:
+    """
+    分批次从币安获取 K 线数据（永续合约），单次最多 1000 根，可获取 1000-2000 根。
+    symbol: 如 ETHUSDT, BTCUSDT
+    interval: 如 15m, 1h, 4h, 1d
+    返回: [{"time": ts_ms, "open", "high", "low", "close", "volume"}, ...] 按时间升序
+    """
+    result: List[Dict] = []
+    end_time: Optional[int] = None
+    url = f"{BINANCE_API_BASE}/fapi/v1/klines"
+    symbol = symbol.upper()
+    remaining = total_limit
+
+    while remaining > 0:
+        limit = min(remaining, batch_size)
+        params: Dict = {"symbol": symbol, "interval": interval, "limit": limit}
+        if end_time is not None:
+            params["endTime"] = end_time
+        try:
+            resp = requests.get(url, params=params, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                break
+            batch = []
+            for bar in data:
+                batch.append({
+                    "time": int(bar[0]),
+                    "open": float(bar[1]),
+                    "high": float(bar[2]),
+                    "low": float(bar[3]),
+                    "close": float(bar[4]),
+                    "volume": float(bar[5]),
+                })
+            result = batch + result  # 更早的数据放前面
+            if len(batch) < limit:
+                break
+            end_time = int(data[0][0]) - 1
+            remaining -= len(batch)
+            if remaining > 0:
+                time.sleep(1.0)  # 分批间隔，避免限流
+        except Exception as e:
+            logger.error(f"币安 K 线批量获取失败 {symbol} {interval}: {e}")
+            return result if result else None
+    return result
+
+
 def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Optional[List[Dict]]:
     """
     从币安获取K线数据（永续合约）。
@@ -361,7 +413,7 @@ class BinanceMonitorService:
             self._alerted.clear()
 
 
-# 全局单例，供 dashboard 使用
+# 币种监视全局共享，不按用户隔离
 _monitor_instance: Optional[BinanceMonitorService] = None
 
 

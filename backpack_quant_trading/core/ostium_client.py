@@ -1086,16 +1086,21 @@ class OstiumAPIClient:
         }
     
     async def get_balance(self) -> Dict[str, float]:
-        """获取账户余额"""
+        """获取账户余额。SDK 可能返回 tuple(Decimal, Decimal) 或 dict，统一转为 {'USDC': float}"""
         try:
             if not self.sdk or not self.trader_address:
                 return {'USDC': 0.0, 'error': 'SDK未初始化或地址不可用'}
             
-            # 根据SDK文档，使用 sdk.balance 获取余额
-            # 注意：这里不使用await，因为SDK可能不支持异步
-            balance = self.sdk.balance.get_balance(self.trader_address)
-            self.logger.info(f"获取账户余额成功: {balance}")
-            return balance
+            raw = self.sdk.balance.get_balance(self.trader_address)
+            self.logger.info(f"获取账户余额成功: {raw}")
+
+            # SDK 返回 tuple( collateral, usdc ) 或 dict
+            if isinstance(raw, (tuple, list)) and len(raw) >= 2:
+                usdc_val = raw[1]
+                return {'USDC': float(usdc_val)}
+            if isinstance(raw, dict):
+                return {'USDC': float(raw.get('USDC', raw.get('usdc', 0.0)))}
+            return {'USDC': 0.0}
         except Exception as e:
             self.logger.error(f"获取账户余额失败: {e}")
             return {'USDC': 0.0, 'error': str(e)}
