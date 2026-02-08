@@ -8,8 +8,16 @@
       <template #header>监视配置</template>
       <el-form inline class="config-form">
         <el-form-item label="选择币种">
-          <el-select v-model="selectedSymbols" multiple filterable placeholder="选择币种" class="symbol-select">
-            <el-option v-for="s in symbolList" :key="s" :label="s" :value="s" />
+          <el-select
+            v-model="selectedSymbols"
+            multiple
+            filterable
+            :filter-method="handleSymbolFilter"
+            placeholder="选择币种"
+            class="symbol-select"
+            @visible-change="handleSymbolDropdown"
+          >
+            <el-option v-for="s in filteredSymbols" :key="s" :label="s" :value="s" />
           </el-select>
         </el-form-item>
         <el-form-item label="K线级别(多选)">
@@ -23,6 +31,58 @@
           <el-button type="primary" :loading="loading" @click="handleStart">开始监视</el-button>
           <el-button type="danger" :disabled="!status.running" @click="handleStop">停止监视</el-button>
         </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card class="minute-alert-card">
+      <template #header>分钟预警配置</template>
+      <el-form :model="minuteForm" label-position="top" class="minute-form">
+        <div class="minute-form-grid">
+        <el-form-item label="监控币种" class="minute-symbols">
+          <el-select
+            v-model="minuteForm.symbols"
+            multiple
+            filterable
+            :filter-method="handleMinuteSymbolFilter"
+            placeholder="选择币安合约交易对，如 ETHUSDT"
+            class="symbol-select symbol-select-full"
+            @visible-change="handleMinuteSymbolDropdown"
+          >
+            <el-option v-for="s in minuteFilteredSymbols" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="K线级别" class="minute-interval">
+          <el-select v-model="minuteForm.interval" teleported class="w-120">
+            <el-option v-for="opt in minuteIntervalOptions" :key="opt" :label="opt" :value="opt" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="波动阈值(%)" class="minute-vol">
+          <el-input-number v-model="minuteForm.vol_pct_threshold" :min="0" :step="0.5" :precision="2" class="w-160" />
+        </el-form-item>
+        <el-form-item label="量能倍数(x)" class="minute-volume">
+          <el-input-number v-model="minuteForm.volume_mult_threshold" :min="1" :step="1" :precision="1" class="w-160" />
+        </el-form-item>
+        <el-form-item label="订单簿大单(名义USDT)" class="minute-ob">
+          <div class="field-with-help">
+            <el-input-number v-model="minuteForm.ob_notional_threshold" :min="0" :step="10000" :precision="0" class="w-220" />
+            <div class="field-help">
+              <template v-if="minuteStatus.running">
+                运行中：{{ (minuteStatus.symbols || []).join(', ') }} ｜ interval={{ minuteStatus.interval }} ｜ 波动≥{{ minuteStatus.vol_pct_threshold }}% ｜ 量能≥{{ minuteStatus.volume_mult_threshold }}x ｜ 订单簿≥{{ minuteStatus.ob_notional_threshold }}
+              </template>
+              <template v-else>
+                未启动。启动后每分钟拉取币安K线/订单簿并通过钉钉推送。
+              </template>
+            </div>
+          </div>
+        </el-form-item>
+
+        <el-form-item label=" " class="minute-actions">
+          <el-button type="primary" size="large" :loading="minuteLoading" @click="handleMinuteStart">启动预警</el-button>
+          <el-button type="danger" size="large" :disabled="!minuteStatus.running" @click="handleMinuteStop">停止预警</el-button>
+        </el-form-item>
+        </div>
       </el-form>
     </el-card>
 
@@ -49,9 +109,19 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getSymbols, getStatus, startMonitor, stopMonitor, removePair as apiRemovePair } from '../api/currencyMonitor'
+import {
+  getSymbols,
+  getStatus,
+  startMonitor,
+  stopMonitor,
+  removePair as apiRemovePair,
+  getMinuteAlertStatus,
+  startMinuteAlert,
+  stopMinuteAlert,
+} from '../api/currencyMonitor'
 
 const symbolList = ref([])
+const symbolKeyword = ref('')
 const selectedSymbols = ref([])
 const timeframeOptions = [
   { label: '1小时', value: '1小时' },
@@ -65,14 +135,37 @@ const status = reactive({ running: false, pairs: [] })
 const loading = ref(false)
 const alertedPairs = ref(new Set())
 
+// 1分钟预警
+const minuteSymbolKeyword = ref('')
+const minuteLoading = ref(false)
+const minuteStatus = reactive({
+  running: false,
+  symbols: [],
+  interval: '1m',
+  vol_pct_threshold: 5.0,
+  volume_mult_threshold: 20.0,
+  ob_notional_threshold: 200000.0,
+})
+const minuteForm = reactive({
+  symbols: [],
+  interval: '1m',
+  vol_pct_threshold: 5.0,
+  volume_mult_threshold: 20.0,
+  ob_notional_threshold: 200000.0,
+})
+const minuteIntervalOptions = ['1m', '3m', '5m', '15m']
+
 onMounted(async () => {
   try {
     const res = await getSymbols()
     symbolList.value = res.symbols || []
   } catch {}
   await refreshStatus()
+  await refreshMinuteStatus()
   const t = setInterval(refreshStatus, 5000)
+  const t2 = setInterval(refreshMinuteStatus, 5000)
   onUnmounted(() => clearInterval(t))
+  onUnmounted(() => clearInterval(t2))
 })
 
 async function refreshStatus() {
@@ -84,7 +177,38 @@ async function refreshStatus() {
   } catch {}
 }
 
+async function refreshMinuteStatus() {
+  try {
+    const res = await getMinuteAlertStatus()
+    minuteStatus.running = !!res.running
+    minuteStatus.symbols = Array.isArray(res.symbols) ? res.symbols : []
+    minuteStatus.interval = res.interval || '1m'
+    minuteStatus.vol_pct_threshold = Number(res.vol_pct_threshold ?? 5.0)
+    minuteStatus.volume_mult_threshold = Number(res.volume_mult_threshold ?? 20.0)
+    minuteStatus.ob_notional_threshold = Number(res.ob_notional_threshold ?? 200000.0)
+
+    // 回显到表单（仅在未运行时同步，避免你改表单时被刷新覆盖）
+    if (!minuteStatus.running) {
+      minuteForm.interval = minuteStatus.interval
+      minuteForm.vol_pct_threshold = minuteStatus.vol_pct_threshold
+      minuteForm.volume_mult_threshold = minuteStatus.volume_mult_threshold
+      minuteForm.ob_notional_threshold = minuteStatus.ob_notional_threshold
+    }
+  } catch {}
+}
+
 const displayPairs = computed(() => Array.isArray(status.pairs) ? status.pairs : [])
+const filteredSymbols = computed(() => {
+  const kw = symbolKeyword.value.trim().toUpperCase()
+  if (!kw) return symbolList.value
+  return symbolList.value.filter((s) => String(s).toUpperCase().includes(kw))
+})
+
+const minuteFilteredSymbols = computed(() => {
+  const kw = minuteSymbolKeyword.value.trim().toUpperCase()
+  if (!kw) return symbolList.value
+  return symbolList.value.filter((s) => String(s).toUpperCase().includes(kw))
+})
 
 const hasAnyAlerted = computed(() => {
   return displayPairs.value.some((p) => alertedPairs.value.has(`${p[0]}|${p[1]}`))
@@ -92,6 +216,22 @@ const hasAnyAlerted = computed(() => {
 
 function isAlerted(p) {
   return alertedPairs.value.has(`${p[0]}|${p[1]}`)
+}
+
+function handleSymbolFilter(query) {
+  symbolKeyword.value = query || ''
+}
+
+function handleSymbolDropdown(visible) {
+  if (!visible) symbolKeyword.value = ''
+}
+
+function handleMinuteSymbolFilter(query) {
+  minuteSymbolKeyword.value = query || ''
+}
+
+function handleMinuteSymbolDropdown(visible) {
+  if (!visible) minuteSymbolKeyword.value = ''
 }
 
 async function handleStart() {
@@ -131,6 +271,39 @@ async function removePair(symbol, timeframe) {
     ElMessage.error(e.response?.data?.detail || '移除失败')
   }
 }
+
+async function handleMinuteStart() {
+  if (!minuteForm.symbols.length) {
+    ElMessage.warning('请选择预警监控币种')
+    return
+  }
+  minuteLoading.value = true
+  try {
+    await startMinuteAlert({
+      symbols: minuteForm.symbols,
+      interval: minuteForm.interval,
+      vol_pct_threshold: minuteForm.vol_pct_threshold,
+      volume_mult_threshold: minuteForm.volume_mult_threshold,
+      ob_notional_threshold: minuteForm.ob_notional_threshold,
+    })
+    ElMessage.success('已启动1分钟预警')
+    await refreshMinuteStatus()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '启动失败')
+  } finally {
+    minuteLoading.value = false
+  }
+}
+
+async function handleMinuteStop() {
+  try {
+    await stopMinuteAlert()
+    ElMessage.success('已停止预警')
+    await refreshMinuteStatus()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '停止失败')
+  }
+}
 </script>
 
 <style scoped>
@@ -144,6 +317,60 @@ async function removePair(symbol, timeframe) {
 .symbol-select { width: 320px; min-width: 280px; }
 .timeframe-group { display: flex; flex-wrap: wrap; gap: 16px 28px; }
 .btn-row { margin-left: 8px; }
+.minute-alert-card { margin-top: 18px; }
+.minute-alert-card :deep(.el-card__body) { padding: 24px; }
+
+.minute-form-grid{
+  display: grid;
+  /* 规整两行布局（用 grid areas 固定位置） */
+  /* 6列：最后一列留给按钮，避免按钮换行堆叠 */
+  grid-template-columns: minmax(360px, 2.2fr) 120px 160px 160px 220px minmax(280px, 1fr);
+  grid-template-areas:
+    "symbols symbols interval vol volume ."
+    "ob      ob      ob       ob  ob     actions";
+  gap: 12px 18px;
+  align-items: end;
+}
+.minute-symbols{ grid-area: symbols; }
+.minute-interval{ grid-area: interval; }
+.minute-vol{ grid-area: vol; }
+.minute-volume{ grid-area: volume; }
+.minute-ob{ grid-area: ob; }
+.minute-actions{
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: nowrap;
+  min-width: 280px;
+}
+.w-120{ width: 120px; }
+.w-160{ width: 160px; }
+.w-220{ width: 220px; }
+.symbol-select-full{ width: 100%; }
+.field-with-help{ display: flex; flex-direction: column; align-items: flex-start; }
+.field-help{
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  max-width: 420px;
+}
+
+@media (max-width: 760px) {
+  .minute-form-grid { grid-template-columns: 1fr; }
+  .minute-form-grid{
+    grid-template-areas:
+      "symbols"
+      "interval"
+      "vol"
+      "volume"
+      "ob"
+      "actions";
+  }
+  .minute-actions { justify-content: stretch; flex-wrap: nowrap; }
+  .minute-actions :deep(.el-button) { flex: 1; }
+}
 
 /* 高级币种池：正常蓝色，有异动时变红 */
 .pool-card :deep(.el-card__body) { padding: 24px; }

@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Set, Tuple
 ALERT_RED_DURATION_SEC = 600  # 异动变红持续 10 分钟
 import requests
+import math
 
 from backpack_quant_trading.config.settings import config
 
@@ -118,6 +119,225 @@ def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Option
     except Exception as e:
         logger.error(f"获取币安K线失败 {symbol} {interval}: {e}")
         return None
+
+
+def fetch_binance_depth(symbol: str, limit: int = 50) -> Optional[Dict]:
+    """获取币安合约订单簿深度（Top N）。
+    返回示例：{"lastUpdateId":..., "bids":[[price, qty],...], "asks":[[price, qty],...]}
+    """
+    try:
+        url = f"{BINANCE_API_BASE}/fapi/v1/depth"
+        params = {"symbol": symbol.upper(), "limit": int(limit)}
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, dict):
+            return None
+        return data
+    except Exception as e:
+        logger.error(f"获取币安深度失败 {symbol}: {e}")
+        return None
+
+
+def _parse_depth_levels(levels) -> List[Tuple[float, float]]:
+    out: List[Tuple[float, float]] = []
+    if not isinstance(levels, list):
+        return out
+    for lv in levels:
+        try:
+            px = float(lv[0])
+            qty = float(lv[1])
+            out.append((px, qty))
+        except Exception:
+            continue
+    return out
+
+
+def detect_minute_alerts(
+    symbol: str,
+    klines: List[Dict],
+    depth: Optional[Dict],
+    *,
+    interval_label: str = "1m",
+    vol_pct_threshold: float = 5.0,
+    volume_mult_threshold: float = 20.0,
+    ob_notional_threshold: float = 200000.0,
+    ob_distance_pct: float = 0.003,
+    depth_levels: int = 50,
+) -> List[str]:
+    """检测短周期预警条件，返回触发原因列表（可多条）。
+
+    条件：
+    - 一根K线内波动 >= vol_pct_threshold（%）
+    - 当前成交量 >= 上一根成交量 * volume_mult_threshold
+    - 订单簿在距离 mid 的 ob_distance_pct 范围内出现大额挂单（名义价值 >= ob_notional_threshold）
+    """
+    reasons: List[str] = []
+    if not klines or len(klines) < 2:
+        return reasons
+
+    cur = klines[-1]
+    prev = klines[-2]
+    o = float(cur.get("open") or 0)
+    h = float(cur.get("high") or 0)
+    l = float(cur.get("low") or 0)
+    v = float(cur.get("volume") or 0)
+    pv = float(prev.get("volume") or 0)
+
+    # 波动（用 high-low / open）
+    if o > 0 and h > 0 and l > 0:
+        rng_pct = (h - l) / o * 100
+        if rng_pct >= vol_pct_threshold:
+            reasons.append(f"{interval_label}波动{rng_pct:.2f}% >= {vol_pct_threshold:.2f}%")
+
+    # 成交量倍数
+    if pv > 0:
+        mult = v / pv
+        if mult >= volume_mult_threshold:
+            reasons.append(f"{interval_label}成交量倍数{mult:.1f}x >= {volume_mult_threshold:.1f}x (当前{v:.4g} 前一根{pv:.4g})")
+
+    # 订单簿大额挂单（近 mid）
+    if depth and isinstance(depth, dict):
+        bids = _parse_depth_levels(depth.get("bids"))
+        asks = _parse_depth_levels(depth.get("asks"))
+        if bids and asks:
+            best_bid = bids[0][0]
+            best_ask = asks[0][0]
+            if best_bid > 0 and best_ask > 0:
+                mid = (best_bid + best_ask) / 2
+                max_dist = mid * float(ob_distance_pct)
+                wall_hits: List[str] = []
+                # 扫描前 N 档
+                for side_name, arr in (("BID", bids[:depth_levels]), ("ASK", asks[:depth_levels])):
+                    for px, qty in arr:
+                        if px <= 0 or qty <= 0:
+                            continue
+                        if abs(px - mid) > max_dist:
+                            continue
+                        notional = px * qty
+                        if notional >= ob_notional_threshold:
+                            wall_hits.append(f"{side_name}墙 @{px:.2f} qty={qty:.4g} 名义={notional:,.0f}")
+                            break
+                if wall_hits:
+                    reasons.append("订单簿大单: " + " | ".join(wall_hits))
+
+    return reasons
+
+
+class BinanceMinuteAlertService:
+    """短周期预警服务：每分钟从币安获取K线、成交量、订单簿，触发钉钉告警。"""
+
+    def __init__(
+        self,
+        symbols: List[str],
+        *,
+        interval: str = "1m",
+        vol_pct_threshold: float = 5.0,
+        volume_mult_threshold: float = 20.0,
+        ob_notional_threshold: float = 200000.0,
+        ob_distance_pct: float = 0.003,
+        depth_levels: int = 50,
+        cooldown_sec: int = 300,
+    ):
+        self.symbols = [str(s).upper() for s in (symbols or []) if str(s).strip()]
+        self.interval = (interval or "1m").strip()
+        self.vol_pct_threshold = float(vol_pct_threshold)
+        self.volume_mult_threshold = float(volume_mult_threshold)
+        self.ob_notional_threshold = float(ob_notional_threshold)
+        self.ob_distance_pct = float(ob_distance_pct)
+        self.depth_levels = int(depth_levels)
+        self.cooldown_sec = int(cooldown_sec)
+
+        self._running = False
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        # (symbol, reason_key) -> ts
+        self._last_alert_ts: Dict[Tuple[str, str], float] = {}
+        # symbol -> last close_time（避免 interval>1m 时重复检测）
+        self._last_bar_close_time: Dict[str, int] = {}
+
+    def _cooldown_ok(self, symbol: str, key: str) -> bool:
+        now = time.time()
+        last = self._last_alert_ts.get((symbol, key), 0)
+        if now - last >= self.cooldown_sec:
+            self._last_alert_ts[(symbol, key)] = now
+            return True
+        return False
+
+    def _run_loop(self):
+        # 尽量对齐分钟边界
+        while not self._stop_event.is_set():
+            try:
+                for sym in self.symbols:
+                    if self._stop_event.is_set():
+                        break
+                    kl = fetch_binance_klines(sym, self.interval, limit=2)
+                    if kl and len(kl) >= 1:
+                        ct = int(kl[-1].get("close_time") or 0)
+                        if ct and self._last_bar_close_time.get(sym) == ct:
+                            continue
+                        if ct:
+                            self._last_bar_close_time[sym] = ct
+                    depth = fetch_binance_depth(sym, limit=max(5, self.depth_levels))
+                    reasons = detect_minute_alerts(
+                        sym,
+                        kl or [],
+                        depth,
+                        interval_label=self.interval,
+                        vol_pct_threshold=self.vol_pct_threshold,
+                        volume_mult_threshold=self.volume_mult_threshold,
+                        ob_notional_threshold=self.ob_notional_threshold,
+                        ob_distance_pct=self.ob_distance_pct,
+                        depth_levels=self.depth_levels,
+                    )
+                    if not reasons:
+                        continue
+                    # 分原因冷却，避免刷屏
+                    msg_lines = []
+                    for r in reasons:
+                        key = r.split(":")[0].split(" ")[0]  # 粗略分类
+                        if self._cooldown_ok(sym, key):
+                            msg_lines.append(r)
+                    if msg_lines:
+                        send_dingtalk_alert(sym, f"{self.interval}预警", "\n".join(msg_lines))
+            except Exception as e:
+                logger.error(f"1分钟预警循环异常: {e}")
+
+            # 睡到下一分钟（可中断）
+            now = time.time()
+            sleep_s = 60 - (now % 60)
+            if sleep_s < 1:
+                sleep_s = 1
+            self._stop_event.wait(sleep_s)
+
+    def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._running = True
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+        logger.info(f"✅ 1分钟预警已启动: {self.symbols}")
+
+    def stop(self):
+        self._running = False
+        self._stop_event.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+        self._thread = None
+        logger.info("🛑 1分钟预警已停止")
+
+
+_minute_alert_instance: Optional[BinanceMinuteAlertService] = None
+
+
+def get_minute_alert_instance() -> Optional[BinanceMinuteAlertService]:
+    return _minute_alert_instance
+
+
+def set_minute_alert_instance(instance: Optional[BinanceMinuteAlertService]):
+    global _minute_alert_instance
+    _minute_alert_instance = instance
 
 
 # 币种列表缓存：避免每次从交易所拉取 exchangeInfo（约 300KB）

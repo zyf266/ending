@@ -257,7 +257,7 @@ class AIAdaptive:
             "temperature": 0.3
         }
         try:
-            response = requests.post(self.reasoning_url, headers=headers, json=payload, timeout=60)
+            response = requests.post(self.reasoning_url, headers=headers, json=payload, timeout=150)
             res_json = response.json()
             
             if response.status_code != 200:

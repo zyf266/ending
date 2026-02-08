@@ -1,0 +1,282 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// Comprehensive 综合性策略 - TradingView 版本
+// 多指标评分开仓：布林带、RSI、K线形态、KDJ、OBV、均线、MACD
+// 趋势过滤 + 止盈止损
+
+//@version=5
+strategy("Comprehensive 多指标综合策略", overlay=true, pyramiding=0, default_qty_type=strategy.percent_of_equity, default_qty_value=15, initial_capital=10000, commission_type=strategy.commission.percent, commission_value=0.1)
+
+// ========== 参数 ==========
+group_tp_sl = "止盈止损"
+tp_pct = input.float(0.8, "止盈 %", minval=0.2, maxval=10, group=group_tp_sl)
+sl_pct = input.float(0.35, "止损 %", minval=0.1, maxval=5, group=group_tp_sl)
+rsi_tp_long = input.int(70, "平多 RSI 阈值", group=group_tp_sl)
+rsi_tp_short = input.int(30, "平空 RSI 阈值", group=group_tp_sl)
+
+group_entry = "开仓条件"
+macd_priority = input.bool(true, "MACD 优先模式", tooltip="开启后以 MACD 为核心，兼顾胜率与开单率", group=group_entry)
+macd_follow = input.bool(true, "MACD 跟随开仓", tooltip="允许MACD同向持续时入场(提升开单率)", group=group_entry)
+require_macd = input.bool(true, "MACD 必选过滤", tooltip="综合模式下需 MACD 方向确认", group=group_entry)
+rsi_oversold = input.int(38, "RSI 超卖(做多)", minval=20, maxval=50, group=group_entry)
+rsi_overbought = input.int(62, "RSI 超买(做空)", minval=50, maxval=80, group=group_entry)
+min_score = input.int(3, "最少满足条件数", minval=2, maxval=6, group=group_entry)
+min_weighted = input.float(4.0, "最低加权分", minval=2, maxval=10, group=group_entry)
+require_ma50 = input.bool(false, "MA50 过滤", group=group_entry)
+min_bb_width = input.float(0.008, "最小布林带宽度", minval=0.005, maxval=0.1, group=group_entry)
+allow_short = input.bool(true, "允许做空", group=group_entry)
+cooldown_bars = input.int(10, "平仓后冷却K线数", minval=5, maxval=80, group=group_entry)
+min_bars_between_entries = input.int(10, "最少间隔K线数", minval=5, maxval=100, group=group_entry)
+relaxed_trend = input.bool(true, "宽松趋势", group=group_entry)
+strict_trend_macd = input.bool(false, "MACD模式用强趋势", tooltip="需ma5>ma20>ma50，提升胜率但降低开单", group=group_entry)
+rsi_filter = input.bool(true, "RSI过滤(不追高杀低)", tooltip="做多RSI<上限，做空RSI>下限", group=group_entry)
+rsi_long_max = input.int(55, "做多RSI上限", minval=45, maxval=70, group=group_entry)
+rsi_short_min = input.int(45, "做空RSI下限", minval=30, maxval=55, group=group_entry)
+macd_momentum = input.bool(false, "MACD动能确认", tooltip="柱状线需同向增强", group=group_entry)
+macd_hist_min = input.float(0.02, "MACD最小动能", minval=0.0, maxval=1.0, step=0.01, group=group_entry)
+htf_filter = input.bool(true, "高周期趋势过滤", tooltip="只在高周期趋势方向开仓，提高胜率", group=group_entry)
+htf_tf = input.timeframe("60", "高周期(分钟)", group=group_entry)
+htf_fast = input.int(20, "高周期快线", minval=10, maxval=50, group=group_entry)
+htf_slow = input.int(50, "高周期慢线", minval=20, maxval=100, group=group_entry)
+show_debug = input.bool(false, "显示调试信息", group=group_entry)
+
+// ========== 指标计算 ==========
+// 均线
+ma5 = ta.sma(close, 5)
+ma10 = ta.sma(close, 10)
+ma20 = ta.sma(close, 20)
+ma50 = ta.sma(close, 50)
+
+// 布林带
+bb_middle = ta.sma(close, 20)
+bb_std = ta.stdev(close, 20)
+bb_upper = bb_middle + 2 * bb_std
+bb_lower = bb_middle - 2 * bb_std
+bb_width = (bb_upper - bb_lower) / math.max(bb_middle, 0.0001)
+
+// RSI
+rsi = ta.rsi(close, 14)
+
+// MACD
+[macd_line, signal_line, hist_line] = ta.macd(close, 12, 26, 9)
+macd_hist = hist_line
+macd_cross_up = ta.crossover(macd_line, signal_line)
+macd_cross_dn = ta.crossunder(macd_line, signal_line)
+
+// KDJ
+low9 = ta.lowest(low, 9)
+high9 = ta.highest(high, 9)
+rsv = high9 > low9 ? (close - low9) / (high9 - low9) * 100 : 50
+kdj_k = ta.ema(rsv, 3)
+kdj_d = ta.ema(kdj_k, 3)
+kdj_j = 3 * kdj_k - 2 * kdj_d
+
+// OBV
+obv = ta.obv
+obv_ma20 = ta.sma(obv, 20)
+volume_ma20 = ta.sma(volume, 20)
+volume_ratio = volume_ma20 > 0 ? volume / volume_ma20 : 1.0
+
+// 动量
+momentum_10 = ta.roc(close, 10) / 100
+
+// 高周期趋势
+htf_ma_fast = request.security(syminfo.tickerid, htf_tf, ta.sma(close, htf_fast))
+htf_ma_slow = request.security(syminfo.tickerid, htf_tf, ta.sma(close, htf_slow))
+htf_up = htf_ma_fast > htf_ma_slow
+htf_down = htf_ma_fast < htf_ma_slow
+
+// ========== 趋势判断 ==========
+// 严格模式：ma5>ma20>ma50 在 1m 上极少满足；宽松模式：ma5>ma20 或 价格在均线上方
+uptrend = relaxed_trend ? ((ma5 > ma20) or (close > ma20 and close > ma50) or (momentum_10 > 0.01) or (close > bb_middle)) : ((ma5 > ma20 and ma20 > ma50) or (ma5 < ma20 and ma20 < close and close > bb_middle * 1.02) or momentum_10 > 0.02)
+downtrend = relaxed_trend ? ((ma5 < ma20) or (close < ma20 and close < ma50) or (momentum_10 < -0.01) or (close < bb_middle)) : ((ma5 < ma20 and ma20 < ma50) or (ma5 > ma20 and ma20 > close and close < bb_middle * 0.98) or momentum_10 < -0.02)
+
+// ========== 做多条件评分 ==========
+// 1. 趋势 + MA50
+long_trend_ok = uptrend and (not require_ma50 or close >= ma50 * 0.998)
+long_trend_score = long_trend_ok ? 1.5 : 0.0
+
+// 2. 价格支撑（严格: 接近下轨; 宽松: 价格在布林下半区）
+long_price_ok = relaxed_trend ? (close <= (bb_middle + bb_lower) / 2) : (close <= bb_lower * 1.05)
+long_price_score = long_price_ok ? 0.8 * 1.3 : 0.0
+
+// 3. RSI 超卖
+long_rsi_ok = rsi < rsi_oversold
+long_rsi_score = long_rsi_ok ? math.min(1.0, (rsi_oversold - rsi) / 20) * 1.0 : 0.0
+
+// 4. K线形态（锤子线/吞没）
+body = math.abs(close - open)
+lower_shadow = math.min(open, close) - low
+bull_candle = close > open
+hammer = body > 0 and lower_shadow > body * 1.5 and bull_candle
+prev_bear = open[1] > close[1]
+engulfing = prev_bear and bull_candle and close > open[1]
+long_pattern_ok = hammer or engulfing
+long_pattern_score = long_pattern_ok ? 0.8 * 0.8 : 0.0
+
+// 5. 成交量
+price_drop = close[1] > 0 and (close - close[1]) / close[1] < -0.005
+long_vol_ok = price_drop and volume_ratio < 0.8
+long_vol_score = long_vol_ok ? 0.7 * 0.7 : 0.0
+
+// 6. KDJ 超卖
+long_kdj_ok = kdj_j < 25
+long_kdj_score = long_kdj_ok ? 0.7 * 0.6 : 0.0
+
+// 7. OBV 支撑
+long_obv_ok = obv_ma20 > 0 and obv > obv_ma20 * 0.98
+long_obv_score = long_obv_ok ? 0.6 * 0.5 : 0.0
+
+// 8. 均线金叉
+ma_cross_gold = ta.crossover(ma5, ma10)
+long_ma_score = ma_cross_gold ? 0.8 * 0.9 : 0.0
+
+// 9. MACD 金叉
+macd_turn_pos = macd_hist[2] < 0 and macd_hist[1] < 0 and macd_hist > 0
+long_macd_score = macd_turn_pos ? 0.8 * 0.8 : 0.0
+
+// 做多总分
+long_condition_count = (long_trend_ok ? 1 : 0) + (long_price_ok ? 1 : 0) + (long_rsi_ok ? 1 : 0) + (long_pattern_ok ? 1 : 0) + (long_vol_ok ? 1 : 0) + (long_kdj_ok ? 1 : 0) + (long_obv_ok ? 1 : 0) + (ma_cross_gold ? 1 : 0) + (macd_turn_pos ? 1 : 0)
+long_weighted_score = long_trend_score + long_price_score + long_rsi_score + long_pattern_score + long_vol_score + long_kdj_score + long_obv_score + long_ma_score + long_macd_score
+
+// ========== 做空条件评分 ==========
+short_trend_ok = downtrend and (not require_ma50 or close <= ma50 * 1.002)
+short_trend_score = short_trend_ok ? 1.5 : 0.0
+
+short_price_ok = relaxed_trend ? (close >= (bb_middle + bb_upper) / 2) : (close >= bb_upper * 0.95)
+short_price_score = short_price_ok ? 0.8 * 1.3 : 0.0
+
+short_rsi_ok = rsi > rsi_overbought
+short_rsi_score = short_rsi_ok ? math.min(1.0, (rsi - rsi_overbought) / 20) * 1.0 : 0.0
+
+upper_shadow = high - math.max(open, close)
+bear_candle = close < open
+shooting_star = body > 0 and upper_shadow > body * 1.5 and bear_candle
+short_pattern_ok = shooting_star
+short_pattern_score = short_pattern_ok ? 0.8 * 0.8 : 0.0
+
+short_kdj_ok = kdj_j > 75
+short_kdj_score = short_kdj_ok ? 0.7 * 0.6 : 0.0
+
+ma_cross_death = ta.crossunder(ma5, ma10)
+short_ma_score = ma_cross_death ? 0.8 * 0.9 : 0.0
+
+macd_turn_neg = macd_hist[2] > 0 and macd_hist[1] > 0 and macd_hist < 0
+short_macd_score = macd_turn_neg ? 0.8 * 0.8 : 0.0
+
+short_condition_count = (short_trend_ok ? 1 : 0) + (short_price_ok ? 1 : 0) + (short_rsi_ok ? 1 : 0) + (short_pattern_ok ? 1 : 0) + (short_kdj_ok ? 1 : 0) + (ma_cross_death ? 1 : 0) + (macd_turn_neg ? 1 : 0)
+short_weighted_score = short_trend_score + short_price_score + short_rsi_score + short_pattern_score + short_kdj_score + short_ma_score + short_macd_score
+
+// ========== 过滤条件 ==========
+bb_ok = bb_width >= min_bb_width
+var int last_exit_bar = -999
+in_cooldown = bar_index - last_exit_bar < cooldown_bars
+var int last_entry_bar = -999
+entry_spacing_ok = bar_index - last_entry_bar >= min_bars_between_entries
+
+// ========== 开仓信号 ==========
+// MACD 必选：综合模式下需 MACD 柱状线方向与持仓一致
+macd_long_ok = not require_macd or macd_hist > 0
+macd_short_ok = not require_macd or macd_hist < 0
+
+// MACD 优先模式：金叉/死叉 + 强趋势 + RSI/动能过滤
+uptrend_strong = ma5 > ma20 and ma20 > ma50
+downtrend_strong = ma5 < ma20 and ma20 < ma50
+long_macd_trend = strict_trend_macd ? uptrend_strong : uptrend
+short_macd_trend = strict_trend_macd ? downtrend_strong : downtrend
+long_rsi_ok_entry = not rsi_filter or rsi < rsi_long_max
+short_rsi_ok_entry = not rsi_filter or rsi > rsi_short_min
+// 金叉前柱状线需回升(蓄势)，死叉前需回落
+long_macd_buildup = not macd_momentum or macd_hist[1] > macd_hist[2]
+short_macd_buildup = not macd_momentum or macd_hist[1] < macd_hist[2]
+macd_strength_ok = math.abs(macd_hist) >= macd_hist_min
+
+macd_long_follow = macd_follow and macd_line > signal_line and macd_hist > 0 and macd_hist[1] > 0
+macd_short_follow = macd_follow and macd_line < signal_line and macd_hist < 0 and macd_hist[1] < 0
+long_macd_priority = (macd_cross_up or macd_long_follow) and long_macd_trend and long_rsi_ok_entry and long_macd_buildup and macd_strength_ok and (not require_ma50 or close >= ma50 * 0.998)
+short_macd_priority = (macd_cross_dn or macd_short_follow) and short_macd_trend and short_rsi_ok_entry and short_macd_buildup and macd_strength_ok and (not require_ma50 or close <= ma50 * 1.002)
+
+// 综合模式条件（含 MACD 过滤）
+long_comprehensive = long_condition_count >= min_score and long_weighted_score >= min_weighted and macd_long_ok and (long_weighted_score > short_weighted_score or not short_trend_ok) and bb_ok
+short_comprehensive = short_condition_count >= min_score and short_weighted_score >= min_weighted and macd_short_ok and (short_weighted_score > long_weighted_score or not long_trend_ok) and bb_ok
+
+// 高周期方向过滤
+long_htf_ok = not htf_filter or htf_up
+short_htf_ok = not htf_filter or htf_down
+
+long_cond = (macd_priority ? long_macd_priority : long_comprehensive) and long_htf_ok and not in_cooldown and entry_spacing_ok
+short_cond = allow_short and (macd_priority ? short_macd_priority : short_comprehensive) and short_htf_ok and not in_cooldown and entry_spacing_ok
+
+// ========== 平仓信号 ==========
+in_long = strategy.position_size > 0
+in_short = strategy.position_size < 0
+entry_price_long = strategy.opentrades > 0 ? strategy.opentrades.entry_price(0) : close
+entry_price_short = strategy.opentrades > 0 ? strategy.opentrades.entry_price(0) : close
+
+// 止盈止损（按收盘价计算）
+pnl_pct_long = entry_price_long > 0 ? (close - entry_price_long) / entry_price_long * 100 : 0
+pnl_pct_short = entry_price_short > 0 ? (entry_price_short - close) / entry_price_short * 100 : 0
+
+long_tp = pnl_pct_long >= tp_pct
+long_sl = pnl_pct_long <= -sl_pct
+long_rsi_exit = rsi > rsi_tp_long and pnl_pct_long > 0.5
+long_trend_exit = downtrend and pnl_pct_long > 1.2
+
+short_tp = pnl_pct_short >= tp_pct
+short_sl = pnl_pct_short <= -sl_pct
+short_rsi_exit = rsi < rsi_tp_short and pnl_pct_short > 0.5
+short_trend_exit = uptrend and pnl_pct_short > 1.2
+
+// MACD 优先模式：反向金叉/死叉也平仓
+long_macd_exit = macd_priority and macd_cross_dn
+short_macd_exit = macd_priority and macd_cross_up
+
+long_exit = long_tp or long_sl or long_rsi_exit or long_trend_exit or long_macd_exit
+short_exit = short_tp or short_sl or short_rsi_exit or short_trend_exit or short_macd_exit
+
+// ========== 策略执行 ==========
+// 先平仓再开仓
+if long_exit and in_long
+    strategy.close("Long", comment="平多")
+    last_exit_bar := bar_index
+
+if short_exit and in_short
+    strategy.close("Short", comment="平空")
+    last_exit_bar := bar_index
+
+if long_cond and not in_long and not in_short
+    strategy.entry("Long", strategy.long, comment="开多")
+    last_entry_bar := bar_index
+
+if short_cond and not in_short and not in_long
+    strategy.entry("Short", strategy.short, comment="开空")
+    last_entry_bar := bar_index
+
+// ========== 图表显示 ==========
+plot(ma5, "MA5", color=color.new(color.blue, 0), linewidth=1)
+plot(ma20, "MA20", color=color.new(color.orange, 0), linewidth=1)
+plot(ma50, "MA50", color=color.new(color.purple, 0), linewidth=2)
+plot(bb_upper, "BB上轨", color=color.new(color.gray, 70))
+plot(bb_lower, "BB下轨", color=color.new(color.gray, 70))
+
+plotshape(long_cond, "做多信号", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(short_cond, "做空信号", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// 调试信息表（无成交时可开启查看最后一根K线的评分）
+var table debug_tbl = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 80))
+if show_debug and barstate.islast
+    table.cell(debug_tbl, 0, 0, "参数", text_color=color.yellow)
+    table.cell(debug_tbl, 1, 0, "值", text_color=color.yellow)
+    table.cell(debug_tbl, 0, 1, "多条件数")
+    table.cell(debug_tbl, 1, 1, str.tostring(long_condition_count))
+    table.cell(debug_tbl, 0, 2, "多加权分")
+    table.cell(debug_tbl, 1, 2, str.tostring(long_weighted_score, "#.##"))
+    table.cell(debug_tbl, 0, 3, "空条件数")
+    table.cell(debug_tbl, 1, 3, str.tostring(short_condition_count))
+    table.cell(debug_tbl, 0, 4, "空加权分")
+    table.cell(debug_tbl, 1, 4, str.tostring(short_weighted_score, "#.##"))
+    table.cell(debug_tbl, 0, 5, "做多信号")
+    table.cell(debug_tbl, 1, 5, long_cond ? "✓" : "✗")
+    table.cell(debug_tbl, 0, 6, "做空信号")
+    table.cell(debug_tbl, 1, 6, short_cond ? "✓" : "✗")
+    table.cell(debug_tbl, 0, 7, "BB宽度")
+    table.cell(debug_tbl, 1, 7, str.tostring(bb_width, "#.###"))

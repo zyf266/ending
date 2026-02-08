@@ -1,0 +1,359 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// 双频趋势共振策略 - TradingView 版本
+// 15m 趋势 + 1m 入场（回调/突破 + RSI6 + 布林带 + EMA5/13）
+
+//@version=5
+strategy("DualFreq Trend Resonance (TV版)", overlay=true, pyramiding=0, default_qty_type=strategy.cash, default_qty_value=0, initial_capital=10000,
+     commission_type=strategy.commission.percent, commission_value=0.06, slippage=2)
+
+// ========== 参数 ==========
+group_tf = "时间周期"
+trend_tf = input.timeframe("15", "趋势周期(分钟)", group=group_tf)
+entry_tf = input.timeframe("1", "入场周期(分钟)", group=group_tf)
+
+group_15m = "15分钟趋势"
+ema9_period = input.int(9, "EMA9", minval=3, maxval=30, group=group_15m)
+ema21_period = input.int(21, "EMA21", minval=5, maxval=60, group=group_15m)
+trend_relaxed = input.bool(false, "趋势放宽(提高开单)", group=group_15m)
+htf_filter = input.bool(true, "高周期趋势过滤(长期稳定)", group=group_15m)
+htf2_tf = input.timeframe("60", "高周期(分钟)", group=group_15m)
+
+group_1m = "1分钟入场"
+ema5_period = input.int(5, "EMA5", minval=3, maxval=20, group=group_1m)
+ema13_period = input.int(13, "EMA13", minval=5, maxval=50, group=group_1m)
+rsi_period = input.int(6, "RSI周期", minval=3, maxval=14, group=group_1m)
+bb_period = input.int(20, "布林带周期", minval=10, maxval=40, group=group_1m)
+bb_std = input.float(2.0, "布林带倍数", minval=1.0, maxval=3.0, group=group_1m)
+extreme_vol_pct = input.float(1.0, "5分钟内最大波动%(过滤)", minval=0.2, maxval=5.0, step=0.1, group=group_1m)
+// 突破模式锁死关闭
+use_breakout_mode = false
+min_bb_width = input.float(0.004, "最小布林带宽度", minval=0.0, maxval=0.05, group=group_1m)
+pullback_volume_filter = input.bool(true, "回调量能过滤", tooltip="回调入场需量缩", group=group_1m)
+min_entry_gap = input.int(6, "最少间隔K线", minval=1, maxval=100, group=group_1m)
+min_atr_pct = input.float(0.0010, "最小波动率(ATR%)", minval=0.0005, maxval=0.01, step=0.0001, group=group_1m)
+max_atr_pct = input.float(0.0040, "最大波动率(ATR%)(回撤优化)", minval=0.0010, maxval=0.05, step=0.0001, group=group_1m)
+// 额外辅助过滤（默认关闭，打开后提高胜率）
+use_macd_filter = input.bool(true, "MACD方向过滤", group=group_1m)
+use_rsi_slope = input.bool(true, "RSI斜率过滤", group=group_1m)
+use_volume_confirm = input.bool(false, "成交量确认", group=group_1m)
+use_htf_rsi = input.bool(false, "高周期RSI过滤", group=group_1m)
+htf_rsi_tf = input.timeframe("15", "高周期RSI周期(分钟)", group=group_1m)
+htf_rsi_min = input.int(45, "高周期RSI多单下限", minval=30, maxval=60, group=group_1m)
+htf_rsi_max = input.int(55, "高周期RSI空单上限", minval=40, maxval=70, group=group_1m)
+
+group_dd = "回撤优化(ETH合约)"
+use_adx_filter = input.bool(true, "ADX趋势过滤(少做震荡)", group=group_dd)
+adx_len = input.int(14, "ADX周期", minval=7, maxval=30, group=group_dd)
+adx_threshold = input.float(20.0, "ADX阈值", minval=10.0, maxval=40.0, step=1.0, group=group_dd)
+use_vol_target = input.bool(true, "波动率目标仓位(降回撤)", group=group_dd)
+vol_target_atr_pct = input.float(0.0020, "目标ATR%(仓位缩放)", minval=0.0005, maxval=0.02, step=0.0001, group=group_dd)
+min_vol_scale = input.float(0.30, "最小仓位缩放", minval=0.05, maxval=1.0, step=0.05, group=group_dd)
+max_vol_scale = input.float(1.00, "最大仓位缩放", minval=0.1, maxval=1.5, step=0.05, group=group_dd)
+use_partial_tp = input.bool(true, "分批止盈(锁利润)", group=group_dd)
+partial_tp_trigger_pct = input.float(80.0, "分批止盈触发%", minval=20, maxval=200, step=5, group=group_dd)
+partial_tp_qty_pct = input.float(50.0, "分批止盈比例%", minval=10, maxval=90, step=5, group=group_dd)
+
+group_risk = "风险控制"
+leverage = input.int(100, "杠杆(倍)", minval=1, maxval=200, group=group_risk)
+use_fixed_margin = input.bool(true, "固定每单保证金", group=group_risk)
+margin_per_trade = input.float(10.0, "每单保证金(U)", minval=1, maxval=1000, group=group_risk)
+tp_pct = input.float(250.0, "基础止盈%(5:1)", minval=100, maxval=500, group=group_risk)
+sl_pct = input.float(50.0, "基础止损%(5:1)", minval=20, maxval=100, group=group_risk)
+use_trailing_stop = input.bool(true, "启用追踪止盈", tooltip="让利润奔跑", group=group_risk)
+trailing_offset_pct = input.float(100.0, "追踪激活%", minval=50, maxval=300, tooltip="盈利达到此比例后启动追踪", group=group_risk)
+trailing_step_pct = input.float(80.0, "追踪回撤%", minval=30, maxval=150, tooltip="从最高点回撤此比例平仓", group=group_risk)
+move_sl_to_be = input.bool(true, "移动止损到成本", tooltip="盈利达标后保本", group=group_risk)
+breakeven_trigger_pct = input.float(80.0, "保本触发%", minval=30, maxval=200, group=group_risk)
+time_stop_bars = input.int(12, "时间止损(分钟)", minval=5, maxval=60, group=group_risk)
+cooldown_bars = input.int(3, "平仓冷却K线", minval=1, maxval=200, group=group_risk)
+trend_ema_filter = input.bool(true, "1m均线方向过滤", tooltip="EMA5>EMA13 才做多，反之做空", group=group_risk)
+rsi_long_min = input.int(32, "做多RSI下限", minval=20, maxval=50, group=group_risk)
+rsi_long_max = input.int(55, "做多RSI上限", minval=40, maxval=70, group=group_risk)
+rsi_short_min = input.int(45, "做空RSI下限", minval=30, maxval=70, group=group_risk)
+rsi_short_max = input.int(68, "做空RSI上限", minval=50, maxval=85, group=group_risk)
+risk_per_trade_pct = input.float(0.5, "单笔风险%", minval=0.1, maxval=5, group=group_risk)
+max_pos_pct = input.float(30.0, "最大仓位%", minval=5, maxval=100, group=group_risk)
+daily_loss_pct = input.float(5.0, "单日最大回撤%", minval=1, maxval=20, group=group_risk)
+
+// ========== 15m 趋势（在高周期上计算） ==========
+ema9_htf = request.security(syminfo.tickerid, trend_tf, ta.ema(close, ema9_period))
+ema21_htf = request.security(syminfo.tickerid, trend_tf, ta.ema(close, ema21_period))
+close_htf = request.security(syminfo.tickerid, trend_tf, close)
+gap_htf = (ema9_htf - ema21_htf) / ema21_htf
+prev_gap_htf = (ema9_htf[1] - ema21_htf[1]) / ema21_htf[1]
+trend_state = gap_htf > 0.001 and close_htf > ema21_htf * 1.001 and prev_gap_htf > 0.0005 ? 1 :
+     gap_htf < -0.001 and close_htf < ema21_htf * 0.999 and prev_gap_htf < -0.0005 ? -1 : 0
+trend_state := trend_relaxed ? (ema9_htf >= ema21_htf ? 1 : -1) : trend_state
+
+is_uptrend = trend_state == 1
+is_downtrend = trend_state == -1
+
+// 高周期趋势（用于长期稳定）
+ema9_htf2 = request.security(syminfo.tickerid, htf2_tf, ta.ema(close, ema9_period))
+ema21_htf2 = request.security(syminfo.tickerid, htf2_tf, ta.ema(close, ema21_period))
+htf2_up = ema9_htf2 >= ema21_htf2
+htf2_down = ema9_htf2 < ema21_htf2
+
+// ========== 1m 指标 ==========
+ema5 = ta.ema(close, ema5_period)
+ema13 = ta.ema(close, ema13_period)
+rsi = ta.rsi(close, rsi_period)
+[macd_line, signal_line, macd_hist] = ta.macd(close, 12, 26, 9)
+atr_pct = ta.atr(14) / close
+[di_plus, di_minus, adx] = ta.dmi(adx_len, adx_len)
+adx_ok = (not use_adx_filter) or (adx >= adx_threshold)
+
+bb_mid = ta.sma(close, bb_period)
+bb_std_val = ta.stdev(close, bb_period)
+bb_upper = bb_mid + bb_std * bb_std_val
+bb_lower = bb_mid - bb_std * bb_std_val
+bb_width = (bb_upper - bb_lower) / math.max(bb_mid, 0.0001)
+
+vol_ma5 = ta.sma(volume, 5)
+vol_confirm = volume > vol_ma5
+rsi_slope_ok_long = rsi > rsi[1]
+rsi_slope_ok_short = rsi < rsi[1]
+macd_dir_long = macd_hist > 0
+macd_dir_short = macd_hist < 0
+htf_rsi = request.security(syminfo.tickerid, htf_rsi_tf, ta.rsi(close, 14))
+htf_rsi_ok_long = htf_rsi >= htf_rsi_min
+htf_rsi_ok_short = htf_rsi <= htf_rsi_max
+range_pct_5m = request.security(syminfo.tickerid, "5", (high - low) / close)
+extreme_vol_ok = range_pct_5m < (extreme_vol_pct / 100)
+
+// 20根区间位置
+high20 = ta.highest(high, 20)
+low20 = ta.lowest(low, 20)
+pos_in_range = high20 > low20 ? (close - low20) / (high20 - low20) : 0.5
+not_at_top = pos_in_range < 0.995
+not_at_bottom = pos_in_range > 0.005
+
+// ========== 回调入场 ==========
+near_ema = math.abs(close - ema13) / ema13 < 0.015
+near_bb = math.abs(close - bb_mid) / bb_mid < 0.015
+
+rsi_prev = rsi[1]
+rsi_prev2 = rsi[2]
+
+vol_pullback_ok = not pullback_volume_filter or (volume < vol_ma5)
+long_pullback = (near_ema or near_bb) and (rsi > rsi_prev and rsi >= rsi_long_min and rsi <= rsi_long_max) and not_at_top and vol_pullback_ok
+short_pullback = (near_ema or near_bb) and (rsi < rsi_prev and rsi >= rsi_short_min and rsi <= rsi_short_max) and not_at_bottom and vol_pullback_ok
+
+// ========== 突破入场 ==========
+golden_cross = ema5[1] <= ema13[1] and ema5 > ema13
+death_cross = ema5[1] >= ema13[1] and ema5 < ema13
+
+long_breakout = close >= bb_upper * 0.998 and golden_cross and rsi > 55 and volume > vol_ma5 * 1.2
+short_breakout = close <= bb_lower * 1.002 and death_cross and rsi < 45 and volume > vol_ma5 * 1.2
+
+ema_dir_long = not trend_ema_filter or ema5 > ema13
+ema_dir_short = not trend_ema_filter or ema5 < ema13
+bb_ok = bb_width >= min_bb_width
+volatility_ok = atr_pct >= min_atr_pct and atr_pct <= max_atr_pct
+extra_long_ok = (not use_macd_filter or macd_dir_long) and (not use_rsi_slope or rsi_slope_ok_long) and (not use_volume_confirm or vol_confirm) and (not use_htf_rsi or htf_rsi_ok_long)
+extra_short_ok = (not use_macd_filter or macd_dir_short) and (not use_rsi_slope or rsi_slope_ok_short) and (not use_volume_confirm or vol_confirm) and (not use_htf_rsi or htf_rsi_ok_short)
+long_entry = is_uptrend and ema_dir_long and bb_ok and volatility_ok and adx_ok and extra_long_ok and (not htf_filter or htf2_up) and (long_pullback or (use_breakout_mode and long_breakout))
+short_entry = is_downtrend and ema_dir_short and bb_ok and volatility_ok and adx_ok and extra_short_ok and (not htf_filter or htf2_down) and (short_pullback or (use_breakout_mode and short_breakout))
+
+// ========== 冷却/时间止损 ==========
+var int last_exit_bar = -999
+in_cooldown = bar_index - last_exit_bar < cooldown_bars
+var int last_entry_bar = -999
+entry_spacing_ok = bar_index - last_entry_bar >= min_entry_gap
+
+// 日内风控：单日最大回撤
+var float day_start_equity = na
+if na(day_start_equity) or dayofmonth != dayofmonth[1]
+    day_start_equity := strategy.equity
+trade_allowed = strategy.equity >= day_start_equity * (1 - daily_loss_pct / 100)
+
+var int entry_bar = na
+in_long = strategy.position_size > 0
+in_short = strategy.position_size < 0
+
+// ========== 入场 ==========
+if not in_cooldown and entry_spacing_ok and trade_allowed and extreme_vol_ok and not in_long and not in_short
+    if long_entry
+        tp_price_move = (tp_pct / 100) / leverage
+        sl_price_move = (sl_pct / 100) / leverage
+        sl_price_move := math.max(sl_price_move, 0.0001)
+        risk_amount = strategy.equity * (risk_per_trade_pct / 100)
+        qty_risk = risk_amount / (close * sl_price_move)
+        qty_cap = (strategy.equity * (max_pos_pct / 100)) / close
+        qty_fixed = (margin_per_trade * leverage) / close
+        qty_base = math.abs(use_fixed_margin ? math.min(qty_fixed, qty_cap) : math.min(qty_risk, qty_cap))
+        vol_scale_raw = vol_target_atr_pct / math.max(atr_pct, 0.0000001)
+        vol_scale = math.min(max_vol_scale, math.max(min_vol_scale, vol_scale_raw))
+        qty = use_vol_target ? (qty_base * vol_scale) : qty_base
+        strategy.entry("Long", strategy.long, qty=qty, comment="多头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+    if short_entry
+        tp_price_move = (tp_pct / 100) / leverage
+        sl_price_move = (sl_pct / 100) / leverage
+        sl_price_move := math.max(sl_price_move, 0.0001)
+        risk_amount = strategy.equity * (risk_per_trade_pct / 100)
+        qty_risk = risk_amount / (close * sl_price_move)
+        qty_cap = (strategy.equity * (max_pos_pct / 100)) / close
+        qty_fixed = (margin_per_trade * leverage) / close
+        qty_base = math.abs(use_fixed_margin ? math.min(qty_fixed, qty_cap) : math.min(qty_risk, qty_cap))
+        vol_scale_raw = vol_target_atr_pct / math.max(atr_pct, 0.0000001)
+        vol_scale = math.min(max_vol_scale, math.max(min_vol_scale, vol_scale_raw))
+        qty = use_vol_target ? (qty_base * vol_scale) : qty_base
+        strategy.entry("Short", strategy.short, qty=qty, comment="空头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+
+// ========== 高级止盈止损管理 ==========
+var float entry_price = na
+var float highest_profit_pct = na
+var float peak_profit_pct = na
+var bool trailing_activated = false
+var bool breakeven_set = false
+
+// 记录入场价格
+if in_long and na(entry_price)
+    entry_price := strategy.position_avg_price
+    highest_profit_pct := 0.0
+    peak_profit_pct := 0.0
+    trailing_activated := false
+    breakeven_set := false
+    
+if in_short and na(entry_price)
+    entry_price := strategy.position_avg_price
+    peak_profit_pct := 0.0
+    trailing_activated := false
+    breakeven_set := false
+
+// 计算当前盈利百分比（杠杆后）
+float current_profit_pct = 0.0
+if in_long and not na(entry_price)
+    current_profit_pct := (close - entry_price) / entry_price * leverage * 100
+    highest_profit_pct := math.max(highest_profit_pct, current_profit_pct)
+    peak_profit_pct := math.max(peak_profit_pct, current_profit_pct)
+    
+if in_short and not na(entry_price)
+    current_profit_pct := (entry_price - close) / entry_price * leverage * 100
+    peak_profit_pct := math.max(peak_profit_pct, current_profit_pct)
+
+// 基础止损止盈价格
+tp_price_move = (tp_pct / 100) / leverage
+sl_price_move = (sl_pct / 100) / leverage
+float dynamic_sl_price = na
+float dynamic_tp_price = na
+
+// 多头管理
+if in_long
+    // 基础止损止盈
+    dynamic_sl_price := entry_price * (1 - sl_price_move)
+    dynamic_tp_price := entry_price * (1 + tp_price_move)
+    
+    // 移动止损到成本价（保本）
+    if move_sl_to_be and current_profit_pct >= breakeven_trigger_pct and not breakeven_set
+        dynamic_sl_price := entry_price * 1.0001  // 稍微高于成本，确保小盈利
+        breakeven_set := true
+    
+    // 追踪止盈逻辑
+    if use_trailing_stop and peak_profit_pct >= trailing_offset_pct
+        trailing_activated := true
+        // 从最高点回撤一定百分比就平仓
+        float trailing_sl_pct = (trailing_step_pct / 100) / leverage
+        float peak_price = entry_price * (1 + peak_profit_pct / 100 / leverage)
+        float trailing_stop_price = peak_price * (1 - trailing_sl_pct)
+        dynamic_sl_price := math.max(dynamic_sl_price, trailing_stop_price)
+
+    // 分批止盈（锁定部分利润，压回撤）
+    if use_partial_tp
+        float partial_move = (partial_tp_trigger_pct / 100) / leverage
+        float partial_tp_price = entry_price * (1 + partial_move)
+        strategy.exit("Long Partial", "Long", qty_percent=partial_tp_qty_pct, limit=partial_tp_price, comment="分批止盈")
+    
+    // 执行止盈止损
+    strategy.exit("Long Exit", "Long", limit=dynamic_tp_price, stop=dynamic_sl_price, comment=trailing_activated ? "追踪止盈" : breakeven_set ? "保本出场" : "常规止损")
+
+// 空头管理
+if in_short
+    // 基础止损止盈
+    dynamic_sl_price := entry_price * (1 + sl_price_move)
+    dynamic_tp_price := entry_price * (1 - tp_price_move)
+    
+    // 移动止损到成本价（保本）
+    if move_sl_to_be and current_profit_pct >= breakeven_trigger_pct and not breakeven_set
+        dynamic_sl_price := entry_price * 0.9999  // 稍微低于成本，确保小盈利
+        breakeven_set := true
+    
+    // 追踪止盈逻辑
+    if use_trailing_stop and peak_profit_pct >= trailing_offset_pct
+        trailing_activated := true
+        // 从最低点回撤一定百分比就平仓
+        float trailing_sl_pct = (trailing_step_pct / 100) / leverage
+        float peak_price = entry_price * (1 - peak_profit_pct / 100 / leverage)
+        float trailing_stop_price = peak_price * (1 + trailing_sl_pct)
+        dynamic_sl_price := math.min(dynamic_sl_price, trailing_stop_price)
+
+    // 分批止盈（锁定部分利润，压回撤）
+    if use_partial_tp
+        float partial_move = (partial_tp_trigger_pct / 100) / leverage
+        float partial_tp_price = entry_price * (1 - partial_move)
+        strategy.exit("Short Partial", "Short", qty_percent=partial_tp_qty_pct, limit=partial_tp_price, comment="分批止盈")
+    
+    // 执行止盈止损
+    strategy.exit("Short Exit", "Short", limit=dynamic_tp_price, stop=dynamic_sl_price, comment=trailing_activated ? "追踪止盈" : breakeven_set ? "保本出场" : "常规止损")
+
+// 清除持仓变量
+if strategy.position_size == 0
+    entry_price := na
+    highest_profit_pct := na
+    peak_profit_pct := na
+    trailing_activated := false
+    breakeven_set := false
+
+// 时间止损（延长）
+if (in_long or in_short) and not na(entry_bar) and (bar_index - entry_bar >= time_stop_bars)
+    strategy.close(in_long ? "Long" : "Short", comment="时间止损")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+// 15m 趋势反转退出（仅在亏损时）
+if in_long and is_downtrend and current_profit_pct < 0
+    strategy.close("Long", comment="趋势反转止损")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+if in_short and is_uptrend and current_profit_pct < 0
+    strategy.close("Short", comment="趋势反转止损")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+// ========== 画图 ==========
+plot(ema5, "EMA5", color=color.new(color.blue, 0))
+plot(ema13, "EMA13", color=color.new(color.orange, 0))
+plot(bb_upper, "BB上轨", color=color.new(color.gray, 70))
+plot(bb_lower, "BB下轨", color=color.new(color.gray, 70))
+
+// 动态止损止盈线
+plot(in_long ? dynamic_sl_price : na, "多头止损", color=breakeven_set ? color.new(color.blue, 0) : color.new(color.red, 0), style=plot.style_cross, linewidth=2)
+plot(in_long ? dynamic_tp_price : na, "多头止盈", color=color.new(color.green, 0), style=plot.style_cross, linewidth=2)
+plot(in_short ? dynamic_sl_price : na, "空头止损", color=breakeven_set ? color.new(color.blue, 0) : color.new(color.red, 0), style=plot.style_cross, linewidth=2)
+plot(in_short ? dynamic_tp_price : na, "空头止盈", color=color.new(color.green, 0), style=plot.style_cross, linewidth=2)
+
+// 入场价格线
+plot(in_long or in_short ? entry_price : na, "入场价", color=color.new(color.white, 50), style=plot.style_linebr, linewidth=1)
+
+plotshape(long_entry, "多头信号", shape.triangleup, location.belowbar, color.green, size=size.tiny)
+plotshape(short_entry, "空头信号", shape.triangledown, location.abovebar, color.red, size=size.tiny)
+
+// 状态标签
+bgcolor(trailing_activated ? color.new(color.green, 90) : na, title="追踪止盈激活")
+bgcolor(breakeven_set and not trailing_activated ? color.new(color.blue, 95) : na, title="已保本")
+
+// 显示当前盈利和最高盈利
+var label profit_label = na
+if barstate.islast and (in_long or in_short)
+    label.delete(profit_label)
+    string status_text = "当前: " + str.tostring(math.round(current_profit_pct, 1)) + "%\n"
+    status_text += "峰值: " + str.tostring(math.round(peak_profit_pct, 1)) + "%\n"
+    status_text += trailing_activated ? "追踪中" : breakeven_set ? "已保本" : "初始"
+    profit_label := label.new(bar_index, high, status_text, 
+                              color=trailing_activated ? color.new(color.green, 80) : breakeven_set ? color.new(color.blue, 80) : color.new(color.gray, 80),
+                              style=label.style_label_down, textcolor=color.white, size=size.normal)

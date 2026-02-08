@@ -1,0 +1,93 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// AI Adaptive 策略 - TradingView 版本（本地预筛选逻辑替代 AI 调用）
+// 基于 RSI / MACD / 布林带 触发信号，止盈止损固定比例
+
+//@version=5
+strategy("AI Adaptive (TV版)", overlay=true, pyramiding=0, default_qty_type=strategy.cash, default_qty_value=0, initial_capital=10000)
+
+// ========== 参数 ==========
+group_entry = "开仓预筛选"
+leverage = input.int(100, "杠杆(倍)", minval=1, maxval=200, group=group_entry)
+rsi_low = input.int(45, "RSI超卖阈值", minval=10, maxval=60, group=group_entry)
+rsi_high = input.int(55, "RSI超买阈值", minval=40, maxval=90, group=group_entry)
+bb_dist_pct = input.float(0.01, "布林带距离阈值(%)", minval=0.002, maxval=0.05, step=0.001, group=group_entry)
+macd_hist_thresh = input.float(0.5, "MACD柱状图阈值", minval=0.01, maxval=5, step=0.01, group=group_entry)
+min_conditions = input.int(1, "触发条件数(>=)", minval=1, maxval=3, group=group_entry)
+cooldown_bars = input.int(10, "平仓后冷却K线数", minval=0, maxval=100, group=group_entry)
+
+group_exit = "止盈止损"
+stop_loss_pct = input.float(50.0, "止损%", minval=1, maxval=200, group=group_exit)
+take_profit_pct = input.float(100.0, "止盈%", minval=1, maxval=300, group=group_exit)
+exit_rsi_long = input.int(70, "多单RSI止盈阈值", minval=50, maxval=90, group=group_exit)
+exit_rsi_short = input.int(30, "空单RSI止盈阈值", minval=10, maxval=50, group=group_exit)
+
+// ========== 指标 ==========
+rsi = ta.rsi(close, 14)
+[macd_line, signal_line, macd_hist] = ta.macd(close, 12, 26, 9)
+bb_middle = ta.sma(close, 20)
+bb_std = ta.stdev(close, 20)
+bb_upper = bb_middle + 2 * bb_std
+bb_lower = bb_middle - 2 * bb_std
+
+// ========== 预筛选条件 ==========
+cond_rsi = (rsi < rsi_low) or (rsi > rsi_high)
+dist_to_upper = math.abs(close - bb_upper) / close
+dist_to_lower = math.abs(close - bb_lower) / close
+cond_bb = (dist_to_upper < bb_dist_pct) or (dist_to_lower < bb_dist_pct)
+cond_macd = math.abs(macd_hist) > macd_hist_thresh
+
+conditions_met = (cond_rsi ? 1 : 0) + (cond_bb ? 1 : 0) + (cond_macd ? 1 : 0)
+
+// ========== 方向判断 ==========
+long_bias = (rsi < rsi_low) or (close <= bb_lower * (1 + bb_dist_pct)) or (macd_hist > 0 and macd_hist > macd_hist[1])
+short_bias = (rsi > rsi_high) or (close >= bb_upper * (1 - bb_dist_pct)) or (macd_hist < 0 and macd_hist < macd_hist[1])
+
+// ========== 冷却 ==========
+var int last_exit_bar = -999
+in_cooldown = bar_index - last_exit_bar < cooldown_bars
+
+// ========== 开仓 ==========
+in_long = strategy.position_size > 0
+in_short = strategy.position_size < 0
+
+enter_allowed = (conditions_met >= min_conditions) and not in_cooldown and not in_long and not in_short
+
+if enter_allowed
+    qty = math.abs((strategy.equity * leverage) / close)
+    if long_bias and not short_bias
+        strategy.entry("Long", strategy.long, qty=qty, comment="AI筛选开多")
+    else if short_bias and not long_bias
+        strategy.entry("Short", strategy.short, qty=qty, comment="AI筛选开空")
+    else
+        // 多空同时满足时，按 MACD 柱状线方向选择
+        if macd_hist > 0
+            strategy.entry("Long", strategy.long, qty=qty, comment="AI筛选开多")
+        else if macd_hist < 0
+            strategy.entry("Short", strategy.short, qty=qty, comment="AI筛选开空")
+
+// ========== 平仓 ==========
+entry_price = strategy.opentrades > 0 ? strategy.opentrades.entry_price(0) : close
+pnl_pct = entry_price > 0 ? (close - entry_price) / entry_price * 100 : 0
+
+long_tp = pnl_pct >= take_profit_pct
+long_sl = pnl_pct <= -stop_loss_pct
+short_tp = (-pnl_pct) >= take_profit_pct
+short_sl = (-pnl_pct) <= -stop_loss_pct
+
+long_exit = (rsi > exit_rsi_long) or (macd_hist < 0) or long_tp or long_sl
+short_exit = (rsi < exit_rsi_short) or (macd_hist > 0) or short_tp or short_sl
+
+if in_long and long_exit
+    strategy.close("Long", comment="平多")
+    last_exit_bar := bar_index
+
+if in_short and short_exit
+    strategy.close("Short", comment="平空")
+    last_exit_bar := bar_index
+
+// ========== 参考图形 ==========
+plot(bb_upper, "BB上轨", color=color.new(color.gray, 70))
+plot(bb_lower, "BB下轨", color=color.new(color.gray, 70))
+plot(bb_middle, "BB中轨", color=color.new(color.gray, 70))
+plotshape(enter_allowed and long_bias, "做多信号", shape.triangleup, location.belowbar, color.green, size=size.tiny)
+plotshape(enter_allowed and short_bias, "做空信号", shape.triangledown, location.abovebar, color.red, size=size.tiny)
