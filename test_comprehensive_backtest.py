@@ -133,8 +133,12 @@ async def run_backtest(interval: str, total_bars: int, label: str):
         symbols=["ETHUSDT"],
         config=config,
         params={
-            "default_tp_pct": 0.8,    # 止盈 80%（更易达成，提高胜率）
-            "default_sl_pct": 0.5,   # 止损 50%
+            "default_tp_pct": 0.5,   # 止盈 50%（更易达成）
+            "default_sl_pct": 0.4,   # 止损 40%（盈亏比 1.25:1）
+            "only_trend_following": True,
+            "min_score_to_open": 4.0,
+            "min_weighted_score": 5.0,
+            "require_ma50_filter": True,
         }
     )
 

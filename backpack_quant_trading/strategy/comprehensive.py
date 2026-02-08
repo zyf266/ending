@@ -40,8 +40,8 @@ class ComprehensiveStrategyV2(BaseStrategy):
         # 【优化】动态止盈止损（基于ATR）
         self.atr_multiplier_tp = 3.0    # 止盈：3倍ATR
         self.atr_multiplier_sl = 1.5    # 止损：1.5倍ATR
-        self.default_tp_pct = 0.8       # 【优化】止盈80%，更易达成，提高胜率
-        self.default_sl_pct = 0.5       # 止损50%
+        self.default_tp_pct = 0.5       # 止盈50%，更易达成提高胜率
+        self.default_sl_pct = 0.4       # 止损40%，控制单笔亏损（盈亏比1.25:1）
         
         # 【优化】指标权重系统
         self.condition_weights = {
@@ -56,21 +56,28 @@ class ComprehensiveStrategyV2(BaseStrategy):
             'macd_signal': 0.8      # MACD信号
         }
         
-        # 技术指标阈值（更严格=更高质量信号，提高胜率）
-        self.rsi_oversold = 33      # 做多：RSI<33 才算超卖
-        self.rsi_overbought = 67    # 做空：RSI>67 才算超买
-        self.rsi_take_profit_long = 72   # 平多：RSI>72 技术止盈
-        self.rsi_take_profit_short = 28  # 平空：RSI<28 技术止盈
+        # 技术指标阈值（适度放宽以获取更多有效信号）
+        self.rsi_oversold = 35      # 做多：RSI<35 超卖
+        self.rsi_overbought = 65    # 做空：RSI>65 超买
+        self.rsi_take_profit_long = 68   # 平多：RSI>68 技术止盈（适度提前锁定利润）
+        self.rsi_take_profit_short = 32  # 平空：RSI<32 技术止盈
         
         # 【优化】仓位管理参数
         self.max_position_ratio = 0.25    # 单品种最大仓位25%
         self.total_margin_ratio = 0.75    # 总保证金不超过75%
-        self.min_score_to_open = 2.5      # 最低开仓评分（降低门槛）
+        self.min_score_to_open = 4.0      # 至少4个指标，减少假信号
+        self.min_weighted_score = 5.0     # 加权评分>=5才开仓
         
         # 【优化】趋势过滤
         self.use_trend_filter = True      # 启用趋势过滤
         self.trend_period = 30           # 趋势判断周期
-        self.only_trend_following = True  # 只做顺势交易
+        self.only_trend_following = True  # 【优化】只做顺势交易，提高胜率
+        
+        # 【新增】波动率过滤：避免在横盘震荡中频繁开仓
+        self.min_bb_width = 0.02         # 布林带宽度最小值（2%），低于此不开仓
+        
+        # 【新增】强趋势过滤：做多时价格需在MA50上方，做空时在MA50下方
+        self.require_ma50_filter = True
         
         # 如果传入了params，覆盖默认值
         if params:
@@ -228,12 +235,22 @@ class ComprehensiveStrategyV2(BaseStrategy):
         # 【优化】趋势过滤检查
         if self.use_trend_filter:
             trend = self.check_trend_direction(df)
-            if self.only_trend_following and trend == 'downtrend':
-                logger.debug(f"⚠️ 趋势过滤：当前为下降趋势，不做多")
-                return {'score': 0, 'weighted_score': 0, 'details': {}}
+            if self.only_trend_following:
+                if trend == 'downtrend':
+                    logger.debug(f"⚠️ 趋势过滤：当前为下降趋势，不做多")
+                    return {'score': 0, 'weighted_score': 0, 'details': {}}
+                if trend == 'neutral':
+                    return {'score': 0, 'weighted_score': 0, 'details': {}}  # 震荡市不做多
+                # trend == 'uptrend' 顺势做多
+                score_details['trend_aligned'] = 1
+                weighted_score += 1.0 * self.condition_weights['trend']
             elif trend == 'uptrend':
                 score_details['trend_aligned'] = 1
                 weighted_score += 1.0 * self.condition_weights['trend']
+        # 【强趋势】做多时价格需在MA50上方
+        if getattr(self, 'require_ma50_filter', False) and pd.notna(latest.get('MA50')):
+            if latest['close'] < latest['MA50'] * 0.998:
+                return {'score': 0, 'weighted_score': 0, 'details': {}}
         
         # 1. 价格支撑位（优化判断条件）
         price_score = self.calculate_price_support_score(latest, 'long')
@@ -241,8 +258,8 @@ class ComprehensiveStrategyV2(BaseStrategy):
             score_details['price_support'] = price_score
             weighted_score += price_score * self.condition_weights['price_position']
         
-        # 2. RSI超卖（多条件判断）
-        rsi_score = self.calculate_rsi_score(latest, 'long')
+        # 2. RSI超卖（多条件判断，含反转确认）
+        rsi_score = self.calculate_rsi_score(latest, 'long', prev)
         if rsi_score > 0:
             score_details['rsi_oversold'] = rsi_score
             weighted_score += rsi_score * self.condition_weights['rsi_signal']
@@ -309,12 +326,23 @@ class ComprehensiveStrategyV2(BaseStrategy):
         # 【优化】趋势过滤检查
         if self.use_trend_filter:
             trend = self.check_trend_direction(df)
-            if self.only_trend_following and trend == 'uptrend':
-                logger.debug(f"⚠️ 趋势过滤：当前为上升趋势，不做空")
-                return {'score': 0, 'weighted_score': 0, 'details': {}}
+            if self.only_trend_following:
+                if trend == 'uptrend':
+                    logger.debug(f"⚠️ 趋势过滤：当前为上升趋势，不做空")
+                    return {'score': 0, 'weighted_score': 0, 'details': {}}
+                if trend == 'neutral':
+                    return {'score': 0, 'weighted_score': 0, 'details': {}}  # 震荡市不做空
+                # trend == 'downtrend' 顺势做空
+                score_details['trend_aligned'] = 1
+                weighted_score += 1.0 * self.condition_weights['trend']
             elif trend == 'downtrend':
                 score_details['trend_aligned'] = 1
                 weighted_score += 1.0 * self.condition_weights['trend']
+        
+        # 【强趋势】做空时价格需在MA50下方
+        if getattr(self, 'require_ma50_filter', False) and pd.notna(latest.get('MA50')):
+            if latest['close'] > latest['MA50'] * 1.002:
+                return {'score': 0, 'weighted_score': 0, 'details': {}}
         
         # 1. 价格阻力位
         price_score = self.calculate_price_resistance_score(latest, 'short')
@@ -322,8 +350,8 @@ class ComprehensiveStrategyV2(BaseStrategy):
             score_details['price_resistance'] = price_score
             weighted_score += price_score * self.condition_weights['price_position']
         
-        # 2. RSI超买
-        rsi_score = self.calculate_rsi_score(latest, 'short')
+        # 2. RSI超买（含反转确认）
+        rsi_score = self.calculate_rsi_score(latest, 'short', prev)
         if rsi_score > 0:
             score_details['rsi_overbought'] = rsi_score
             weighted_score += rsi_score * self.condition_weights['rsi_signal']
@@ -443,8 +471,8 @@ class ComprehensiveStrategyV2(BaseStrategy):
         
         return max(scores) if scores else 0
     
-    def calculate_rsi_score(self, latest: pd.Series, side: str) -> float:
-        """计算RSI信号得分"""
+    def calculate_rsi_score(self, latest: pd.Series, side: str, prev: Optional[pd.Series] = None) -> float:
+        """计算RSI信号得分（含反转确认加分）"""
         if side == 'long':
             # 做多：检查多周期RSI超卖
             rsi_scores = []
@@ -453,18 +481,17 @@ class ComprehensiveStrategyV2(BaseStrategy):
                 if pd.notna(latest.get(rsi_key)):
                     rsi = latest[rsi_key]
                     if rsi < self.rsi_oversold:
-                        # 越超卖得分越高
                         score = min(1.0, (self.rsi_oversold - rsi) / 20)
                         rsi_scores.append(score)
             
-            # 多周期RSI同时超卖得高分
-            if len(rsi_scores) >= 2:
-                return max(rsi_scores) * 1.2
-            elif rsi_scores:
-                return max(rsi_scores)
+            base = max(rsi_scores) * 1.2 if len(rsi_scores) >= 2 else (max(rsi_scores) if rsi_scores else 0)
+            # 【优化】RSI开始回升时加分（反转确认）
+            if base > 0 and prev is not None and pd.notna(latest.get('RSI')) and pd.notna(prev.get('RSI')):
+                if latest['RSI'] > prev['RSI']:
+                    base = min(1.0, base * 1.2)
+            return base
         
         else:  # short
-            # 做空：检查多周期RSI超买
             rsi_scores = []
             for period in [7, 14, 21]:
                 rsi_key = f'RSI_{period}'
@@ -474,10 +501,11 @@ class ComprehensiveStrategyV2(BaseStrategy):
                         score = min(1.0, (rsi - self.rsi_overbought) / 20)
                         rsi_scores.append(score)
             
-            if len(rsi_scores) >= 2:
-                return max(rsi_scores) * 1.2
-            elif rsi_scores:
-                return max(rsi_scores)
+            base = max(rsi_scores) * 1.2 if len(rsi_scores) >= 2 else (max(rsi_scores) if rsi_scores else 0)
+            if base > 0 and prev is not None and pd.notna(latest.get('RSI')) and pd.notna(prev.get('RSI')):
+                if latest['RSI'] < prev['RSI']:  # RSI从超买回落
+                    base = min(1.0, base * 1.2)
+            return base
         
         return 0
     
@@ -701,10 +729,55 @@ class ComprehensiveStrategyV2(BaseStrategy):
         return 0
     
     def check_indicator_resonance(self, df: pd.DataFrame, side: str) -> float:
-        """检查多指标共振"""
-        # 这是一个简化的共振检查
-        # 实际可以根据具体策略需求实现更复杂的共振逻辑
-        return 0.3  # 基础共振加分
+        """检查多指标共振：至少2个核心指标同向确认才加分"""
+        if len(df) < 50:
+            return 0
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
+        resonance_count = 0
+        
+        if side == 'long':
+            # 均线支撑
+            if pd.notna(latest.get('MA5')) and latest['MA5'] > latest.get('MA20', 0):
+                resonance_count += 1
+            # RSI超卖且开始回升（反转确认）
+            rsi = latest.get('RSI')
+            rsi_prev = prev.get('RSI')
+            if pd.notna(rsi) and pd.notna(rsi_prev) and rsi < 45 and rsi > rsi_prev:
+                resonance_count += 1
+            # MACD柱状线由负转正或增强
+            if len(df) >= 3 and 'MACD_HIST' in df.columns:
+                hist_now = latest.get('MACD_HIST', 0)
+                hist_prev = df['MACD_HIST'].iloc[-3]
+                if pd.notna(hist_now) and hist_now > hist_prev:
+                    resonance_count += 1
+            # KDJ超卖且J值回升
+            j_now = latest.get('KDJ_J')
+            j_prev = prev.get('KDJ_J')
+            if pd.notna(j_now) and pd.notna(j_prev) and j_now < 40 and j_now > j_prev:
+                resonance_count += 1
+        else:  # short
+            if pd.notna(latest.get('MA5')) and latest['MA5'] < latest.get('MA20', 0):
+                resonance_count += 1
+            rsi = latest.get('RSI')
+            rsi_prev = prev.get('RSI')
+            if pd.notna(rsi) and pd.notna(rsi_prev) and rsi > 55 and rsi < rsi_prev:
+                resonance_count += 1
+            if len(df) >= 3 and 'MACD_HIST' in df.columns:
+                hist_now = latest.get('MACD_HIST', 0)
+                hist_prev = df['MACD_HIST'].iloc[-3]
+                if pd.notna(hist_now) and hist_now < hist_prev:
+                    resonance_count += 1
+            j_now = latest.get('KDJ_J')
+            j_prev = prev.get('KDJ_J')
+            if pd.notna(j_now) and pd.notna(j_prev) and j_now > 60 and j_now < j_prev:
+                resonance_count += 1
+        
+        if resonance_count >= 3:
+            return 0.5
+        elif resonance_count >= 2:
+            return 0.3
+        return 0
     
     def calculate_dynamic_tp_sl(self, df: pd.DataFrame, entry_price: float, side: str) -> Tuple[float, float]:
         """基于ATR计算动态止盈止损"""
@@ -783,6 +856,20 @@ class ComprehensiveStrategyV2(BaseStrategy):
         margin = min(margin, max_margin)
         
         return margin
+    
+    def get_stop_take_profit_prices(self, entry_price: float, side: str) -> Tuple[float, float]:
+        """返回止盈止损价格（用于回测引擎K线内模拟）
+        tp_pct/sl_pct 为保证金收益率，100x杠杆下 1%价格变动=100%保证金收益
+        """
+        price_move_sl = self.default_sl_pct / 100  # 0.5 -> 0.005 (0.5%价格变动=50%保证金亏损)
+        price_move_tp = self.default_tp_pct / 100   # 0.6 -> 0.006
+        if side == 'long':
+            sl_price = entry_price * (1 - price_move_sl)
+            tp_price = entry_price * (1 + price_move_tp)
+        else:
+            sl_price = entry_price * (1 + price_move_sl)
+            tp_price = entry_price * (1 - price_move_tp)
+        return tp_price, sl_price
     
     def check_long_exit_conditions(self, df: pd.DataFrame, position: Dict) -> Tuple[bool, str]:
         """检查平多条件"""
@@ -891,21 +978,30 @@ class ComprehensiveStrategyV2(BaseStrategy):
                 logger.debug(f"💰 可用保证金不足: ${available_margin:.2f}")
                 continue
             
+            # 【新增】波动率过滤：横盘震荡时不开仓
+            bb_width = df.iloc[-1].get('BB_WIDTH', 0.05)
+            if pd.notna(bb_width) and bb_width < getattr(self, 'min_bb_width', 0.02):
+                logger.debug(f"⚠️ 波动率过滤：布林带宽度{bb_width:.4f}过低，跳过")
+                continue
+            
             # 计算开仓评分
             long_result = self.calculate_long_entry_score(df)
             short_result = self.calculate_short_entry_score(df)
             
-            # 选择最佳开仓方向
+            # 选择最佳开仓方向（同时满足指标数量和加权评分）
+            min_ws = getattr(self, 'min_weighted_score', 3.5)
             action = None
             score_result = None
             side = None
             
-            if (long_result['weighted_score'] >= self.min_score_to_open and 
+            if (long_result['score'] >= self.min_score_to_open and 
+                long_result['weighted_score'] >= min_ws and
                 long_result['weighted_score'] > short_result['weighted_score']):
                 action = 'buy'
                 score_result = long_result
                 side = 'long'
-            elif (short_result['weighted_score'] >= self.min_score_to_open and 
+            elif (short_result['score'] >= self.min_score_to_open and 
+                  short_result['weighted_score'] >= min_ws and
                   short_result['weighted_score'] > long_result['weighted_score']):
                 action = 'sell'
                 score_result = short_result

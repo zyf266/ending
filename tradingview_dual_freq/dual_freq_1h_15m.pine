@@ -1,0 +1,212 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// 双频趋势共振策略 - TradingView 版本
+// 1H 趋势 + 15m 入场（回调/突破 + RSI6 + 布林带 + EMA5/13）
+
+//@version=5
+strategy("DualFreq 1H-15m (TV版)", overlay=true, pyramiding=0, default_qty_type=strategy.cash, default_qty_value=0, initial_capital=10000)
+
+// ========== 参数 ==========
+group_tf = "时间周期"
+trend_tf = input.timeframe("60", "趋势周期(分钟)", group=group_tf)
+entry_tf = input.timeframe("15", "入场周期(分钟)", group=group_tf)
+
+group_1h = "1小时趋势"
+ema9_period = input.int(9, "EMA9", minval=3, maxval=30, group=group_1h)
+ema21_period = input.int(21, "EMA21", minval=5, maxval=60, group=group_1h)
+trend_relaxed = input.bool(true, "趋势放宽(提高开单)", group=group_1h)
+htf_filter = input.bool(true, "高周期趋势过滤(长期稳定)", group=group_1h)
+htf2_tf = input.timeframe("240", "高周期(分钟)", group=group_1h)
+
+group_15m = "15分钟入场"
+ema5_period = input.int(5, "EMA5", minval=3, maxval=20, group=group_15m)
+ema13_period = input.int(13, "EMA13", minval=5, maxval=50, group=group_15m)
+rsi_period = input.int(6, "RSI周期", minval=3, maxval=14, group=group_15m)
+bb_period = input.int(20, "布林带周期", minval=10, maxval=40, group=group_15m)
+bb_std = input.float(2.0, "布林带倍数", minval=1.0, maxval=3.0, group=group_15m)
+extreme_vol_pct = input.float(1.5, "30分钟内最大波动%(过滤)", minval=0.5, maxval=5.0, step=0.1, group=group_15m)
+// 突破模式锁死关闭
+use_breakout_mode = false
+min_bb_width = input.float(0.004, "最小布林带宽度", minval=0.0, maxval=0.05, group=group_15m)
+pullback_volume_filter = input.bool(true, "回调量能过滤", tooltip="回调入场需量缩", group=group_15m)
+min_entry_gap = input.int(3, "最少间隔K线", minval=1, maxval=100, group=group_15m)
+min_atr_pct = input.float(0.0015, "最小波动率(ATR%)", minval=0.0005, maxval=0.01, step=0.0001, group=group_15m)
+// 额外辅助过滤（默认关闭，打开后提高胜率）
+use_macd_filter = input.bool(true, "MACD方向过滤", group=group_15m)
+use_rsi_slope = input.bool(true, "RSI斜率过滤", group=group_15m)
+use_volume_confirm = input.bool(false, "成交量确认", group=group_15m)
+use_htf_rsi = input.bool(false, "高周期RSI过滤", group=group_15m)
+htf_rsi_tf = input.timeframe("60", "高周期RSI周期(分钟)", group=group_15m)
+htf_rsi_min = input.int(45, "高周期RSI多单下限", minval=30, maxval=60, group=group_15m)
+htf_rsi_max = input.int(55, "高周期RSI空单上限", minval=40, maxval=70, group=group_15m)
+
+group_risk = "风险控制"
+leverage = input.int(100, "杠杆(倍)", minval=1, maxval=200, group=group_risk)
+use_fixed_margin = input.bool(true, "固定每单保证金", group=group_risk)
+margin_per_trade = input.float(10.0, "每单保证金(U)", minval=1, maxval=1000, group=group_risk)
+tp_pct = input.float(150.0, "止盈%(3:1)", minval=1, maxval=300, group=group_risk)
+sl_pct = input.float(50.0, "止损%(3:1)", minval=1, maxval=200, group=group_risk)
+time_stop_bars = input.int(6, "时间止损(15分钟K线数)", minval=1, maxval=30, group=group_risk)
+cooldown_bars = input.int(3, "平仓冷却K线", minval=1, maxval=200, group=group_risk)
+trend_ema_filter = input.bool(true, "15m均线方向过滤", tooltip="EMA5>EMA13 才做多，反之做空", group=group_risk)
+rsi_long_min = input.int(32, "做多RSI下限", minval=20, maxval=50, group=group_risk)
+rsi_long_max = input.int(55, "做多RSI上限", minval=40, maxval=70, group=group_risk)
+rsi_short_min = input.int(45, "做空RSI下限", minval=30, maxval=70, group=group_risk)
+rsi_short_max = input.int(68, "做空RSI上限", minval=50, maxval=85, group=group_risk)
+risk_per_trade_pct = input.float(0.5, "单笔风险%", minval=0.1, maxval=5, group=group_risk)
+max_pos_pct = input.float(30.0, "最大仓位%", minval=5, maxval=100, group=group_risk)
+daily_loss_pct = input.float(5.0, "单日最大回撤%", minval=1, maxval=20, group=group_risk)
+
+// ========== 1H 趋势（在高周期上计算） ==========
+ema9_htf = request.security(syminfo.tickerid, trend_tf, ta.ema(close, ema9_period))
+ema21_htf = request.security(syminfo.tickerid, trend_tf, ta.ema(close, ema21_period))
+close_htf = request.security(syminfo.tickerid, trend_tf, close)
+gap_htf = (ema9_htf - ema21_htf) / ema21_htf
+prev_gap_htf = (ema9_htf[1] - ema21_htf[1]) / ema21_htf[1]
+trend_state = gap_htf > 0.001 and close_htf > ema21_htf * 1.001 and prev_gap_htf > 0.0005 ? 1 :
+     gap_htf < -0.001 and close_htf < ema21_htf * 0.999 and prev_gap_htf < -0.0005 ? -1 : 0
+trend_state := trend_relaxed ? (ema9_htf >= ema21_htf ? 1 : -1) : trend_state
+
+is_uptrend = trend_state == 1
+is_downtrend = trend_state == -1
+
+// 高周期趋势（用于长期稳定）
+ema9_htf2 = request.security(syminfo.tickerid, htf2_tf, ta.ema(close, ema9_period))
+ema21_htf2 = request.security(syminfo.tickerid, htf2_tf, ta.ema(close, ema21_period))
+htf2_up = ema9_htf2 >= ema21_htf2
+htf2_down = ema9_htf2 < ema21_htf2
+
+// ========== 15m 指标 ==========
+ema5 = ta.ema(close, ema5_period)
+ema13 = ta.ema(close, ema13_period)
+rsi = ta.rsi(close, rsi_period)
+[macd_line, signal_line, macd_hist] = ta.macd(close, 12, 26, 9)
+atr_pct = ta.atr(14) / close
+
+bb_mid = ta.sma(close, bb_period)
+bb_std_val = ta.stdev(close, bb_period)
+bb_upper = bb_mid + bb_std * bb_std_val
+bb_lower = bb_mid - bb_std * bb_std_val
+bb_width = (bb_upper - bb_lower) / math.max(bb_mid, 0.0001)
+
+vol_ma5 = ta.sma(volume, 5)
+vol_confirm = volume > vol_ma5
+rsi_slope_ok_long = rsi > rsi[1]
+rsi_slope_ok_short = rsi < rsi[1]
+macd_dir_long = macd_hist > 0
+macd_dir_short = macd_hist < 0
+htf_rsi = request.security(syminfo.tickerid, htf_rsi_tf, ta.rsi(close, 14))
+htf_rsi_ok_long = htf_rsi >= htf_rsi_min
+htf_rsi_ok_short = htf_rsi <= htf_rsi_max
+range_pct_30m = request.security(syminfo.tickerid, "30", (high - low) / close)
+extreme_vol_ok = range_pct_30m < (extreme_vol_pct / 100)
+
+// 20根区间位置
+high20 = ta.highest(high, 20)
+low20 = ta.lowest(low, 20)
+pos_in_range = high20 > low20 ? (close - low20) / (high20 - low20) : 0.5
+not_at_top = pos_in_range < 0.995
+not_at_bottom = pos_in_range > 0.005
+
+// ========== 回调入场 ==========
+near_ema = math.abs(close - ema13) / ema13 < 0.015
+near_bb = math.abs(close - bb_mid) / bb_mid < 0.015
+
+rsi_prev = rsi[1]
+rsi_prev2 = rsi[2]
+
+vol_pullback_ok = not pullback_volume_filter or (volume < vol_ma5)
+long_pullback = (near_ema or near_bb) and (rsi > rsi_prev and rsi >= rsi_long_min and rsi <= rsi_long_max) and not_at_top and vol_pullback_ok
+short_pullback = (near_ema or near_bb) and (rsi < rsi_prev and rsi >= rsi_short_min and rsi <= rsi_short_max) and not_at_bottom and vol_pullback_ok
+
+// ========== 突破入场 ==========
+golden_cross = ema5[1] <= ema13[1] and ema5 > ema13
+death_cross = ema5[1] >= ema13[1] and ema5 < ema13
+
+long_breakout = close >= bb_upper * 0.998 and golden_cross and rsi > 55 and volume > vol_ma5 * 1.2
+short_breakout = close <= bb_lower * 1.002 and death_cross and rsi < 45 and volume > vol_ma5 * 1.2
+
+ema_dir_long = not trend_ema_filter or ema5 > ema13
+ema_dir_short = not trend_ema_filter or ema5 < ema13
+bb_ok = bb_width >= min_bb_width
+volatility_ok = atr_pct >= min_atr_pct
+extra_long_ok = (not use_macd_filter or macd_dir_long) and (not use_rsi_slope or rsi_slope_ok_long) and (not use_volume_confirm or vol_confirm) and (not use_htf_rsi or htf_rsi_ok_long)
+extra_short_ok = (not use_macd_filter or macd_dir_short) and (not use_rsi_slope or rsi_slope_ok_short) and (not use_volume_confirm or vol_confirm) and (not use_htf_rsi or htf_rsi_ok_short)
+long_entry = is_uptrend and ema_dir_long and bb_ok and volatility_ok and extra_long_ok and (not htf_filter or htf2_up) and (long_pullback or (use_breakout_mode and long_breakout))
+short_entry = is_downtrend and ema_dir_short and bb_ok and volatility_ok and extra_short_ok and (not htf_filter or htf2_down) and (short_pullback or (use_breakout_mode and short_breakout))
+
+// ========== 冷却/时间止损 ==========
+var int last_exit_bar = -999
+in_cooldown = bar_index - last_exit_bar < cooldown_bars
+var int last_entry_bar = -999
+entry_spacing_ok = bar_index - last_entry_bar >= min_entry_gap
+
+// 日内风控：单日最大回撤
+var float day_start_equity = na
+if na(day_start_equity) or dayofmonth != dayofmonth[1]
+    day_start_equity := strategy.equity
+trade_allowed = strategy.equity >= day_start_equity * (1 - daily_loss_pct / 100)
+
+var int entry_bar = na
+in_long = strategy.position_size > 0
+in_short = strategy.position_size < 0
+
+// ========== 入场 ==========
+if not in_cooldown and entry_spacing_ok and trade_allowed and extreme_vol_ok and not in_long and not in_short
+    if long_entry
+        tp_price_move = (tp_pct / 100) / leverage
+        sl_price_move = (sl_pct / 100) / leverage
+        sl_price_move := math.max(sl_price_move, 0.0001)
+        risk_amount = strategy.equity * (risk_per_trade_pct / 100)
+        qty_risk = risk_amount / (close * sl_price_move)
+        qty_cap = (strategy.equity * (max_pos_pct / 100)) / close
+        qty_fixed = (margin_per_trade * leverage) / close
+        qty = math.abs(use_fixed_margin ? math.min(qty_fixed, qty_cap) : math.min(qty_risk, qty_cap))
+        strategy.entry("Long", strategy.long, qty=qty, comment="多头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+    if short_entry
+        tp_price_move = (tp_pct / 100) / leverage
+        sl_price_move = (sl_pct / 100) / leverage
+        sl_price_move := math.max(sl_price_move, 0.0001)
+        risk_amount = strategy.equity * (risk_per_trade_pct / 100)
+        qty_risk = risk_amount / (close * sl_price_move)
+        qty_cap = (strategy.equity * (max_pos_pct / 100)) / close
+        qty_fixed = (margin_per_trade * leverage) / close
+        qty = math.abs(use_fixed_margin ? math.min(qty_fixed, qty_cap) : math.min(qty_risk, qty_cap))
+        strategy.entry("Short", strategy.short, qty=qty, comment="空头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+
+// ========== 止盈止损（按杠杆后的收益目标换算为价格） ==========
+// 例如 100x，止盈100% => 价格只需波动 1%
+tp_price_move = (tp_pct / 100) / leverage
+sl_price_move = (sl_pct / 100) / leverage
+if in_long
+    strategy.exit("Long TP/SL", "Long", limit=strategy.position_avg_price * (1 + tp_price_move), stop=strategy.position_avg_price * (1 - sl_price_move))
+if in_short
+    strategy.exit("Short TP/SL", "Short", limit=strategy.position_avg_price * (1 - tp_price_move), stop=strategy.position_avg_price * (1 + sl_price_move))
+
+// 时间止损
+if (in_long or in_short) and not na(entry_bar) and (bar_index - entry_bar >= time_stop_bars)
+    strategy.close(in_long ? "Long" : "Short", comment="时间止损")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+// 1H 趋势反转退出
+if in_long and is_downtrend
+    strategy.close("Long", comment="1H趋势反转")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+if in_short and is_uptrend
+    strategy.close("Short", comment="1H趋势反转")
+    last_exit_bar := bar_index
+    entry_bar := na
+
+// ========== 画图 ==========
+plot(ema5, "EMA5", color=color.new(color.blue, 0))
+plot(ema13, "EMA13", color=color.new(color.orange, 0))
+plot(bb_upper, "BB上轨", color=color.new(color.gray, 70))
+plot(bb_lower, "BB下轨", color=color.new(color.gray, 70))
+plotshape(long_entry, "多头信号", shape.triangleup, location.belowbar, color.green, size=size.tiny)
+plotshape(short_entry, "空头信号", shape.triangledown, location.abovebar, color.red, size=size.tiny)

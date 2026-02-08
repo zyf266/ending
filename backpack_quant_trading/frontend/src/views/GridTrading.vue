@@ -12,6 +12,9 @@
             <el-select v-model="form.exchange" teleported style="width: 100%">
               <el-option label="Backpack" value="backpack" />
               <el-option label="Deepcoin" value="deepcoin" />
+              <el-option label="Hyperliquid" value="hyper" />
+              <el-option label="Hyperliquid3" value="hip3_testnet" />
+              <el-option label="Ostium" value="ostium" />
             </el-select>
           </el-form-item>
           <el-form-item label="交易对">
@@ -27,7 +30,7 @@
             <el-input-number v-model="form.grid_count" :min="2" :max="100" style="width: 100%" />
           </el-form-item>
           <el-form-item label="单格投资 (USDT)">
-            <el-input-number v-model="form.investment_per_grid" :min="0.1" :precision="2" style="width: 100%" />
+            <el-input-number v-model="form.investment_per_grid" :min="0" :precision="2" style="width: 100%" />
           </el-form-item>
           <el-form-item label="杠杆倍数">
             <el-input-number v-model="form.leverage" :min="1" :max="100" style="width: 100%" />

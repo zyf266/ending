@@ -189,3 +189,20 @@ task: <Task pending name='Task-14' coro=<BaseSelectorEventLoop._accept_connectio
 task: <Task pending name='Task-15' coro=<BaseSelectorEventLoop._accept_connection2() running at F:\pycharm\Lib\asyncio\selector_events.py:213>>
 2026-02-06 14:03:47 | ERROR    | asyncio:1865 | Task was destroyed but it is pending!
 task: <Task pending name='Task-11' coro=<RequestResponseCycle.run_asgi() running at C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\uvicorn\protocols\http\h11_impl.py:410> cb=[set.discard()]>
+2026-02-06 17:06:56 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:07:08 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/exchangeInfo HTTP/1.1" 200 None
+2026-02-06 17:07:08 | INFO     | backpack_quant_trading.core.binance_monitor:149 | 币种列表已缓存，共 540 个 USDT 永续合约
+2026-02-06 17:07:14 | INFO     | backpack_quant_trading.core.binance_monitor:386 | 币种监视已启动: ['0GUSDT'], ['1小时']
+2026-02-06 17:07:14 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:07:15 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=0GUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 17:07:15 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:07:16 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=1h&limit=500 HTTP/1.1" 200 None
+2026-02-06 17:07:16 | INFO     | backpack_quant_trading.core.binance_monitor:394 | 币种监视已停止
+2026-02-06 17:23:35 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:23:37 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=1000 HTTP/1.1" 200 None
+2026-02-06 17:23:38 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:23:39 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=500&endTime=1769470199999 HTTP/1.1" 200 None
+2026-02-06 17:25:38 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:25:44 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=1000 HTTP/1.1" 200 None
+2026-02-06 17:25:46 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-02-06 17:25:47 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=500&endTime=1769470199999 HTTP/1.1" 200 None

@@ -24,7 +24,7 @@
         <el-form-item>
           <span class="label">2. 原始 OHLC 数据 (JSON)</span>
           <el-button type="warning" @click="fetchKline" :loading="fetching" class="fetch-btn">
-            抓取最新行情 (ETH 15m 币安 · 1500根)
+            抓取最新行情
           </el-button>
           <el-input v-model="klineJson" type="textarea" :rows="6" placeholder='[{"time": 123, "open": 100, "high": 101, "low": 99, "close": 100}]' class="kline-textarea" />
         </el-form-item>
@@ -142,24 +142,71 @@ function renderChart() {
   const h = data.map((d) => d.high)
   const l = data.map((d) => d.low)
   const c = data.map((d) => d.close)
+  const candlestickData = data.map((d, i) => [o[i], c[i], l[i], h[i]])
+
+  // 每屏约 200 根 K 线，保证每根有足够宽度可读
+  const maxVisible = 200
+  const total = data.length
+  let zoomStart = 0
+  let zoomEnd = 100
+  if (total > maxVisible) {
+    zoomStart = ((total - maxVisible) / total) * 100
+    zoomEnd = 100
+  }
 
   const ch = echarts.init(chartRef.value)
+
+  // 构建买卖点标注：为每个建议价位找到最接近的 K 线位置
+  const markPoints = []
+  const buys = [...new Set(suggestedBuy.value)].map(Number).filter((p) => p > 0)
+  const sells = [...new Set(suggestedSell.value)].map(Number).filter((p) => p > 0)
+  const allPrices = buys.map((p) => ({ p, type: '买' })).concat(sells.map((p) => ({ p, type: '卖' })))
+  for (const { p, type } of allPrices) {
+    let bestIdx = 0
+    let bestDist = Infinity
+    for (let i = 0; i < data.length; i++) {
+      const close = Number(data[i].close)
+      const dist = Math.abs(close - p)
+      if (dist < bestDist) {
+        bestDist = dist
+        bestIdx = i
+      }
+    }
+    markPoints.push({
+      name: type,
+      coord: [bestIdx, p],
+      value: p.toFixed(2),
+      itemStyle: { color: type === '买' ? '#10b981' : '#ef4444' },
+    })
+  }
+
   const option = {
-    xAxis: { type: 'category', data: times },
-    yAxis: { type: 'value' },
+    xAxis: { type: 'category', data: times, boundaryGap: true },
+    yAxis: {
+      type: 'value',
+      scale: true, // 根据数据自动缩放，不再从 0 开始，避免大量空白
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, start: zoomStart, end: zoomEnd },
+      { type: 'slider', xAxisIndex: 0, start: zoomStart, end: zoomEnd, height: 24 },
+    ],
     series: [
       {
         type: 'candlestick',
-        data: data.map((d, i) => [o[i], c[i], l[i], h[i]]),
-        itemStyle: { color: '#ef4444', color0: '#10b981', borderColor: '#ef4444', borderColor0: '#10b981' },
+        data: candlestickData,
+        itemStyle: { color: '#ef4444', color0: '#10b981', borderColor: '#ef4444', borderColor0: '#10b981', borderWidth: 1.5 },
+        markPoint: markPoints.length
+          ? { data: markPoints, symbol: 'pin', symbolSize: 40, label: { fontSize: 12 } }
+          : undefined,
       },
     ],
-    grid: { left: 50, right: 20, top: 20, bottom: 60 },
+    grid: { left: 60, right: 30, top: 30, bottom: 90 },
   }
   ch.setOption(option)
 }
 
-watch(klineJson, () => renderChart(), { immediate: true })
+watch([klineJson, suggestedBuy, suggestedSell], () => renderChart(), { immediate: true })
 </script>
 
 <style scoped>
@@ -217,7 +264,7 @@ watch(klineJson, () => renderChart(), { immediate: true })
 .preview img { max-width: 100%; max-height: 200px; border-radius: var(--radius-md); }
 .chart-card { margin-bottom: 24px; padding: 24px; }
 .chart-card h4 { color: var(--color-primary); margin-bottom: 20px; text-align: center; font-weight: 600; font-size: 16px; }
-.chart-container { height: 360px; }
+.chart-container { height: 420px; min-height: 360px; }
 .output-card { padding: 24px; }
 .output-card h4 { color: var(--color-primary); margin-bottom: 20px; text-align: center; font-weight: 600; font-size: 16px; }
 .output-content {

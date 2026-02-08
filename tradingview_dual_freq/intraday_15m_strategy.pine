@@ -1,0 +1,307 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// 15分钟日内高频策略 - 小时线趋势确认
+// 1H趋势 + 15m高频入场（突破+回调+动量）
+
+//@version=5
+strategy("Intraday 15m Strategy (1H Trend)", overlay=true, pyramiding=0, 
+         default_qty_type=strategy.cash, default_qty_value=0, initial_capital=10000,
+         commission_type=strategy.commission.percent, commission_value=0.075)
+
+// ========== 参数配置 ==========
+group_trend = "趋势确认"
+htf_trend = input.timeframe("60", "小时线周期(分钟)", group=group_trend)
+ema_fast = input.int(9, "快速EMA", minval=5, maxval=30, group=group_trend)
+ema_slow = input.int(21, "慢速EMA", minval=10, maxval=60, group=group_trend)
+use_adx_filter = input.bool(true, "ADX趋势强度过滤", group=group_trend)
+adx_threshold = input.float(20.0, "ADX最低阈值", minval=10, maxval=50, group=group_trend)
+
+group_entry = "15分钟入场"
+entry_mode = input.string("混合模式", "入场模式", options=["突破模式", "回调模式", "混合模式"], group=group_entry)
+rsi_period = input.int(14, "RSI周期", minval=5, maxval=30, group=group_entry)
+bb_period = input.int(20, "布林带周期", minval=10, maxval=50, group=group_entry)
+bb_std = input.float(2.0, "布林带标准差", minval=1.0, maxval=3.0, step=0.1, group=group_entry)
+volume_filter = input.bool(true, "成交量过滤", tooltip="突破需量增", group=group_entry)
+min_candle_gap = input.int(3, "最小间隔K线", minval=1, maxval=20, group=group_entry)
+
+group_risk = "风险控制"
+leverage = input.int(100, "杠杆倍数", minval=1, maxval=200, group=group_risk)
+margin_per_trade = input.float(10.0, "每单保证金(U)", minval=5, maxval=1000, group=group_risk)
+use_dynamic_sl = input.bool(true, "动态止损(ATR)", group=group_risk)
+atr_sl_mult = input.float(2.0, "ATR止损倍数", minval=0.5, maxval=5.0, step=0.1, group=group_risk)
+atr_tp_mult = input.float(4.0, "ATR止盈倍数", minval=1.5, maxval=10.0, step=0.5, group=group_risk)
+fixed_tp_pct = input.float(120.0, "固定止盈%", minval=50, maxval=300, group=group_risk)
+fixed_sl_pct = input.float(40.0, "固定止损%", minval=20, maxval=100, group=group_risk)
+time_stop = input.int(10, "时间止损(根K线)", minval=3, maxval=50, group=group_risk)
+max_daily_trades = input.int(8, "单日最大交易次数", minval=3, maxval=30, group=group_risk)
+daily_loss_limit = input.float(5.0, "单日最大亏损%", minval=2, maxval=15, group=group_risk)
+
+group_filter = "市场环境过滤"
+use_volatility_filter = input.bool(true, "波动率过滤", tooltip="过滤极端行情", group=group_filter)
+min_atr_pct = input.float(0.08, "最小ATR%", minval=0.02, maxval=0.5, step=0.01, group=group_filter)
+max_atr_pct = input.float(0.6, "最大ATR%", minval=0.2, maxval=2.0, step=0.1, group=group_filter)
+use_price_position = input.bool(true, "价格位置过滤", tooltip="避免追高杀跌", group=group_filter)
+avoid_high_position = input.float(0.90, "多单最高位置", minval=0.7, maxval=1.0, step=0.05, group=group_filter)
+avoid_low_position = input.float(0.10, "空单最低位置", minval=0.0, maxval=0.3, step=0.05, group=group_filter)
+
+group_time = "交易时间"
+use_session_filter = input.bool(true, "限制交易时段", group=group_time)
+session_start = input.int(0, "开始时间(小时)", minval=0, maxval=23, group=group_time)
+session_end = input.int(23, "结束时间(小时)", minval=0, maxval=23, group=group_time)
+
+// ========== 小时线趋势判断 ==========
+htf_ema_fast = request.security(syminfo.tickerid, htf_trend, ta.ema(close, ema_fast))
+htf_ema_slow = request.security(syminfo.tickerid, htf_trend, ta.ema(close, ema_slow))
+htf_close = request.security(syminfo.tickerid, htf_trend, close)
+
+// 趋势判断：快线>慢线=多头，快线<慢线=空头
+htf_bullish = htf_ema_fast > htf_ema_slow
+htf_bearish = htf_ema_fast < htf_ema_slow
+
+// 趋势强度
+htf_gap_pct = (htf_ema_fast - htf_ema_slow) / htf_ema_slow * 100
+strong_uptrend = htf_bullish and htf_gap_pct > 0.1
+strong_downtrend = htf_bearish and htf_gap_pct < -0.1
+
+// ========== 15分钟指标计算 ==========
+// 均线系统
+ema_fast_15m = ta.ema(close, ema_fast)
+ema_slow_15m = ta.ema(close, ema_slow)
+ema_cross_up = ta.crossover(ema_fast_15m, ema_slow_15m)
+ema_cross_down = ta.crossunder(ema_fast_15m, ema_slow_15m)
+
+// RSI
+rsi = ta.rsi(close, rsi_period)
+rsi_ob = rsi > 70  // 超买
+rsi_os = rsi < 30  // 超卖
+rsi_neutral = rsi >= 40 and rsi <= 60
+
+// 布林带
+bb_basis = ta.sma(close, bb_period)
+bb_dev = ta.stdev(close, bb_period)
+bb_upper = bb_basis + bb_std * bb_dev
+bb_lower = bb_basis - bb_std * bb_dev
+bb_width_pct = (bb_upper - bb_lower) / bb_basis * 100
+bb_squeeze = bb_width_pct < 1.5  // 布林带收窄
+
+// ATR波动率
+atr = ta.atr(14)
+atr_pct = atr / close * 100
+volatility_ok = not use_volatility_filter or (atr_pct >= min_atr_pct and atr_pct <= max_atr_pct)
+
+// ADX趋势强度
+[di_plus, di_minus, adx] = ta.dmi(14, 14)
+adx_ok = not use_adx_filter or adx >= adx_threshold
+
+// MACD动量
+[macd_line, signal_line, macd_hist] = ta.macd(close, 12, 26, 9)
+macd_bullish = macd_hist > 0 and macd_hist > macd_hist[1]
+macd_bearish = macd_hist < 0 and macd_hist < macd_hist[1]
+
+// 成交量
+vol_ma = ta.sma(volume, 20)
+vol_surge = volume > vol_ma * 1.3
+vol_normal = volume > vol_ma * 0.8
+
+// 价格位置（100根K线区间）
+high_100 = ta.highest(high, 100)
+low_100 = ta.lowest(low, 100)
+price_position = (close - low_100) / math.max(high_100 - low_100, 0.00001)
+long_price_ok = not use_price_position or price_position <= avoid_high_position
+short_price_ok = not use_price_position or price_position >= avoid_low_position
+
+// ========== 入场信号 ==========
+// 突破入场
+breakout_long = close > bb_upper and ema_cross_up and (not volume_filter or vol_surge)
+breakout_short = close < bb_lower and ema_cross_down and (not volume_filter or vol_surge)
+
+// 回调入场（价格回到EMA附近，RSI修正）
+pullback_long = close > ema_slow_15m and close < ema_slow_15m * 1.01 and 
+                rsi > rsi[1] and rsi >= 35 and rsi <= 55 and 
+                ema_fast_15m > ema_slow_15m and vol_normal
+
+pullback_short = close < ema_slow_15m and close > ema_slow_15m * 0.99 and 
+                 rsi < rsi[1] and rsi >= 45 and rsi <= 65 and 
+                 ema_fast_15m < ema_slow_15m and vol_normal
+
+// 动量入场（RSI突破+MACD配合）
+momentum_long = rsi > 50 and rsi[1] <= 50 and macd_bullish and ema_fast_15m > ema_slow_15m
+momentum_short = rsi < 50 and rsi[1] >= 50 and macd_bearish and ema_fast_15m < ema_slow_15m
+
+// 根据模式选择信号
+use_breakout = entry_mode == "突破模式" or entry_mode == "混合模式"
+use_pullback = entry_mode == "回调模式" or entry_mode == "混合模式"
+
+signal_long = (use_breakout and breakout_long) or (use_pullback and (pullback_long or momentum_long))
+signal_short = (use_breakout and breakout_short) or (use_pullback and (pullback_short or momentum_short))
+
+// 综合入场条件
+long_entry = htf_bullish and signal_long and volatility_ok and adx_ok and long_price_ok and not rsi_ob
+short_entry = htf_bearish and signal_short and volatility_ok and adx_ok and short_price_ok and not rsi_os
+
+// ========== 风控与过滤 ==========
+// 交易时段过滤
+current_hour = hour(time, syminfo.timezone)
+in_session = not use_session_filter or 
+             (session_start <= session_end ? 
+              (current_hour >= session_start and current_hour < session_end) : 
+              (current_hour >= session_start or current_hour < session_end))
+
+// 间隔过滤
+var int last_entry_bar = -999
+spacing_ok = bar_index - last_entry_bar >= min_candle_gap
+
+// 日内交易统计
+var int daily_trades = 0
+var float daily_start_equity = na
+var int last_day = -1
+
+if dayofmonth != last_day
+    daily_trades := 0
+    daily_start_equity := strategy.equity
+    last_day := dayofmonth
+
+trades_limit_ok = daily_trades < max_daily_trades
+daily_loss_ok = strategy.equity >= daily_start_equity * (1 - daily_loss_limit / 100)
+
+// 仓位管理
+in_long = strategy.position_size > 0
+in_short = strategy.position_size < 0
+no_position = strategy.position_size == 0
+
+// ========== 入场执行 ==========
+var int entry_bar = na
+var float entry_sl = na
+var float entry_tp = na
+
+if no_position and spacing_ok and in_session and trades_limit_ok and daily_loss_ok
+    if long_entry
+        // 计算止损止盈
+        float sl_distance = na
+        float tp_distance = na
+        if use_dynamic_sl
+            sl_distance := atr * atr_sl_mult
+            tp_distance := atr * atr_tp_mult
+        else
+            sl_distance := close * (fixed_sl_pct / 100) / leverage
+            tp_distance := close * (fixed_tp_pct / 100) / leverage
+        
+        entry_sl := close - sl_distance
+        entry_tp := close + tp_distance
+        
+        // 仓位计算
+        float qty = (margin_per_trade * leverage) / close
+        
+        strategy.entry("Long", strategy.long, qty=qty, comment="多头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+        daily_trades := daily_trades + 1
+        
+    if short_entry
+        // 计算止损止盈
+        float sl_distance = na
+        float tp_distance = na
+        if use_dynamic_sl
+            sl_distance := atr * atr_sl_mult
+            tp_distance := atr * atr_tp_mult
+        else
+            sl_distance := close * (fixed_sl_pct / 100) / leverage
+            tp_distance := close * (fixed_tp_pct / 100) / leverage
+        
+        entry_sl := close + sl_distance
+        entry_tp := close - tp_distance
+        
+        // 仓位计算
+        float qty = (margin_per_trade * leverage) / close
+        
+        strategy.entry("Short", strategy.short, qty=qty, comment="空头入场")
+        entry_bar := bar_index
+        last_entry_bar := bar_index
+        daily_trades := daily_trades + 1
+
+// ========== 出场管理 ==========
+// 止盈止损
+if in_long and not na(entry_sl) and not na(entry_tp)
+    strategy.exit("Long Exit", "Long", limit=entry_tp, stop=entry_sl)
+
+if in_short and not na(entry_sl) and not na(entry_tp)
+    strategy.exit("Short Exit", "Short", limit=entry_tp, stop=entry_sl)
+
+// 时间止损
+if not no_position and not na(entry_bar) and (bar_index - entry_bar >= time_stop)
+    strategy.close_all(comment="时间止损")
+    entry_bar := na
+    entry_sl := na
+    entry_tp := na
+
+// 小时线趋势反转强制平仓
+if in_long and htf_bearish
+    strategy.close("Long", comment="1H趋势反转")
+    entry_bar := na
+    entry_sl := na
+    entry_tp := na
+
+if in_short and htf_bullish
+    strategy.close("Short", comment="1H趋势反转")
+    entry_bar := na
+    entry_sl := na
+    entry_tp := na
+
+// ADX急剧下降（趋势消失）
+if not no_position and adx < adx_threshold * 0.6
+    strategy.close_all(comment="趋势消失")
+    entry_bar := na
+    entry_sl := na
+    entry_tp := na
+
+// ========== 可视化 ==========
+// 均线
+plot(ema_fast_15m, "EMA快线", color=color.new(color.blue, 0), linewidth=2)
+plot(ema_slow_15m, "EMA慢线", color=color.new(color.orange, 0), linewidth=2)
+
+// 布林带
+p1 = plot(bb_upper, "BB上轨", color=color.new(color.gray, 60))
+p2 = plot(bb_lower, "BB下轨", color=color.new(color.gray, 60))
+fill(p1, p2, color=color.new(color.gray, 90))
+
+// 小时线趋势背景
+bgcolor(htf_bullish ? color.new(color.green, 95) : htf_bearish ? color.new(color.red, 95) : na, title="小时线趋势")
+
+// 止损止盈线
+plot(in_long ? entry_sl : na, "多头止损", color=color.new(color.red, 0), style=plot.style_circles, linewidth=2)
+plot(in_long ? entry_tp : na, "多头止盈", color=color.new(color.lime, 0), style=plot.style_circles, linewidth=2)
+plot(in_short ? entry_sl : na, "空头止损", color=color.new(color.red, 0), style=plot.style_circles, linewidth=2)
+plot(in_short ? entry_tp : na, "空头止盈", color=color.new(color.lime, 0), style=plot.style_circles, linewidth=2)
+
+// 入场信号
+plotshape(long_entry and no_position, "多头信号", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
+plotshape(short_entry and no_position, "空头信号", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+
+// 市场状态标记
+plotshape(not trades_limit_ok, "交易次数达限", shape.xcross, location.top, color.new(color.orange, 0), size=size.tiny)
+plotshape(not daily_loss_ok, "单日亏损达限", shape.xcross, location.top, color.new(color.red, 0), size=size.small)
+plotshape(not in_session, "非交易时段", shape.circle, location.top, color.new(color.gray, 70), size=size.tiny)
+
+// 表格显示统计
+var table stats_table = table.new(position.top_right, 2, 6, border_width=1)
+if barstate.islast
+    table.cell(stats_table, 0, 0, "小时线趋势", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    table.cell(stats_table, 1, 0, htf_bullish ? "多头" : htf_bearish ? "空头" : "中性", 
+               text_color=color.white, bgcolor=htf_bullish ? color.new(color.green, 30) : htf_bearish ? color.new(color.red, 30) : color.gray)
+    
+    table.cell(stats_table, 0, 1, "ADX强度", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    table.cell(stats_table, 1, 1, str.tostring(math.round(adx, 1)), text_color=color.white, bgcolor=color.new(color.gray, 30))
+    
+    table.cell(stats_table, 0, 2, "ATR%", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    table.cell(stats_table, 1, 2, str.tostring(math.round(atr_pct, 2)) + "%", text_color=color.white, bgcolor=color.new(color.gray, 30))
+    
+    table.cell(stats_table, 0, 3, "价格位置", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    table.cell(stats_table, 1, 3, str.tostring(math.round(price_position * 100, 1)) + "%", text_color=color.white, bgcolor=color.new(color.gray, 30))
+    
+    table.cell(stats_table, 0, 4, "今日交易", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    table.cell(stats_table, 1, 4, str.tostring(daily_trades) + "/" + str.tostring(max_daily_trades), 
+               text_color=color.white, bgcolor=daily_trades >= max_daily_trades ? color.new(color.red, 30) : color.new(color.green, 30))
+    
+    table.cell(stats_table, 0, 5, "今日盈亏", text_color=color.white, bgcolor=color.new(color.blue, 30))
+    daily_pnl = na(daily_start_equity) ? 0 : strategy.equity - daily_start_equity
+    table.cell(stats_table, 1, 5, str.tostring(math.round(daily_pnl, 2)) + "U", 
+               text_color=color.white, bgcolor=daily_pnl >= 0 ? color.new(color.green, 30) : color.new(color.red, 30))

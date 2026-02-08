@@ -20,7 +20,14 @@ app = FastAPI(
 # CORS - 允许 Vue 前端跨域
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:8050", "http://127.0.0.1:8050", "http://0.0.0.0:8050"],
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:3000", "http://localhost:8050", "http://localhost:8051",
+        "http://127.0.0.1:8050", "http://127.0.0.1:8051",
+        "http://0.0.0.0:8050", "http://0.0.0.0:8051",
+        "http://47.110.57.118:8050", "http://47.110.57.118:8051",
+        "http://172.26.30.20:8050", "http://172.26.30.20:8051",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,7 +49,36 @@ def health():
     return {"status": "ok", "service": "backpack-quant-api"}
 
 
-# 生产构建后挂载 Vue 静态文件（开发时前端单独运行在 5173，通过 Vite 代理 /api）
-frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
-if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+# 生产构建后挂载 Vue 静态文件
+# 尝试多个可能路径（兼容不同启动方式）
+_pkg_dir = Path(__file__).resolve().parents[1]
+_cwd_dir = Path.cwd()
+for base in (_pkg_dir, _cwd_dir, _cwd_dir / "backpack_quant_trading"):
+    frontend_dist = base / "frontend" / "dist"
+    if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+        app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="frontend-assets")
+        # SPA 根及子路由：返回 index.html
+        from fastapi.responses import FileResponse
+        _dist = str(frontend_dist)
+        @app.get("/")
+        def _index():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/login")
+        def _login():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/trading")
+        def _trading():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/dashboard")
+        def _dashboard():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/ai-lab")
+        def _ai_lab():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/grid-trading")
+        def _grid():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/currency-monitor")
+        def _monitor():
+            return FileResponse(frontend_dist / "index.html")
+        break

@@ -635,6 +635,39 @@ class DatabaseManager:
         """删除指定用户的币种监视配置"""
         self.delete_user_instance(user_id, 'currency_monitor', 'singleton')
 
+    # ===== 1分钟预警配置（Binance minute alert）=====
+    def get_minute_alert_config(self) -> Optional[tuple]:
+        """获取 1分钟预警 的全局配置（不按用户隔离）"""
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                instance_type='minute_alert', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
+    def save_minute_alert_config(self, config_json: str):
+        """保存 1分钟预警 的全局配置（使用第一个用户 id 作为存储键）"""
+        self.delete_minute_alert_config()
+        uid = self.get_first_user_id()
+        if uid is not None:
+            self.save_user_instance(uid, 'minute_alert', 'singleton', config_json)
+
+    def delete_minute_alert_config(self):
+        """删除 1分钟预警 的全局配置"""
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                instance_type='minute_alert', instance_id='singleton'
+            ).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
     def delete_user_instance(self, user_id: int, instance_type: str, instance_id: str):
         """删除用户实例归属（停止时调用）"""
         session = self.get_session()

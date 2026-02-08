@@ -110,31 +110,59 @@ class BacktestEngine:
                 if hist.empty or 'RSI' not in hist.columns:
                     continue
                 latest = hist.iloc[-1]
+                bar_high = float(latest.get('high', latest.get('close', 0)))
+                bar_low = float(latest.get('low', latest.get('close', 0)))
                 price = float(latest.get('close', 0))
                 for side in ['long', 'short']:
                     pos = self.positions[symbol][side]
                     if pos['qty'] <= 0:
                         continue
-                    pos_dict = {
-                        'symbol': symbol, 'side': side,
-                        'entry_price': pos['entry_price'], 'quantity': pos['qty'],
-                        'current_price': price
-                    }
-                    should_exit = False
-                    if hasattr(strategy, 'check_long_exit_conditions') and side == 'long':
-                        should_exit, _ = strategy.check_long_exit_conditions(hist, pos_dict)
-                    elif hasattr(strategy, 'check_short_exit_conditions') and side == 'short':
-                        should_exit, _ = strategy.check_short_exit_conditions(hist, pos_dict)
-                    if should_exit:
+                    entry_price = float(pos['entry_price'])
+                    exit_price = None
+                    exit_reason = ""
+                    # 【新增】K线内止盈止损模拟：用 high/low 判断是否触及，避免亏损超出设定
+                    if hasattr(strategy, 'get_stop_take_profit_prices'):
+                        tp_price, sl_price = strategy.get_stop_take_profit_prices(entry_price, side)
+                        if side == 'long':
+                            if bar_low <= sl_price:
+                                exit_price = sl_price
+                                exit_reason = "止损"
+                            elif bar_high >= tp_price:
+                                exit_price = tp_price
+                                exit_reason = "止盈"
+                        else:  # short
+                            if bar_high >= sl_price:
+                                exit_price = sl_price
+                                exit_reason = "止损"
+                            elif bar_low <= tp_price:
+                                exit_price = tp_price
+                                exit_reason = "止盈"
+                    # 若K线内未触及，用收盘价做技术指标检查
+                    if exit_price is None:
+                        pos_dict = {
+                            'symbol': symbol, 'side': side,
+                            'entry_price': entry_price, 'quantity': pos['qty'],
+                            'current_price': price,
+                            'entry_time': pos.get('entry_time'),
+                            'current_time': current_date,  # 用于时间止损
+                        }
+                        should_exit = False
+                        if hasattr(strategy, 'check_long_exit_conditions') and side == 'long':
+                            should_exit, exit_reason = strategy.check_long_exit_conditions(hist, pos_dict)
+                        elif hasattr(strategy, 'check_short_exit_conditions') and side == 'short':
+                            should_exit, exit_reason = strategy.check_short_exit_conditions(hist, pos_dict)
+                        if should_exit:
+                            exit_price = price
+                    if exit_price is not None:
                         from ..strategy.base import Signal
                         from decimal import Decimal
                         self._last_exit_bar[symbol] = bar_idx
                         close_signal = Signal(
                             symbol=symbol,
                             action='sell' if side == 'long' else 'buy',
-                            price=Decimal(str(price)),
+                            price=Decimal(str(exit_price)),
                             quantity=Decimal(str(pos['qty'])),
-                            reason='止盈/止损'
+                            reason=exit_reason or '止盈/止损'
                         )
                         self.execute_trade(close_signal, current_date)
                         break  # 已平仓，跳出
@@ -142,10 +170,11 @@ class BacktestEngine:
             import asyncio
             signals = await strategy.calculate_signal(current_data)
 
+            cooldown = getattr(strategy, 'cooldown_bars', self._cooldown_bars)
             for signal in signals:
                 # 冷静期：平仓后 N 根 K 线内不开新仓
                 if signal.symbol in self._last_exit_bar:
-                    if bar_idx - self._last_exit_bar[signal.symbol] < self._cooldown_bars:
+                    if bar_idx - self._last_exit_bar[signal.symbol] < cooldown:
                         continue
                 self.execute_trade(signal, current_date)
                             
