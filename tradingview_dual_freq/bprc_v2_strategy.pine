@@ -1,0 +1,217 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────────────
+// Breakout Pullback Reload Continue (BPRC) v2 — Strategy (可回测)
+//
+// 逻辑：突破 → 回踩 → 重新延续才发信号；改为 strategy 以在 TradingView 查看回测数据。
+// ─────────────────────────────────────────────────────────────────────────────
+
+strategy("BPRC v2 (Backtest)", "BPRC v2", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100, initial_capital=10000,
+     commission_type=strategy.commission.percent, commission_value=0.1, pyramiding=0)
+
+smaLen         = input.int(9,     title="SMA Length")
+thresholdMode  = input.string("Absolute", title="(Legacy) Threshold Mode", options=["Absolute","Percent","ATR"])
+inchAbove      = input.float(4.0, title="(Legacy) Threshold ABOVE SMA")
+inchBelow      = input.float(4.0, title="(Legacy) Threshold BELOW SMA")
+atrLen         = input.int(4,     title="ATR Length")
+maxBars        = input.int(2,     title="Max Bars for Pullback & Resume", minval=1)
+minBarsBetween = input.int(7,     title="Min Bars Between Signals", minval=0)
+
+// === Universal Auto-Normalization ===
+autoUniversal  = input.bool(true, title="Universal Auto-Normalize (all symbols/TFs)")
+normMode       = input.string("ATR", title="Normalizer", options=["ATR","Z-Score"])
+normLookback   = input.int(100,  title="Z-Score Lookback (only if Z-Score)", minval=20)
+breakMult      = input.float(0.60, title="Breakout Multiple (ATR or Z)", step=0.05, minval=0.05)
+bandMult       = input.float(0.40, title="Pullback Band Multiple (ATR or Z)", step=0.05, minval=0.0)
+roundToTick    = input.bool(true,  title="Round thresholds to mintick")
+
+pbBandMode     = input.string("ATR", title="(Legacy) Pullback Band Mode", options=["Absolute","Percent","ATR"])
+pbBandValue    = input.float(0.25, title="(Legacy) Pullback Band Value", step=0.05, minval=0)
+
+useReclaimExtreme = input.bool(false, title="Require reclaim of breakout extreme (reduces chop signals)")
+
+useADXFilter   = input.bool(false, title="Filter: ADX must be trending")
+diLen          = input.int(16, title="DI Length", minval=5)
+adxSmoothing   = input.int(30, title="ADX Smoothing", minval=5)
+adxMin         = input.float(18.0, title="Min ADX (typ 15-25)", step=0.5)
+
+useSlopeFilter = input.bool(false, title="Filter: SMA slope must be non-flat")
+slopeLen       = input.int(10, title="Slope Lookback", minval=1)
+slopeMinMult   = input.float(0.20, title="Min slope in norm units", step=0.05, minval=0.0)
+
+useNormFloor   = input.bool(true, title="Apply minimum normalizer floor")
+minNormTicks   = input.int(20, title="Min normalizer (ticks)", minval=1)
+
+enforceAlternation = input.bool(true, title="Enforce Alternating Signals (Buy then Sell then Buy...)")
+
+buyLabelColor  = input.color(color.new(color.green, 0), title="Buy Signal Color")
+sellLabelColor = input.color(color.new(color.red, 0),   title="Sell Signal Color")
+buyTextColor   = input.color(color.white,               title="Buy Text Color")
+sellTextColor  = input.color(color.white,               title="Sell Text Color")
+
+// === Series ===
+sma = ta.sma(close, smaLen)
+atr = ta.atr(atrLen)
+
+round_mintick(x) =>
+    roundToTick and not na(x) ? math.round(x / syminfo.mintick) * syminfo.mintick : x
+
+baseThrAbove = switch thresholdMode
+    "Absolute" => inchAbove
+    "Percent"  => sma * inchAbove / 100
+    => atr * inchAbove
+
+baseThrBelow = switch thresholdMode
+    "Absolute" => inchBelow
+    "Percent"  => sma * inchBelow / 100
+    => atr * inchBelow
+
+basePbBand = switch pbBandMode
+    "Absolute" => pbBandValue
+    "Percent"  => sma * pbBandValue / 100
+    => atr * pbBandValue
+
+zSeries   = close - sma
+zStdRaw   = ta.stdev(zSeries, normLookback)
+zStdSafe  = math.max(zStdRaw, syminfo.mintick * 2.0)
+normUnit0 = normMode == "ATR" ? atr : zStdSafe
+
+minNorm  = minNormTicks * syminfo.mintick
+normUnit = useNormFloor ? math.max(normUnit0, minNorm) : normUnit0
+
+effThrAbove = autoUniversal ? breakMult * normUnit : baseThrAbove
+effThrBelow = autoUniversal ? breakMult * normUnit : baseThrBelow
+effPbBand   = autoUniversal ? bandMult  * normUnit : basePbBand
+
+effThrAbove := round_mintick(effThrAbove)
+effThrBelow := round_mintick(effThrBelow)
+effPbBand   := round_mintick(effPbBand)
+
+// === Regime filters ===
+[_, _, adxVal] = ta.dmi(diLen, adxSmoothing)
+slopeAbs = math.abs(sma - sma[slopeLen])
+trendOK  = (not useADXFilter) or (adxVal >= adxMin)
+slopeOK  = (not useSlopeFilter) or (slopeAbs >= slopeMinMult * normUnit)
+regimeOK = trendOK and slopeOK
+
+// === State ===
+var bool  inBuy       = false
+var bool  pulledBuy   = false
+var bool  firedB      = false
+var int   startB      = na
+var float hiB         = na
+var int   lastBuyBar  = na
+
+var bool  inSell      = false
+var bool  pulledSell  = false
+var bool  firedS      = false
+var int   startS      = na
+var float loS         = na
+var int   lastSellBar = na
+
+var int lastSignal = 0
+canBuyByAlt  = not enforceAlternation or (lastSignal <= 0)
+canSellByAlt = not enforceAlternation or (lastSignal >= 0)
+
+// === BUY FLOW ===
+if close < sma
+    inBuy := false
+    pulledBuy := false
+    firedB := false
+
+if not inBuy and regimeOK and close > sma + effThrAbove
+    inBuy := true
+    pulledBuy := false
+    firedB := false
+    startB := bar_index
+    hiB := high
+
+if inBuy and not pulledBuy
+    hiB := math.max(hiB, high)
+
+if inBuy and not na(startB) and (bar_index - startB > maxBars)
+    inBuy := false
+    pulledBuy := false
+    firedB := false
+
+buyPulled = inBuy and not pulledBuy and (low <= sma + effPbBand) and (close > sma)
+if buyPulled
+    pulledBuy := true
+
+buyResumeOK = useReclaimExtreme ? (close > hiB) : true
+
+buySignalRaw =
+     inBuy and pulledBuy and not firedB and
+     close > sma and close > open and
+     buyResumeOK and
+     (bar_index - startB <= maxBars) and
+     (na(lastBuyBar) or bar_index - lastBuyBar >= minBarsBetween)
+
+buySignal = buySignalRaw and canBuyByAlt
+
+if buySignal
+    firedB := true
+    lastBuyBar := bar_index
+    lastSignal := 1
+
+// === SELL FLOW ===
+if close > sma
+    inSell := false
+    pulledSell := false
+    firedS := false
+
+if not inSell and regimeOK and close < sma - effThrBelow
+    inSell := true
+    pulledSell := false
+    firedS := false
+    startS := bar_index
+    loS := low
+
+if inSell and not pulledSell
+    loS := math.min(loS, low)
+
+if inSell and not na(startS) and (bar_index - startS > maxBars)
+    inSell := false
+    pulledSell := false
+    firedS := false
+
+sellPulled = inSell and not pulledSell and (high >= sma - effPbBand) and (close < sma)
+if sellPulled
+    pulledSell := true
+
+sellResumeOK = useReclaimExtreme ? (close < loS) : true
+
+sellSignalRaw =
+     inSell and pulledSell and not firedS and
+     close < sma and close < open and
+     sellResumeOK and
+     (bar_index - startS <= maxBars) and
+     (na(lastSellBar) or bar_index - lastSellBar >= minBarsBetween)
+
+sellSignal = sellSignalRaw and canSellByAlt
+
+if sellSignal
+    firedS := true
+    lastSellBar := bar_index
+    lastSignal := -1
+
+// === PLOTS ===
+plot(sma, color=color.orange)
+
+plotshape(buySignal,  title="Buy",  style=shape.labelup,   location=location.belowbar, color=buyLabelColor,  text="Buy",  textcolor=buyTextColor,  size=size.small)
+plotshape(sellSignal, title="Sell", style=shape.labeldown, location=location.abovebar, color=sellLabelColor, text="Sell", textcolor=sellTextColor, size=size.small)
+
+// === 策略下单：用于回测统计与图表下方的「策略测试器」数据 ===
+if buySignal
+    strategy.entry("Long", strategy.long)
+if sellSignal
+    strategy.entry("Short", strategy.short)
+// 多空互斥：出现反向信号时平掉当前仓位并开反向
+if buySignal and strategy.position_size < 0
+    strategy.close("Short", comment="Close Short")
+if sellSignal and strategy.position_size > 0
+    strategy.close("Long", comment="Close Long")
+
+// === Alerts ===
+alertcondition(buySignal,  title="Buy Alert",  message="Buy: Breakout → Pullback → Resume")
+alertcondition(sellSignal, title="Sell Alert", message="Sell: Breakdown → Pullback → Resume")

@@ -87,9 +87,9 @@
     </el-card>
 
     <el-card class="pool-card">
-      <template #header>监视中的币种 (异动时变红)</template>
-      <p v-if="displayPairs.length" class="hint">已有监视时，选择更多币种/级别后点击「开始监视」可追加；点击 × 可移除该项</p>
-      <div v-if="displayPairs.length === 0" class="empty">暂无监视，请选择币种和 K 线级别后点击「开始监视」</div>
+      <template #header>监视/预警中的币种 (异动时变红)</template>
+      <p v-if="displayPairs.length" class="hint">已有监视/预警时，选择更多币种/级别后点击「开始监视」可追加；点击 × 可移除该项（预警项点击 × 会停止预警）</p>
+      <div v-if="displayPairs.length === 0" class="empty">暂无监视/预警，请先启动「币种监视」或「分钟预警」</div>
       <div v-else :class="['pool', { 'pool-alerted': hasAnyAlerted }]">
         <div
           v-for="p in displayPairs"
@@ -197,7 +197,6 @@ async function refreshMinuteStatus() {
   } catch {}
 }
 
-const displayPairs = computed(() => Array.isArray(status.pairs) ? status.pairs : [])
 const filteredSymbols = computed(() => {
   const kw = symbolKeyword.value.trim().toUpperCase()
   if (!kw) return symbolList.value
@@ -212,6 +211,19 @@ const minuteFilteredSymbols = computed(() => {
 
 const hasAnyAlerted = computed(() => {
   return displayPairs.value.some((p) => alertedPairs.value.has(`${p[0]}|${p[1]}`))
+})
+
+const minutePairsForPool = computed(() => {
+  if (!minuteStatus.running) return []
+  const interval = minuteStatus.interval || '1m'
+  const syms = Array.isArray(minuteStatus.symbols) ? minuteStatus.symbols : []
+  return syms.map((s) => [String(s).toUpperCase(), `预警(${interval})`])
+})
+
+const displayPairs = computed(() => {
+  const pairs = Array.isArray(status.pairs) ? status.pairs : []
+  const merged = [...pairs, ...minutePairsForPool.value]
+  return merged
 })
 
 function isAlerted(p) {
@@ -264,6 +276,11 @@ async function handleStop() {
 }
 
 async function removePair(symbol, timeframe) {
+  // 分钟预警的币种也展示在币种池里：点击 × 直接停止预警（当前后端是 stop 全部）
+  if (String(timeframe || '').startsWith('预警(')) {
+    await handleMinuteStop()
+    return
+  }
   try {
     await apiRemovePair({ symbol, timeframe })
     await refreshStatus()
@@ -287,6 +304,9 @@ async function handleMinuteStart() {
       ob_notional_threshold: minuteForm.ob_notional_threshold,
     })
     ElMessage.success('已启动1分钟预警')
+    // 启动后清空选择框（运行中状态仍从 minuteStatus 展示）
+    minuteForm.symbols = []
+    minuteSymbolKeyword.value = ''
     await refreshMinuteStatus()
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '启动失败')

@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import numpy as np
-from loguru import logger
+from loguru import logger  # pyright: ignore[reportMissingImports]
 from datetime import datetime, timedelta
 
 from backpack_quant_trading.strategy.base import BaseStrategy, Signal, Position

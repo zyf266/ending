@@ -1,0 +1,141 @@
+2026-03-11 13:51:28 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 13:51:28 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 13:51:28 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 13:51:28 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 13:58:19 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 13:58:19 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14182
+2026-03-11 13:58:19 | INFO     | backpack_quant_trading.core.binance_monitor:462 | 币种列表从文件加载，共 544 个，更新于 1772696587.81465
+2026-03-11 13:58:19 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-11 13:58:20 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/exchangeInfo HTTP/1.1" 200 None
+2026-03-11 13:58:20 | INFO     | backpack_quant_trading.core.binance_monitor:503 | 币种列表已缓存，共 544 个 USDT 永续合约
+2026-03-11 13:58:21 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 13:58:22 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=2&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14053
+2026-03-11 13:58:23 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 13:58:23 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=3&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13795
+2026-03-11 13:58:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 13:58:25 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=4&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14027
+2026-03-11 13:58:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 13:58:27 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=5&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13293
+2026-03-11 14:20:52 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:20:52 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:20:52 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:20:52 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:33:06 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:33:07 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:33:07 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:33:07 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:33:33 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:33:33 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:33:33 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:33:33 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:35:03 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:35:03 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:35:03 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:35:03 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:35:15 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:35:15 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:35:15 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:35:15 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:42:06 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:42:06 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:42:06 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:42:06 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:42:41 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:42:41 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:42:41 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:42:41 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:51:19 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:51:19 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:51:19 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:51:19 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:52:09 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:52:09 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:52:09 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:52:09 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:56:21 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:56:21 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:56:21 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:56:21 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:57:09 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:57:09 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:57:09 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:57:09 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 14:59:55 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 14:59:55 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 14:59:55 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 14:59:55 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:00:18 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:00:18 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:00:18 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:00:18 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:11:18 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:11:18 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:12:39 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:12:39 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:12:39 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:12:39 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:16:14 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:16:14 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:16:14 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:16:14 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:16:36 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:16:37 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:16:37 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:16:37 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:16:43 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:16:43 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:16:43 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:16:43 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:18:48 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:18:48 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:18:48 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:18:48 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:19:16 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:19:16 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:19:16 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:19:16 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:20:20 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:20:21 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:21:39 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:21:39 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:21:39 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:21:39 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:21:52 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:21:53 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:21:59 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:22:00 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:22:08 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:22:09 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:23:26 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:23:26 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:23:26 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:23:26 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:28:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:28:07 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:28:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:28:12 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:29:55 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:29:55 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:29:55 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:29:55 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:30:10 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-11 15:30:11 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-11 15:31:17 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:31:17 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:31:17 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:31:18 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 15:31:33 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-11 15:31:33 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-11 15:31:33 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-11 15:31:33 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-11 16:35:32 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 16:35:33 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14265
+2026-03-11 16:35:34 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 16:35:34 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=2&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14021
+2026-03-11 16:35:36 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 16:35:36 | INFO     | backpack_quant_trading.core.binance_monitor:462 | 币种列表从文件加载，共 544 个，更新于 1773208700.8717127
+2026-03-11 16:35:36 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=3&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 14149
+2026-03-11 16:35:37 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 16:35:38 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=4&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13883
+2026-03-11 16:35:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-11 16:35:39 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=5&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13160

@@ -1,0 +1,185 @@
+2026-03-06 10:56:57 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 10:56:57 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 10:56:57 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 10:56:57 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 10:57:13 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 10:57:13 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 10:57:13 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 10:57:13 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 10:57:23 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 10:57:23 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 10:57:23 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 10:57:23 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 10:58:57 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:58:58 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1640995200000 HTTP/1.1" 200 None
+2026-03-06 10:58:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:58:59 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1648195200000 HTTP/1.1" 200 None
+2026-03-06 10:59:00 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:01 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1655395200000 HTTP/1.1" 200 None
+2026-03-06 10:59:01 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:02 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1662595200000 HTTP/1.1" 200 None
+2026-03-06 10:59:02 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:03 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1669795200000 HTTP/1.1" 200 None
+2026-03-06 10:59:04 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:04 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1676995200000 HTTP/1.1" 200 None
+2026-03-06 10:59:05 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:06 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1684195200000 HTTP/1.1" 200 None
+2026-03-06 10:59:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:07 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1691395200000 HTTP/1.1" 200 None
+2026-03-06 10:59:08 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:09 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1698595200000 HTTP/1.1" 200 None
+2026-03-06 10:59:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:10 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1705795200000 HTTP/1.1" 200 None
+2026-03-06 10:59:11 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:11 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1712995200000 HTTP/1.1" 200 None
+2026-03-06 10:59:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:13 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1720195200000 HTTP/1.1" 200 None
+2026-03-06 10:59:13 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:14 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1727395200000 HTTP/1.1" 200 None
+2026-03-06 10:59:15 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:15 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1734595200000 HTTP/1.1" 200 None
+2026-03-06 10:59:16 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:17 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1741795200000 HTTP/1.1" 200 None
+2026-03-06 10:59:17 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:18 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1748995200000 HTTP/1.1" 200 None
+2026-03-06 10:59:19 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:19 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1756195200000 HTTP/1.1" 200 None
+2026-03-06 10:59:20 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:21 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1763395200000 HTTP/1.1" 200 None
+2026-03-06 10:59:21 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 10:59:22 | DEBUG    | urllib3.connectionpool:475 | https://fapi.binance.com:443 "GET /fapi/v1/klines?symbol=ETHUSDT&interval=2h&limit=1000&startTime=1770595200000 HTTP/1.1" 200 None
+2026-03-06 11:07:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 11:07:07 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13909
+2026-03-06 11:07:08 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 11:07:08 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=2&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13774
+2026-03-06 11:07:10 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 11:07:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 11:07:16 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 11:07:16 | WARNING  | backpack_quant_trading.core.stock_ai:111 | 获取行业列表失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 11:34:57 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 11:34:57 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 11:34:57 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 11:34:57 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 13:51:32 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 13:51:32 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 13:51:32 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 13:51:32 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 13:51:40 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 13:51:40 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 13:51:40 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 13:51:40 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 13:52:39 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 13:52:39 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 13:52:39 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 13:52:39 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:01:53 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:01:53 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:01:53 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:01:53 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:04:44 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:04:44 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:04:44 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:04:44 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:05:27 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:05:27 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:05:27 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:05:27 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:07:04 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:07:04 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:07:04 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:07:04 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:09:28 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:09:28 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:09:28 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:09:28 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:09:37 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:09:37 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:09:37 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:09:37 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:13:25 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:13:25 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:13:25 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:13:25 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:18:55 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 14:18:55 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13944
+2026-03-06 14:18:57 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 14:18:57 | DEBUG    | urllib3.connectionpool:475 | https://17.push2.eastmoney.com:443 "GET /api/qt/clist/get?pn=2&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 HTTP/1.1" 200 13981
+2026-03-06 14:18:58 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 14:19:01 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 14:19:05 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 14:19:05 | WARNING  | backpack_quant_trading.core.stock_ai:111 | 获取行业列表失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 14:22:31 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:22:31 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:22:31 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:22:31 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:24:16 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:24:16 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:24:16 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:24:16 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:27:29 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:27:29 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:27:29 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:27:29 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:27:51 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:27:51 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:27:51 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:27:51 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:28:47 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:28:47 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:28:47 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:28:47 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:30:30 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:30:30 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:30:30 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:30:30 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 14:37:49 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 14:37:49 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 14:37:49 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 14:37:49 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 15:16:20 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 15:16:20 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 15:16:20 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 15:16:20 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 15:19:20 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-06 15:19:20 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-06 15:19:20 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-06 15:19:20 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-06 15:24:13 | INFO     | backpack_quant_trading.core.binance_monitor:462 | 币种列表从文件加载，共 544 个，更新于 1772696587.81465
+2026-03-06 15:24:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 15:25:27 | ERROR    | backpack_quant_trading.core.binance_monitor:163 | 币安 K 线批量获取失败 ETHUSDT 5m: HTTPSConnectionPool(host='fapi.binance.com', port=443): Max retries exceeded with url: /fapi/v1/klines?symbol=ETHUSDT&interval=5m&limit=800 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000024422D05FD0>, 'Connection to fapi.binance.com timed out. (connect timeout=20)'))
+2026-03-06 15:25:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 15:26:07 | ERROR    | backpack_quant_trading.core.binance_monitor:163 | 币安 K 线批量获取失败 ETHUSDT 15m: HTTPSConnectionPool(host='fapi.binance.com', port=443): Max retries exceeded with url: /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=800 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000024422E1DE50>, 'Connection to fapi.binance.com timed out. (connect timeout=20)'))
+2026-03-06 15:26:59 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): fapi.binance.com:443
+2026-03-06 15:27:39 | ERROR    | backpack_quant_trading.core.binance_monitor:163 | 币安 K 线批量获取失败 ETHUSDT 15m: HTTPSConnectionPool(host='fapi.binance.com', port=443): Max retries exceeded with url: /fapi/v1/klines?symbol=ETHUSDT&interval=15m&limit=1000 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x0000024422D7EFD0>, 'Connection to fapi.binance.com timed out. (connect timeout=20)'))
+2026-03-06 15:38:40 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:38:42 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:38:45 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-06 15:38:45 | DEBUG    | urllib3.connectionpool:475 | https://push2.eastmoney.com:443 "GET /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf122%2Cf174%2Cf175%2Cf59%2Cf163%2Cf43%2Cf57%2Cf58%2Cf169%2Cf170%2Cf46%2Cf44%2Cf51%2Cf168%2Cf47%2Cf164%2Cf116%2Cf60%2Cf45%2Cf52%2Cf50%2Cf48%2Cf167%2Cf117%2Cf71%2Cf161%2Cf49%2Cf530%2Cf135%2Cf136%2Cf137%2Cf138%2Cf139%2Cf141%2Cf142%2Cf144%2Cf145%2Cf147%2Cf148%2Cf140%2Cf143%2Cf146%2Cf149%2Cf55%2Cf62%2Cf162%2Cf92%2Cf173%2Cf104%2Cf105%2Cf84%2Cf85%2Cf183%2Cf184%2Cf185%2Cf186%2Cf187%2Cf188%2Cf189%2Cf190%2Cf191%2Cf192%2Cf107%2Cf111%2Cf86%2Cf177%2Cf78%2Cf110%2Cf262%2Cf263%2Cf264%2Cf267%2Cf268%2Cf255%2Cf256%2Cf257%2Cf258%2Cf127%2Cf199%2Cf128%2Cf198%2Cf259%2Cf260%2Cf261%2Cf171%2Cf277%2Cf278%2Cf279%2Cf288%2Cf152%2Cf250%2Cf251%2Cf252%2Cf253%2Cf254%2Cf269%2Cf270%2Cf271%2Cf272%2Cf273%2Cf274%2Cf275%2Cf276%2Cf265%2Cf266%2Cf289%2Cf290%2Cf286%2Cf285%2Cf292%2Cf293%2Cf294%2Cf295%2Cf43&secid=0.002235 HTTP/1.1" 200 None
+2026-03-06 15:38:45 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): web.ifzq.gtimg.cn:443
+2026-03-06 15:38:46 | DEBUG    | urllib3.connectionpool:475 | https://web.ifzq.gtimg.cn:443 "GET /other/klineweb/klineWeb/weekTrends?code=sz002235&type=qfq&_var=trend_qfq&r=0.3506048543943414 HTTP/1.1" 200 None
+2026-03-06 15:38:46 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:38:46 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-06 15:38:46 | WARNING  | backpack_quant_trading.core.stock_ai:111 | 获取行业列表失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 15:38:46 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2025&param=sz002235%2Cday%2C2025-01-01%2C2026-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-06 15:38:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-06 15:38:47 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2026&param=sz002235%2Cday%2C2026-01-01%2C2027-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-06 15:38:47 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-06 15:38:48 | DEBUG    | backpack_quant_trading.core.stock_ai:953 | 获取基本面信息 002235: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 15:38:48 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-06 15:38:49 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-06 15:42:04 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:42:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:42:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-06 15:42:09 | DEBUG    | backpack_quant_trading.core.stock_ai:874 | 获取股票名称 002235: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 15:42:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): web.ifzq.gtimg.cn:443
+2026-03-06 15:42:10 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-06 15:42:10 | DEBUG    | urllib3.connectionpool:475 | https://web.ifzq.gtimg.cn:443 "GET /other/klineweb/klineWeb/weekTrends?code=sz002235&type=qfq&_var=trend_qfq&r=0.3506048543943414 HTTP/1.1" 200 None
+2026-03-06 15:42:10 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-06 15:42:10 | WARNING  | backpack_quant_trading.core.stock_ai:111 | 获取行业列表失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 15:42:11 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2025&param=sz002235%2Cday%2C2025-01-01%2C2026-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-06 15:42:11 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-06 15:42:11 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2026&param=sz002235%2Cday%2C2026-01-01%2C2027-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-06 15:42:11 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-06 15:42:12 | DEBUG    | backpack_quant_trading.core.stock_ai:953 | 获取基本面信息 002235: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-06 15:42:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-06 15:42:13 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None

@@ -1,0 +1,1 @@
+import{r as t}from"./request-Dz_ipLrO.js";const e=()=>t.get("/trading/strategies"),n=()=>t.get("/trading/instances"),g=s=>t.post("/trading/launch",s),r=s=>t.delete(`/trading/instances/${s}`),o=()=>t.get("/trading/logs");export{n as a,o as b,e as g,g as l,r as s};

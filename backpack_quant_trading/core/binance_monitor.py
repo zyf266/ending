@@ -2,6 +2,7 @@
 币种监视模块：从币安获取K线数据，运行特别K-倍数判定策略，触发钉钉预警。
 不修改任何原有逻辑，仅作为新增功能。
 """
+import json
 import logging
 import threading
 import time
@@ -10,6 +11,7 @@ import hashlib
 import base64
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Optional, Set, Tuple
 ALERT_RED_DURATION_SEC = 600  # 异动变红持续 10 分钟
 import requests
@@ -18,6 +20,9 @@ import math
 from backpack_quant_trading.config.settings import config
 
 logger = logging.getLogger(__name__)
+
+# 分钟预警专用钉钉 Webhook（仅 1 分钟预警使用，不影响其他告警逻辑）
+MINUTE_ALERT_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=3bedccd203d2ed11882431c3250ed31af4090591fdb6a87aaf04f8953fdbc1dc"
 
 # 币安 REST API
 # 【修复】改用合约 API，获取更多币种（包括 1000SHIB、PEPE 等）
@@ -36,6 +41,76 @@ TIMEFRAME_MAP = {
 # 策略默认参数（与 Pine Script 一致）
 DEFAULT_LOOKBACK = 4
 DEFAULT_ETH_RATIO = 1.5
+
+# K 线 interval 对应的毫秒数（用于分批拉取时计算下一批 startTime）
+INTERVAL_MS = {
+    "1m": 60 * 1000,
+    "3m": 3 * 60 * 1000,
+    "5m": 5 * 60 * 1000,
+    "15m": 15 * 60 * 1000,
+    "30m": 30 * 60 * 1000,
+    "1h": 3600 * 1000,
+    "2h": 2 * 3600 * 1000,
+    "4h": 4 * 3600 * 1000,
+    "1d": 24 * 3600 * 1000,
+    "1w": 7 * 24 * 3600 * 1000,
+}
+
+
+def fetch_binance_klines_from_start(
+    symbol: str,
+    interval: str,
+    start_time_ms: int,
+    end_time_ms: Optional[int] = None,
+    batch_size: int = 1000,
+) -> List[Dict]:
+    """
+    从指定起始时间分批次从币安拉取 K 线直到 end_time_ms（不传则拉到当前时间）。
+    返回: [{"time": ts_ms, "open", "high", "low", "close", "volume"}, ...] 按时间升序
+    """
+    result: List[Dict] = []
+    url = f"{BINANCE_API_BASE}/fapi/v1/klines"
+    symbol = symbol.upper()
+    interval_ms = INTERVAL_MS.get(interval.lower(), 2 * 3600 * 1000)  # 默认 2h
+    current_start = start_time_ms
+    end_ts = end_time_ms or (int(time.time()) * 1000)
+
+    while current_start < end_ts:
+        params: Dict = {
+            "symbol": symbol,
+            "interval": interval,
+            "limit": batch_size,
+            "startTime": current_start,
+        }
+        try:
+            resp = requests.get(url, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                break
+            batch = []
+            for bar in data:
+                t = int(bar[0])
+                if t >= end_ts:
+                    break
+                batch.append({
+                    "time": t,
+                    "open": float(bar[1]),
+                    "high": float(bar[2]),
+                    "low": float(bar[3]),
+                    "close": float(bar[4]),
+                    "volume": float(bar[5]),
+                })
+            result.extend(batch)
+            if len(batch) < batch_size:
+                break
+            # 下一批从本批最后一根 K 线的下一根开始
+            current_start = int(data[-1][0]) + interval_ms
+            time.sleep(0.5)  # 限流
+        except Exception as e:
+            logger.error(f"币安 K 线从起点拉取失败 {symbol} {interval}: {e}")
+            break
+    return result
 
 
 def fetch_binance_klines_batch(
@@ -164,15 +239,15 @@ def detect_minute_alerts(
     ob_notional_threshold: float = 200000.0,
     ob_distance_pct: float = 0.003,
     depth_levels: int = 50,
-) -> List[str]:
+) -> List[Dict]:
     """检测短周期预警条件，返回触发原因列表（可多条）。
 
     条件：
     - 一根K线内波动 >= vol_pct_threshold（%）
     - 当前成交量 >= 上一根成交量 * volume_mult_threshold
-    - 订单簿在距离 mid 的 ob_distance_pct 范围内出现大额挂单（名义价值 >= ob_notional_threshold）
+    - 订单簿出现大额买墙/卖墙（名义价值 >= ob_notional_threshold）
     """
-    reasons: List[str] = []
+    reasons: List[Dict] = []
     if not klines or len(klines) < 2:
         return reasons
 
@@ -188,15 +263,22 @@ def detect_minute_alerts(
     if o > 0 and h > 0 and l > 0:
         rng_pct = (h - l) / o * 100
         if rng_pct >= vol_pct_threshold:
-            reasons.append(f"{interval_label}波动{rng_pct:.2f}% >= {vol_pct_threshold:.2f}%")
+            reasons.append({
+                "key": "VOLATILITY",
+                "text": f"原因：{interval_label}波动率 {rng_pct:.2f}% ≥ {vol_pct_threshold:.2f}%",
+            })
 
     # 成交量倍数
     if pv > 0:
         mult = v / pv
         if mult >= volume_mult_threshold:
-            reasons.append(f"{interval_label}成交量倍数{mult:.1f}x >= {volume_mult_threshold:.1f}x (当前{v:.4g} 前一根{pv:.4g})")
+            reasons.append({
+                "key": "VOLUME_MULT",
+                "text": f"原因：{interval_label}成交量 {v:.4g} 是前一根 {pv:.4g} 的 {mult:.1f}x ≥ {volume_mult_threshold:.1f}x",
+            })
 
-    # 订单簿大额挂单（近 mid）
+    # 订单簿大额挂单（买墙/卖墙）：只看“距离盘口很近”的墙（按 ob_distance_pct）。
+    # 按用户要求：这是偶发情况，不做冷却，检测到就推送。
     if depth and isinstance(depth, dict):
         bids = _parse_depth_levels(depth.get("bids"))
         asks = _parse_depth_levels(depth.get("asks"))
@@ -206,20 +288,29 @@ def detect_minute_alerts(
             if best_bid > 0 and best_ask > 0:
                 mid = (best_bid + best_ask) / 2
                 max_dist = mid * float(ob_distance_pct)
+
                 wall_hits: List[str] = []
-                # 扫描前 N 档
-                for side_name, arr in (("BID", bids[:depth_levels]), ("ASK", asks[:depth_levels])):
-                    for px, qty in arr:
+                # 扫描前 N 档（仅近盘口范围）
+                for side_name, arr in (("买墙(BID)", bids[:depth_levels]), ("卖墙(ASK)", asks[:depth_levels])):
+                    for idx, (px, qty) in enumerate(arr, start=1):
                         if px <= 0 or qty <= 0:
                             continue
                         if abs(px - mid) > max_dist:
                             continue
                         notional = px * qty
                         if notional >= ob_notional_threshold:
-                            wall_hits.append(f"{side_name}墙 @{px:.2f} qty={qty:.4g} 名义={notional:,.0f}")
+                            wall_hits.append(
+                                f"{side_name} 第{idx}档 @ {px:.2f} qty={qty:.4g} 名义={notional:,.0f}USDT ≥ {ob_notional_threshold:,.0f}"
+                            )
                             break
                 if wall_hits:
-                    reasons.append("订单簿大单: " + " | ".join(wall_hits))
+                    reasons.append({
+                        "key": "ORDERBOOK_WALL",
+                        "text": (
+                            f"原因：订单簿大单（距离盘口≤{float(ob_distance_pct)*100:.2f}%）"
+                            + "（" + " ｜ ".join(wall_hits) + "）"
+                        ),
+                    })
 
     return reasons
 
@@ -295,11 +386,19 @@ class BinanceMinuteAlertService:
                     # 分原因冷却，避免刷屏
                     msg_lines = []
                     for r in reasons:
-                        key = r.split(":")[0].split(" ")[0]  # 粗略分类
+                        key = str(r.get("key") or "")
+                        text = str(r.get("text") or "")
+                        if not text:
+                            continue
+                        # 订单簿大单：按需求不走冷却（偶发，看到就推）
+                        if key == "ORDERBOOK_WALL":
+                            msg_lines.append(text)
+                            continue
                         if self._cooldown_ok(sym, key):
-                            msg_lines.append(r)
+                            msg_lines.append(text)
                     if msg_lines:
-                        send_dingtalk_alert(sym, f"{self.interval}预警", "\n".join(msg_lines))
+                        # 分钟预警使用专用 Webhook，不走全局 DINGTALK_TOKEN
+                        send_dingtalk_alert_for_minute(sym, f"{self.interval}预警", "\n".join(msg_lines))
             except Exception as e:
                 logger.error(f"1分钟预警循环异常: {e}")
 
@@ -343,36 +442,73 @@ def set_minute_alert_instance(instance: Optional[BinanceMinuteAlertService]):
 # 币种列表缓存：避免每次从交易所拉取 exchangeInfo（约 300KB）
 _SYMBOLS_CACHE: Optional[List[str]] = None
 _SYMBOLS_CACHE_TIME: float = 0
-SYMBOLS_CACHE_TTL_SEC = 3600  # 缓存 1 小时，交易所上新不频繁
+SYMBOLS_CACHE_TTL_SEC = 24 * 3600  # 缓存 24 小时，交易所上新不频繁
+_SYMBOLS_CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "symbols_cache.json"
+
+
+def _load_symbols_from_file() -> Optional[List[str]]:
+    """从本地文件加载币种列表（含时间戳，用于 TTL 判断）"""
+    global _SYMBOLS_CACHE, _SYMBOLS_CACHE_TIME
+    if not _SYMBOLS_CACHE_FILE.exists():
+        return None
+    try:
+        raw = _SYMBOLS_CACHE_FILE.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        symbols = data.get("symbols")
+        updated_at = data.get("updated_at", 0)
+        if isinstance(symbols, list) and len(symbols) > 0:
+            _SYMBOLS_CACHE = symbols
+            _SYMBOLS_CACHE_TIME = float(updated_at)
+            logger.info(f"币种列表从文件加载，共 {len(symbols)} 个，更新于 {updated_at}")
+            return symbols
+    except Exception as e:
+        logger.debug(f"读取币种缓存文件失败: {e}")
+    return None
+
+
+def _save_symbols_to_file(symbols: List[str]) -> None:
+    """将币种列表写入本地文件"""
+    try:
+        _SYMBOLS_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data = {"symbols": symbols, "updated_at": time.time()}
+        _SYMBOLS_CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=0), encoding="utf-8")
+    except Exception as e:
+        logger.debug(f"写入币种缓存文件失败: {e}")
 
 
 def fetch_binance_symbols_usdt() -> List[str]:
-    """获取币安所有 USDT 永续合约交易对列表（带缓存，默认 1 小时内复用）"""
+    """获取币安所有 USDT 永续合约交易对列表（内存+文件缓存，24 小时更新一次）"""
     global _SYMBOLS_CACHE, _SYMBOLS_CACHE_TIME
     now = time.time()
     if _SYMBOLS_CACHE is not None and (now - _SYMBOLS_CACHE_TIME) < SYMBOLS_CACHE_TTL_SEC:
         return _SYMBOLS_CACHE
+    # 内存未命中时先尝试从文件恢复（重启后或首次调用可避免立即请求 API）
+    if _SYMBOLS_CACHE is None:
+        _load_symbols_from_file()
+        if _SYMBOLS_CACHE is not None and (now - _SYMBOLS_CACHE_TIME) < SYMBOLS_CACHE_TTL_SEC:
+            return _SYMBOLS_CACHE
     try:
-        # 【修复】使用合约 API 的 exchangeInfo endpoint
         url = f"{BINANCE_API_BASE}/fapi/v1/exchangeInfo"
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         symbols = []
         for s in data.get("symbols", []):
-            # 合约市场：筛选 USDT 永续合约 (contractType=PERPETUAL)
             if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING" and s.get("contractType") == "PERPETUAL":
                 symbols.append(s["symbol"])
         result = sorted(symbols)
         _SYMBOLS_CACHE = result
         _SYMBOLS_CACHE_TIME = now
+        _save_symbols_to_file(result)
         logger.info(f"币种列表已缓存，共 {len(result)} 个 USDT 永续合约")
         return result
     except Exception as e:
         logger.error(f"获取币安交易对失败: {e}")
         if _SYMBOLS_CACHE is not None:
             return _SYMBOLS_CACHE
-        # 兜底：返回常用合约交易对
+        loaded = _load_symbols_from_file()
+        if loaded is not None:
+            return loaded
         return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "1000SHIBUSDT", "1000PEPEUSDT", "DOGEUSDT"]
 
 
@@ -497,6 +633,28 @@ def send_dingtalk_alert(symbol: str, timeframe: str, message: str = "") -> bool:
         return False
 
 
+def send_dingtalk_alert_for_minute(symbol: str, timeframe: str, message: str = "") -> bool:
+    """
+    分钟预警专用钉钉推送：使用前端截图中配置的监控 Webhook。
+    仅被 BinanceMinuteAlertService 使用，避免影响其它使用 DINGTALK_TOKEN 的告警。
+    """
+    if not MINUTE_ALERT_WEBHOOK:
+        logger.warning("分钟预警钉钉跳过：未配置 MINUTE_ALERT_WEBHOOK")
+        return False
+    try:
+        content = f"\n{symbol} {timeframe} 异动\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{message}"
+        data = {"msgtype": "text", "text": {"content": content}}
+        resp = requests.post(MINUTE_ALERT_WEBHOOK, json=data, timeout=5)
+        if resp.status_code == 200:
+            logger.info(f"分钟预警钉钉已发送: {symbol} {timeframe}")
+            return True
+        logger.error(f"分钟预警钉钉发送失败: {resp.text}")
+        return False
+    except Exception as e:
+        logger.error(f"分钟预警钉钉异常: {e}")
+        return False
+
+
 class BinanceMonitorService:
     """
     币种监视服务：后台轮询K线收线，运行策略，触发钉钉。
@@ -562,7 +720,7 @@ class BinanceMonitorService:
                     self._check_symbol_timeframe(symbol, tf, interval)
             except Exception as e:
                 logger.error(f"币种监视循环异常: {e}")
-            self._stop_event.wait(60)  # 可被立即中断的睡眠
+            self._stop_event.wait(1800)  # 30 分钟轮询一次，降低调用频率
 
     def _check_symbol_timeframe(self, symbol: str, tf: str, interval: str):
         key = (symbol, tf)
@@ -635,6 +793,8 @@ class BinanceMonitorService:
 
 # 币种监视全局共享，不按用户隔离
 _monitor_instance: Optional[BinanceMonitorService] = None
+# 用户主动停止后为 True，避免 get_status 从 DB 恢复导致“停止后仍继续监控”
+_currency_monitor_user_stopped: bool = False
 
 
 def get_monitor_instance() -> Optional[BinanceMonitorService]:
@@ -644,3 +804,13 @@ def get_monitor_instance() -> Optional[BinanceMonitorService]:
 def set_monitor_instance(instance: Optional[BinanceMonitorService]):
     global _monitor_instance
     _monitor_instance = instance
+
+
+def set_currency_monitor_user_stopped(stopped: bool):
+    """停止/启动时设置，防止停止后通过 DB 缓存再次拉起监控"""
+    global _currency_monitor_user_stopped
+    _currency_monitor_user_stopped = stopped
+
+
+def get_currency_monitor_user_stopped() -> bool:
+    return _currency_monitor_user_stopped

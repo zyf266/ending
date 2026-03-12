@@ -11,6 +11,8 @@ from backpack_quant_trading.core.binance_monitor import (
     BinanceMonitorService,
     get_monitor_instance,
     set_monitor_instance,
+    set_currency_monitor_user_stopped,
+    get_currency_monitor_user_stopped,
     BinanceMinuteAlertService,
     get_minute_alert_instance,
     set_minute_alert_instance,
@@ -53,9 +55,11 @@ class MinuteAlertStartRequest(BaseModel):
 
 @router.get("/status")
 def get_status(user: dict = Depends(get_current_user)):
-    """监视器状态（全局共享）"""
+    """监视器状态（全局共享）。用户主动停止后不再从 DB 恢复，避免缓存导致继续监控。"""
     if not user:
         return {"running": False, "pairs": []}
+    if get_currency_monitor_user_stopped():
+        return {"running": False, "pairs": [], "alerted": []}
     inst = get_monitor_instance()
     if not inst or not getattr(inst, "_running", False):
         cfg = DatabaseManager().get_currency_monitor_config()
@@ -85,6 +89,7 @@ def get_status(user: dict = Depends(get_current_user)):
 @router.post("/start")
 def start_monitor(req: MonitorStartRequest, user: dict = Depends(require_user)):
     """启动币种监视（合并已有配对，支持多选，全局共享）"""
+    set_currency_monitor_user_stopped(False)
     if not req.symbols or not req.timeframes:
         raise HTTPException(status_code=400, detail="请选择币种和 K 线级别")
     inst = get_monitor_instance()
@@ -122,7 +127,8 @@ def start_monitor(req: MonitorStartRequest, user: dict = Depends(require_user)):
 
 @router.post("/stop")
 def stop_monitor(user: dict = Depends(require_user)):
-    """停止全部监视（关闭所有正在监控的币种）"""
+    """停止全部监视（关闭所有正在监控的币种，并清除 DB 与恢复标记，停止后不再从缓存恢复）"""
+    set_currency_monitor_user_stopped(True)
     inst = get_monitor_instance()
     if inst and getattr(inst, "_running", False):
         inst.stop()

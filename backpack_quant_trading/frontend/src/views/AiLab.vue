@@ -22,14 +22,33 @@
           </div>
         </el-form-item>
         <el-form-item>
-          <span class="label">2. 原始 OHLC 数据 (JSON)</span>
+          <span class="label">2. 选择币种与K线周期</span>
+          <div class="symbol-interval-row">
+            <el-select
+              v-model="selectedSymbol"
+              filterable
+              clearable
+              placeholder="选择币安合约交易对，如 ETHUSDT"
+              class="symbol-select"
+              :filter-method="handleSymbolFilter"
+              @visible-change="loadSymbols"
+            >
+              <el-option v-for="s in filteredSymbols" :key="s" :label="s" :value="s" />
+            </el-select>
+            <el-select v-model="interval" class="interval-select">
+              <el-option v-for="opt in intervalOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            </el-select>
+          </div>
+        </el-form-item>
+        <el-form-item>
+          <span class="label">3. 原始 OHLC 数据 (JSON)</span>
           <el-button type="warning" @click="fetchKline" :loading="fetching" class="fetch-btn">
             抓取最新行情
           </el-button>
           <el-input v-model="klineJson" type="textarea" :rows="6" placeholder='[{"time": 123, "open": 100, "high": 101, "low": 99, "close": 100}]' class="kline-textarea" />
         </el-form-item>
         <el-form-item>
-          <span class="label">3. 分析指令 (驯化提示词)</span>
+          <span class="label">4. 分析指令 (驯化提示词)</span>
           <el-input v-model="userQuery" placeholder="请根据当前的 K 线图形和原始数据，识别趋势并标注买卖点。" class="query-input" />
         </el-form-item>
         <el-form-item>
@@ -57,6 +76,7 @@ import { ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import { fetchKline as apiFetchKline, runAnalyze as apiRunAnalyze } from '../api/aiLab'
+import { getSymbols } from '../api/currencyMonitor'
 
 const chartRef = ref(null)
 const imagePreview = ref('')
@@ -69,6 +89,21 @@ const suggestedSell = ref([])
 const fetching = ref(false)
 const analyzing = ref(false)
 
+// 币种与周期选择
+const symbolList = ref([])
+const filteredSymbols = ref([])
+const selectedSymbol = ref('ETHUSDT')
+const interval = ref('15m')
+const intervalOptions = [
+  { label: '1分钟', value: '1m' },
+  { label: '15分钟', value: '15m' },
+  { label: '1小时', value: '1h' },
+  { label: '2小时', value: '2h' },
+  { label: '4小时', value: '4h' },
+  { label: '日线', value: '1d' },
+  { label: '周线', value: '1w' },
+]
+
 function onFileChange(file) {
   const reader = new FileReader()
   reader.onload = (e) => {
@@ -78,10 +113,40 @@ function onFileChange(file) {
   reader.readAsDataURL(file.raw)
 }
 
+async function loadSymbols(visible) {
+  if (!visible) return
+  if (symbolList.value.length) {
+    filteredSymbols.value = symbolList.value
+    return
+  }
+  try {
+    const res = await getSymbols()
+    const list = Array.isArray(res.symbols) ? res.symbols : []
+    symbolList.value = list
+    filteredSymbols.value = list
+  } catch (e) {
+    ElMessage.error('获取币安合约列表失败')
+  }
+}
+
+function handleSymbolFilter(query) {
+  const kw = (query || '').toUpperCase()
+  if (!kw) {
+    filteredSymbols.value = symbolList.value
+  } else {
+    filteredSymbols.value = symbolList.value.filter((s) => s.includes(kw))
+  }
+}
+
 async function fetchKline() {
   fetching.value = true
   try {
-    const res = await apiFetchKline()
+    if (!selectedSymbol.value) {
+      ElMessage.warning('请先选择币种')
+      fetching.value = false
+      return
+    }
+    const res = await apiFetchKline({ symbol: selectedSymbol.value, interval: interval.value, limit: 1500 })
     if (res.error) {
       ElMessage.error(res.error)
     } else if (res.data) {
@@ -111,6 +176,8 @@ async function runAnalyze() {
       image_base64: imageBase64.value || undefined,
       kline_json: kj,
       user_query: userQuery.value,
+      symbol: selectedSymbol.value || 'ETHUSDT',
+      interval: interval.value || '15m',
     })
     analysisOutput.value = res.analysis || ''
     suggestedBuy.value = res.buy || []
@@ -242,6 +309,14 @@ watch([klineJson, suggestedBuy, suggestedSell], () => renderChart(), { immediate
 }
 .upload-inner:hover { border-color: var(--color-primary); background: rgba(245, 158, 11, 0.04); color: var(--color-text); }
 .fetch-btn { width: 100%; height: 40px; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.symbol-interval-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.symbol-select { min-width: 220px; max-width: 320px; }
+.interval-select { width: 140px; }
 .kline-textarea :deep(.el-textarea__inner) {
   min-height: 120px !important;
   font-size: 13px;

@@ -1,0 +1,146 @@
+2026-03-12 11:06:29 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 11:06:29 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 11:06:29 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 11:06:29 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 11:07:12 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 11:07:13 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 11:07:18 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 11:07:19 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:20:27 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:20:27 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:20:27 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:20:27 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:20:27 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:20:28 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:20:35 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:20:35 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:21:40 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:21:40 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:21:40 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:21:40 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:24:01 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-12 14:24:03 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-12 14:24:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-12 14:24:06 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): 17.push2.eastmoney.com:443
+2026-03-12 14:24:07 | DEBUG    | urllib3.connectionpool:475 | https://push2.eastmoney.com:443 "GET /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf122%2Cf174%2Cf175%2Cf59%2Cf163%2Cf43%2Cf57%2Cf58%2Cf169%2Cf170%2Cf46%2Cf44%2Cf51%2Cf168%2Cf47%2Cf164%2Cf116%2Cf60%2Cf45%2Cf52%2Cf50%2Cf48%2Cf167%2Cf117%2Cf71%2Cf161%2Cf49%2Cf530%2Cf135%2Cf136%2Cf137%2Cf138%2Cf139%2Cf141%2Cf142%2Cf144%2Cf145%2Cf147%2Cf148%2Cf140%2Cf143%2Cf146%2Cf149%2Cf55%2Cf62%2Cf162%2Cf92%2Cf173%2Cf104%2Cf105%2Cf84%2Cf85%2Cf183%2Cf184%2Cf185%2Cf186%2Cf187%2Cf188%2Cf189%2Cf190%2Cf191%2Cf192%2Cf107%2Cf111%2Cf86%2Cf177%2Cf78%2Cf110%2Cf262%2Cf263%2Cf264%2Cf267%2Cf268%2Cf255%2Cf256%2Cf257%2Cf258%2Cf127%2Cf199%2Cf128%2Cf198%2Cf259%2Cf260%2Cf261%2Cf171%2Cf277%2Cf278%2Cf279%2Cf288%2Cf152%2Cf250%2Cf251%2Cf252%2Cf253%2Cf254%2Cf269%2Cf270%2Cf271%2Cf272%2Cf273%2Cf274%2Cf275%2Cf276%2Cf265%2Cf266%2Cf289%2Cf290%2Cf286%2Cf285%2Cf292%2Cf293%2Cf294%2Cf295%2Cf43&secid=1.601678 HTTP/1.1" 200 None
+2026-03-12 14:24:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): web.ifzq.gtimg.cn:443
+2026-03-12 14:24:07 | WARNING  | backpack_quant_trading.core.stock_ai:111 | 获取行业列表失败: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-03-12 14:24:07 | DEBUG    | urllib3.connectionpool:475 | https://web.ifzq.gtimg.cn:443 "GET /other/klineweb/klineWeb/weekTrends?code=sh601678&type=qfq&_var=trend_qfq&r=0.3506048543943414 HTTP/1.1" 200 None
+2026-03-12 14:24:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-12 14:24:08 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2025&param=sh601678%2Cday%2C2025-01-01%2C2026-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-12 14:24:08 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): proxy.finance.qq.com:443
+2026-03-12 14:24:09 | DEBUG    | urllib3.connectionpool:475 | https://proxy.finance.qq.com:443 "GET /ifzqgtimg/appstock/app/newfqkline/get?_var=kline_dayqfq2026&param=sh601678%2Cday%2C2026-01-01%2C2027-12-31%2C640%2Cqfq&r=0.8205512681390605 HTTP/1.1" 200 None
+2026-03-12 14:24:09 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): push2.eastmoney.com:443
+2026-03-12 14:24:10 | DEBUG    | urllib3.connectionpool:475 | https://push2.eastmoney.com:443 "GET /api/qt/stock/get?fltt=2&invt=2&fields=f120%2Cf121%2Cf122%2Cf174%2Cf175%2Cf59%2Cf163%2Cf43%2Cf57%2Cf58%2Cf169%2Cf170%2Cf46%2Cf44%2Cf51%2Cf168%2Cf47%2Cf164%2Cf116%2Cf60%2Cf45%2Cf52%2Cf50%2Cf48%2Cf167%2Cf117%2Cf71%2Cf161%2Cf49%2Cf530%2Cf135%2Cf136%2Cf137%2Cf138%2Cf139%2Cf141%2Cf142%2Cf144%2Cf145%2Cf147%2Cf148%2Cf140%2Cf143%2Cf146%2Cf149%2Cf55%2Cf62%2Cf162%2Cf92%2Cf173%2Cf104%2Cf105%2Cf84%2Cf85%2Cf183%2Cf184%2Cf185%2Cf186%2Cf187%2Cf188%2Cf189%2Cf190%2Cf191%2Cf192%2Cf107%2Cf111%2Cf86%2Cf177%2Cf78%2Cf110%2Cf262%2Cf263%2Cf264%2Cf267%2Cf268%2Cf255%2Cf256%2Cf257%2Cf258%2Cf127%2Cf199%2Cf128%2Cf198%2Cf259%2Cf260%2Cf261%2Cf171%2Cf277%2Cf278%2Cf279%2Cf288%2Cf152%2Cf250%2Cf251%2Cf252%2Cf253%2Cf254%2Cf269%2Cf270%2Cf271%2Cf272%2Cf273%2Cf274%2Cf275%2Cf276%2Cf265%2Cf266%2Cf289%2Cf290%2Cf286%2Cf285%2Cf292%2Cf293%2Cf294%2Cf295%2Cf43&secid=1.601678 HTTP/1.1" 200 None
+2026-03-12 14:24:10 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): quotes.sina.cn:443
+2026-03-12 14:24:10 | DEBUG    | urllib3.connectionpool:475 | https://quotes.sina.cn:443 "GET /cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022?paperCode=601678&source=lrb&type=0&page=1&num=1000 HTTP/1.1" 200 None
+2026-03-12 14:24:11 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:24:12 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:26:15 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:26:16 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:26:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:26:26 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:32:22 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:32:22 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:32:22 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:32:22 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:32:36 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:32:37 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:32:42 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:32:43 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:34:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:34:39 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:34:49 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:34:49 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:34:49 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:34:49 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:34:49 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:34:49 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:35:07 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:35:07 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:35:07 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:35:07 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:35:30 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:35:31 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:35:44 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:35:44 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:35:50 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:35:51 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:38:20 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:38:20 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:38:20 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:38:20 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:38:46 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:38:46 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:38:46 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:38:46 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:39:07 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:39:08 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:39:14 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:39:14 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:42:07 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:42:07 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:42:07 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:42:07 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:43:25 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:43:26 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:43:31 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:43:32 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:48:52 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:48:52 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:48:52 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:48:52 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:49:23 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:49:23 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:49:23 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:49:23 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:49:29 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:49:29 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:49:29 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:49:29 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:49:59 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:49:59 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:49:59 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:49:59 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:50:07 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:50:07 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:50:07 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:50:07 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:51:38 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:51:38 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:51:43 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:51:44 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:51:51 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:51:52 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:51:57 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:51:58 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:52:39 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:52:39 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:55:14 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:55:14 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:55:14 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:55:14 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:55:28 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:55:28 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:55:28 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:55:28 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:55:42 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:55:42 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:55:42 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:55:42 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:55:54 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:55:54 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:55:54 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:55:54 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:56:20 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-03-12 14:56:20 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-03-12 14:56:20 | DEBUG    | matplotlib:1560 | interactive is False
+2026-03-12 14:56:20 | DEBUG    | matplotlib:1561 | platform is win32
+2026-03-12 14:57:45 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:57:46 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:57:51 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:57:52 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:57:57 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:57:58 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-03-12 14:58:04 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.deepseek.com:443
+2026-03-12 14:58:04 | DEBUG    | urllib3.connectionpool:475 | https://api.deepseek.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None

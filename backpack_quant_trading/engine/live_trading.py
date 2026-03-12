@@ -1777,14 +1777,28 @@ class LiveTradingEngine:
                     order_side = OrderSide.BUY if signal.action == "buy" else OrderSide.SELL
                     # 【修复】强制使用市价单确保立即成交
                     order_type = OrderType.MARKET
-                    
+                    # === 关键：把“平仓/减仓信号”按 reduce_only 执行，否则容易反手开仓 ===
+                    is_close = False
+                    reduce_only = False
+                    try:
+                        # 若引擎当前有持仓，且信号方向与持仓相反，则视为平仓/减仓
+                        if symbol in self.positions:
+                            pos = self.positions[symbol]
+                            if (pos.side == PositionSide.LONG and order_side == OrderSide.SELL) or (pos.side == PositionSide.SHORT and order_side == OrderSide.BUY):
+                                is_close = True
+                                reduce_only = True
+                    except Exception:
+                        pass
+
                     await self.place_order(
                         symbol=symbol,
                         side=order_side,
                         order_type=order_type,
                         quantity=Decimal(str(signal.quantity)),
                         price=None,  # 市价单不需要价格
-                        strategy_signal=signal
+                        strategy_signal=signal,
+                        is_close=is_close,
+                        reduce_only=reduce_only,
                     )
             else:
                 logger.debug(f"无交易信号: {symbol} - 价格: {df['close'].iloc[-1]:.2f}")
@@ -1821,7 +1835,7 @@ class LiveTradingEngine:
 
     async def _position_monitor_loop(self):
         """【新增】持仓监控循环：监控止盈止损"""
-        logger.info("👀 启动持仓监控循环（止盈止损）")
+        logger.info("启动持仓监控循环（止盈止损）")
         while self.running:
             try:
                 # 【修复】先获取持仓列表副本，立即释放锁
@@ -1856,6 +1870,78 @@ class LiveTradingEngine:
                             
                             self.positions[position.symbol].mark_price = current_price
                         
+                        # === 优先使用“策略给出的价位止盈止损”（与 TradingView strategy.exit 更一致）===
+                        # 若策略在 strategy.positions[symbol] 里写入了 stop_loss/take_profit，则按价位触发，
+                        # 并跳过全局 config.trading 的阈值（避免策略逻辑被引擎提前/错误平仓）。
+                        strat_stop = None
+                        strat_tp = None
+                        try:
+                            if position.symbol in self.strategies:
+                                strat = self.strategies[position.symbol]
+                                sp = getattr(strat, "positions", {}).get(position.symbol)
+                                if sp is not None:
+                                    strat_stop = getattr(sp, "stop_loss", None)
+                                    strat_tp = getattr(sp, "take_profit", None)
+                        except Exception:
+                            strat_stop = None
+                            strat_tp = None
+
+                        if strat_stop is not None or strat_tp is not None:
+                            cur_px = float(current_price)
+                            stop_px = float(strat_stop) if strat_stop is not None else None
+                            tp_px = float(strat_tp) if strat_tp is not None else None
+
+                            if position.side == PositionSide.LONG:
+                                if stop_px and cur_px <= stop_px:
+                                    logger.warning(f"[止损价位触发] {position.symbol} LONG 当前{cur_px:.4f} <= SL{stop_px:.4f}")
+                                    await self._close_position(position, "strategy_stop_loss")
+                                    continue
+                                if tp_px and cur_px >= tp_px:
+                                    logger.info(f"[止盈价位触发] {position.symbol} LONG 当前{cur_px:.4f} >= TP{tp_px:.4f}")
+                                    await self._close_position(position, "strategy_take_profit")
+                                    continue
+                            else:
+                                if stop_px and cur_px >= stop_px:
+                                    logger.warning(f"[止损价位触发] {position.symbol} SHORT 当前{cur_px:.4f} >= SL{stop_px:.4f}")
+                                    await self._close_position(position, "strategy_stop_loss")
+                                    continue
+                                if tp_px and cur_px <= tp_px:
+                                    logger.info(f"[止盈价位触发] {position.symbol} SHORT 当前{cur_px:.4f} <= TP{tp_px:.4f}")
+                                    await self._close_position(position, "strategy_take_profit")
+                                    continue
+
+                            # 若使用策略价位，则不再走全局阈值（直接更新未实现盈亏即可）
+                            entry_price = float(position.entry_price)
+                            current_price_float = float(current_price)
+                            if entry_price > 0:
+                                if position.side == PositionSide.LONG:
+                                    pnl_percent = ((current_price_float - entry_price) / entry_price) * config.trading.LEVERAGE
+                                    unrealized_pnl = (current_price - position.entry_price) * position.quantity
+                                else:
+                                    pnl_percent = ((entry_price - current_price_float) / entry_price) * config.trading.LEVERAGE
+                                    unrealized_pnl = (position.entry_price - current_price) * position.quantity
+                            else:
+                                pnl_percent = 0.0
+                                unrealized_pnl = Decimal("0")
+                            async with self.position_lock:
+                                if position.symbol in self.positions:
+                                    self.positions[position.symbol].unrealized_pnl = unrealized_pnl
+                            # 写库（保持原字段）
+                            position_data = {
+                                'symbol': position.symbol,
+                                'side': position.side.value,
+                                'quantity': float(position.quantity),
+                                'entry_price': float(position.entry_price),
+                                'current_price': float(current_price),
+                                'unrealized_pnl': float(unrealized_pnl),
+                                'unrealized_pnl_percent': pnl_percent,
+                                'stop_loss': stop_px,
+                                'take_profit': tp_px,
+                                'opened_at': position.created_at
+                            }
+                            self.db_manager.save_position(position_data)
+                            continue
+
                         # 【修复】计算收益率（在锁外）
                         entry_price = float(position.entry_price)
                         current_price_float = float(current_price)

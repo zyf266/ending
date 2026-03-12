@@ -14,6 +14,7 @@ from .core.risk_manager import RiskManager
 from .strategy.base import BaseStrategy
 from .strategy.mean_reversion import MeanReversionStrategy
 from .strategy.ai_adaptive import AIAdaptiveStrategy
+from .strategy.dual_freq_trend import DualFreqTrendResonanceStrategy
 from .engine.backtest import BacktestEngine, BacktestResult
 from .engine.live_trading import LiveTradingEngine
 from .utils.logger import setup_logger, get_logger
@@ -32,6 +33,7 @@ STRATEGY_REGISTRY: dict[str, Any] = {
     "mean_reversion": MeanReversionStrategy,
     "ai_adaptive": AIAdaptiveStrategy,
     "high_frequency": "日内高频交易",
+    "dual_freq_trend": DualFreqTrendResonanceStrategy,
 }
 
 # 策略显示名称映射
@@ -39,6 +41,7 @@ STRATEGY_DISPLAY_NAMES = {
     "mean_reversion": "均值回归测试",
     "ai_adaptive": "Ai自适应策略",
     "high_frequency": "日内高频交易",
+    "dual_freq_trend": "双频趋势共振(1m入场/15m趋势)",
 }
 
 # 交易所注册表：目前支持 backpack, deepcoin, ostium
@@ -202,6 +205,16 @@ async def run_live_demo(args):
     # 如果传入了杠杆，覆盖全局配置（仅对当前进程生效）
     if getattr(args, "leverage", None):
         config.trading.LEVERAGE = args.leverage
+    # 让前端传入的止盈止损真正生效：写入全局风控配置（LiveTradingEngine 会按此自动止盈止损）
+    # 但 dual_freq_trend 的止盈止损由策略给出具体价位并由引擎按价位触发（与 TV 更一致），
+    # 这里不要把“保证金收益%”误写进全局比例。
+    if getattr(args, "strategy", "") != "dual_freq_trend":
+        if getattr(args, "stop_loss", None) is not None:
+            config.trading.STOP_LOSS_PERCENT = float(args.stop_loss)
+            config.trading.ENABLE_STOP_LOSS = True
+        if getattr(args, "take_profit", None) is not None:
+            config.trading.TAKE_PROFIT_PERCENT = float(args.take_profit)
+            config.trading.ENABLE_STOP_LOSS = True
 
     bot = TradingBot(mode='live')
 
@@ -227,6 +240,12 @@ async def run_live_demo(args):
         strategy_kwargs["leverage"] = getattr(args, "leverage", 50)  # 杠杆(默认50x)
         strategy_kwargs["stop_loss_ratio"] = getattr(args, "stop_loss", 0.015)  # 止损比例(默认1.5%)
         strategy_kwargs["take_profit_ratio"] = getattr(args, "take_profit", 0.02)  # 止盈比例(默认2%)
+    elif strategy_name == "dual_freq_trend":
+        # dual 策略：前端“下单保证金/杠杆/止盈止损”直接映射到策略参数
+        strategy_kwargs["margin"] = getattr(args, "position_size", None)  # 保证金上限（U/USDC）
+        strategy_kwargs["leverage"] = getattr(args, "leverage", None)
+        strategy_kwargs["stop_loss_ratio"] = getattr(args, "stop_loss", None)
+        strategy_kwargs["take_profit_ratio"] = getattr(args, "take_profit", None)
     
     strategy = strategy_cls(**strategy_kwargs)
     # 默认参数仍然沿用原有设置，便于快速测试
@@ -266,6 +285,16 @@ async def run_live_demo(args):
 
 
 def main():
+    # Windows 默认控制台可能是 GBK，遇到 emoji/特殊字符会直接崩溃（你之前 live 就是这样挂的）
+    # 强制 stdout/stderr 用 UTF-8，避免 UnicodeEncodeError 中断实盘进程
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser(description='Backpack Exchange 量化交易系统')
     parser.add_argument('--mode', choices=['backtest', 'live'], default='backtest',
                         help='运行模式: backtest=回测, live=实盘')

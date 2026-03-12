@@ -78,11 +78,11 @@
         <el-form-item label="杠杆倍数">
           <el-input-number v-model="form.leverage" :min="1" :max="100" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="止盈比例 (%)">
-          <el-input-number v-model="form.take_profit" :min="0" :max="100" :precision="1" style="width: 100%" />
+        <el-form-item :label="isDualFreq ? '止盈(保证金收益%)' : '止盈比例 (%)'">
+          <el-input-number v-model="form.take_profit" :min="0" :max="isDualFreq ? 300 : 100" :precision="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="止损比例 (%)">
-          <el-input-number v-model="form.stop_loss" :min="0" :max="100" :precision="1" style="width: 100%" />
+        <el-form-item :label="isDualFreq ? '止损(保证金收益%)' : '止损比例 (%)'">
+          <el-input-number v-model="form.stop_loss" :min="0" :max="isDualFreq ? 200 : 100" :precision="1" style="width: 100%" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getStrategies, getInstances, launchStrategy, stopInstance, getLogs } from '../api/trading'
 
@@ -120,18 +120,32 @@ const form = reactive({
   private_key: '',
 })
 
+const isDualFreq = computed(() => form.strategy === 'dual_freq_trend')
+
+// dual_freq_trend：止盈/止损按 Pine 语义（保证金收益%）
+watch(
+  () => form.strategy,
+  (v, prev) => {
+    if (v === 'dual_freq_trend' && prev !== 'dual_freq_trend') {
+      form.leverage = 100
+      form.size = 10
+      form.take_profit = 150.0
+      form.stop_loss = 50.0
+    }
+  }
+)
+
+const intervalIds = []
+onUnmounted(() => {
+  intervalIds.forEach(clearInterval)
+})
 onMounted(async () => {
   try {
     const res = await getStrategies()
     strategies.value = res.strategies || []
   } catch {}
   await refresh()
-  const t1 = setInterval(refresh, 5000)
-  const t2 = setInterval(refreshLogs, 10000)
-  onUnmounted(() => {
-    clearInterval(t1)
-    clearInterval(t2)
-  })
+  intervalIds.push(setInterval(refresh, 5000), setInterval(refreshLogs, 10000))
 })
 
 async function refresh() {

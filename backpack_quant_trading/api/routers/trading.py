@@ -95,89 +95,99 @@ def list_strategies():
 @router.get("/instances")
 def list_instances(user: dict = Depends(require_user)):
     """当前用户的实盘实例（含 Webhook 恢复）"""
-    db = DatabaseManager()
-    my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    try:
+        db = DatabaseManager()
+        my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    except Exception as e:
+        _log = __import__("logging").getLogger(__name__)
+        _log.exception("list_instances: %s", e)
+        return {"instances": []}
     if not my_ids:
         return {"instances": []}
 
-    # 尝试从 Webhook 获取运行中实例
-    instances = []
-    if _is_port_in_use(WEBHOOK_PORT):
-        try:
-            r = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/instances", timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                for inst in data.get("instances", []):
-                    iid = inst.get("instance_id", inst)
-                    if iid in my_ids:
-                        balance_str = "同步中..."
-                        try:
-                            br = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/balance/{iid}", timeout=3)
-                            if br.status_code == 200:
-                                bj = br.json()
-                                bal = bj.get("balance")
-                                if bal is not None:
-                                    balance_str = f"{float(bal):,.2f}"
-                        except Exception:
-                            pass
-                        instances.append({
-                            "id": iid,
-                            "pid": _get_webhook_pid(),
-                            "platform": inst.get("exchange", "ostium"),
-                            "strategy_name": inst.get("strategy", ""),
-                            "symbol": inst.get("symbol", ""),
-                            "start_time": "--:--",
-                            "balance": balance_str,
-                            "webhook_instance_id": iid,
-                            "status": "running",
-                        })
-        except Exception:
-            pass
+    try:
+        # 尝试从 Webhook 获取运行中实例
+        instances = []
+        if _is_port_in_use(WEBHOOK_PORT):
+            try:
+                r = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/instances", timeout=5)
+                if r.status_code == 200:
+                    data = r.json()
+                    for inst in data.get("instances", []):
+                        iid = inst.get("instance_id", inst)
+                        if iid in my_ids:
+                            balance_str = "同步中..."
+                            try:
+                                br = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/balance/{iid}", timeout=3)
+                                if br.status_code == 200:
+                                    bj = br.json()
+                                    bal = bj.get("balance")
+                                    if bal is not None:
+                                        balance_str = f"{float(bal):,.2f}"
+                            except Exception:
+                                pass
+                            instances.append({
+                                "id": iid,
+                                "pid": _get_webhook_pid(),
+                                "platform": inst.get("exchange", "ostium"),
+                                "strategy_name": inst.get("strategy", ""),
+                                "symbol": inst.get("symbol", ""),
+                                "start_time": "--:--",
+                                "balance": balance_str,
+                                "webhook_instance_id": iid,
+                                "status": "running",
+                            })
+            except Exception:
+                pass
 
-    # 补充 DB 中有但 Webhook 未返回的（子进程实例 Backpack/Deepcoin）
-    _pids_path = PROJECT_ROOT / "backpack_quant_trading" / "log" / "live_pids.json"
-    _balances_path = PROJECT_ROOT / "backpack_quant_trading" / "log" / "live_balances.json"
-    _pids = {}
-    _balances = {}
-    if _pids_path.exists():
-        try:
-            _pids = json.loads(_pids_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    if _balances_path.exists():
-        try:
-            _balances = json.loads(_balances_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    configs = {iid: cfg for iid, cfg in db.get_user_instance_configs(user["id"], "live")}
-    for iid in my_ids:
-        if any(inst["id"] == iid for inst in instances):
-            continue
-        cfg = configs.get(iid)
-        try:
-            obj = json.loads(cfg) if cfg else {}
-        except Exception:
-            obj = {}
-        pid = _pids.get(iid, 0)
-        balance_str = "--"
-        if iid in _balances:
-            bal = _balances[iid].get("balance")
-            if bal is not None:
-                balance_str = f"{float(bal):,.2f}"
-        raw_strategy = obj.get("strategy", "")
-        strategy_name = STRATEGY_DISPLAY_NAMES.get(raw_strategy, raw_strategy)
-        instances.append({
-            "id": iid,
-            "pid": pid,
-            "platform": obj.get("platform", "backpack"),
-            "strategy_name": strategy_name,
-            "symbol": obj.get("symbol", ""),
-            "start_time": "--:--",
-            "balance": balance_str,
-            "status": "running",
-        })
+        # 补充 DB 中有但 Webhook 未返回的（子进程实例 Backpack/Deepcoin）
+        _pids_path = PROJECT_ROOT / "backpack_quant_trading" / "log" / "live_pids.json"
+        _balances_path = PROJECT_ROOT / "backpack_quant_trading" / "log" / "live_balances.json"
+        _pids = {}
+        _balances = {}
+        if _pids_path.exists():
+            try:
+                _pids = json.loads(_pids_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        if _balances_path.exists():
+            try:
+                _balances = json.loads(_balances_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        configs = {iid: cfg for iid, cfg in db.get_user_instance_configs(user["id"], "live")}
+        for iid in my_ids:
+            if any(inst["id"] == iid for inst in instances):
+                continue
+            cfg = configs.get(iid)
+            try:
+                obj = json.loads(cfg) if cfg else {}
+            except Exception:
+                obj = {}
+            pid = _pids.get(iid, 0)
+            balance_str = "--"
+            if iid in _balances:
+                bal = _balances[iid].get("balance")
+                if bal is not None:
+                    balance_str = f"{float(bal):,.2f}"
+            raw_strategy = obj.get("strategy", "")
+            strategy_name = STRATEGY_DISPLAY_NAMES.get(raw_strategy, raw_strategy)
+            instances.append({
+                "id": iid,
+                "pid": pid,
+                "platform": obj.get("platform", "backpack"),
+                "strategy_name": strategy_name,
+                "symbol": obj.get("symbol", ""),
+                "start_time": "--:--",
+                "balance": balance_str,
+                "status": "running",
+            })
 
-    return {"instances": instances}
+        return {"instances": instances}
+    except Exception as e:
+        _log = __import__("logging").getLogger(__name__)
+        _log.exception("list_instances: %s", e)
+        return {"instances": []}
 
 
 class LaunchRequest(BaseModel):
@@ -289,8 +299,9 @@ def launch_strategy(req: LaunchRequest, user: dict = Depends(require_user)):
         "--symbols", symbol,
         "--position-size", str(req.size),
         "--leverage", str(req.leverage),
-        "--take-profit", str((req.take_profit or 2) / 100),
-        "--stop-loss", str((req.stop_loss or 1.5) / 100),
+        # dual_freq_trend：止盈止损按 Pine 语义（保证金收益%），直接传原值；其他策略仍用“百分比/100”
+        "--take-profit", str((req.take_profit or 2) if req.strategy == "dual_freq_trend" else ((req.take_profit or 2) / 100)),
+        "--stop-loss", str((req.stop_loss or 1.5) if req.strategy == "dual_freq_trend" else ((req.stop_loss or 1.5) / 100)),
     ]
 
     log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
@@ -374,28 +385,33 @@ def stop_instance(instance_id: str, user: dict = Depends(require_user)):
 @router.get("/logs")
 def get_logs(user: dict = Depends(require_user)):
     """获取实时日志（最近 150 行）"""
-    log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
-    lines = []
-    for fname in ["webhook_server.log", "live_console.log"]:
-        fp = log_dir / fname
-        if fp.exists():
-            try:
-                with open(fp, "rb") as f:
-                    f.seek(0, 2)
-                    size = f.tell()
-                    buf = min(300 * 150, size)
-                    f.seek(-buf, 2)
-                    chunk = f.read().decode("utf-8", errors="replace")
-                    for line in chunk.splitlines():
-                        if line.strip():
-                            lines.append(f"[{fname}] {line}")
-            except Exception:
-                pass
+    try:
+        log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
+        lines = []
+        for fname in ["webhook_server.log", "live_console.log"]:
+            fp = log_dir / fname
+            if fp.exists():
+                try:
+                    with open(fp, "rb") as f:
+                        f.seek(0, 2)
+                        size = f.tell()
+                        buf = min(300 * 150, size)
+                        f.seek(-buf, 2)
+                        chunk = f.read().decode("utf-8", errors="replace")
+                        for line in chunk.splitlines():
+                            if line.strip():
+                                lines.append(f"[{fname}] {line}")
+                except Exception:
+                    pass
 
-    import re
-    pat = re.compile(r"(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2})")
-    def _t(l):
-        m = pat.search(l)
-        return m.group(1) if m else "0000-00-00 00:00:00"
-    lines.sort(key=_t, reverse=True)
-    return {"logs": "\n".join(lines[:150]) if lines else "等待日志输出..."}
+        import re
+        pat = re.compile(r"(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2})")
+        def _t(l):
+            m = pat.search(l)
+            return m.group(1) if m else "0000-00-00 00:00:00"
+        lines.sort(key=_t, reverse=True)
+        return {"logs": "\n".join(lines[:150]) if lines else "等待日志输出..."}
+    except Exception as e:
+        _log = __import__("logging").getLogger(__name__)
+        _log.exception("get_logs: %s", e)
+        return {"logs": "暂无日志"}

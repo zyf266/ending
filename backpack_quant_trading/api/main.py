@@ -12,8 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(
-    title="Backpack 量化交易终端 API",
-    description="FastAPI 后端服务",
+    title="沐龙量化交易平台 API",
+    description="实盘交易、策略回测、AI 实验室、OKX Agent 集成、网格与监控",
     version="1.0.0",
 )
 
@@ -34,7 +34,7 @@ app.add_middleware(
 )
 
 # 注册路由
-from backpack_quant_trading.api.routers import auth, trading, grid, currency_monitor, dashboard, ai_lab
+from backpack_quant_trading.api.routers import auth, trading, grid, currency_monitor, dashboard, ai_lab, stock_ai, strategy, okx_agent, okx_console
 
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(trading.router, prefix="/api/trading", tags=["实盘交易"])
@@ -42,6 +42,10 @@ app.include_router(grid.router, prefix="/api/grid", tags=["网格交易"])
 app.include_router(currency_monitor.router, prefix="/api/currency-monitor", tags=["币种监视"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["数据大屏"])
 app.include_router(ai_lab.router, prefix="/api/ai-lab", tags=["AI实验室"])
+app.include_router(stock_ai.router, prefix="/api/stock-ai", tags=["A股AI选股"])
+app.include_router(strategy.router, prefix="/api/strategy", tags=["量化策略"])
+app.include_router(okx_agent.router, prefix="/api/okx-agent", tags=["OKX AI 交易"])
+app.include_router(okx_console.router, prefix="/api/okx-console", tags=["OKX 控制台"])
 
 
 @app.get("/api/health")
@@ -80,5 +84,14 @@ for base in (_pkg_dir, _cwd_dir, _cwd_dir / "backpack_quant_trading"):
             return FileResponse(frontend_dist / "index.html")
         @app.get("/currency-monitor")
         def _monitor():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/stock-ai")
+        def _stock_ai():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/okx-agent")
+        def _okx_agent():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/okx-console")
+        def _okx_console():
             return FileResponse(frontend_dist / "index.html")
         break

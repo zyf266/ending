@@ -125,6 +125,19 @@
         <div v-else class="empty success">系统运行正常</div>
       </el-card>
     </div>
+
+    <el-card class="capabilities-card">
+      <template #header><span class="cap-header">🚀 平台能力 · 集成与扩展</span></template>
+      <div class="cap-grid">
+        <router-link to="/trading" class="cap-item">⚡ 实盘交易</router-link>
+        <router-link to="/ai-lab" class="cap-item">🤖 AI 实验室</router-link>
+        <router-link to="/strategies" class="cap-item">📐 量化策略矩阵</router-link>
+        <router-link to="/okx-agent" class="cap-item cap-highlight">🦅 OKX AI 交易</router-link>
+        <router-link to="/grid-trading" class="cap-item">🎯 合约网格</router-link>
+        <router-link to="/currency-monitor" class="cap-item">🔔 币种监视</router-link>
+        <router-link to="/stock-ai" class="cap-item">📈 A股 AI 选股</router-link>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -244,4 +257,23 @@ function renderChart() {
 .risk-head .danger { color: var(--color-danger); font-weight: 600; }
 .risk-head .warn { color: var(--color-warning); font-weight: 600; }
 .risk-head .time { float: right; font-size: 11px; color: var(--color-text-muted); }
+
+.capabilities-card { margin-top: 20px; }
+.cap-header { font-weight: 600; font-size: 14px; }
+.cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.cap-item {
+  display: block;
+  padding: 12px 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.cap-item:hover { background: var(--color-sidebar-hover); color: var(--color-primary); border-color: var(--color-primary); }
+.cap-item.cap-highlight { border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.06); color: var(--color-primary); }
+.cap-item.cap-highlight:hover { background: rgba(99, 102, 241, 0.12); }
 </style>

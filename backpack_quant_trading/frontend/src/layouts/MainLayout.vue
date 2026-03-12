@@ -22,6 +22,22 @@
         <router-link to="/currency-monitor" class="nav-link" active-class="active">
           <span class="nav-icon">🔔</span> 币种监视
         </router-link>
+        <router-link to="/stock-ai" class="nav-link" active-class="active">
+          <span class="nav-icon">📈</span> A股 AI 选股
+        </router-link>
+        <router-link
+          to="/strategies"
+          class="nav-link"
+          :class="{ active: route.path.startsWith('/strategies') }"
+        >
+          <span class="nav-icon">📐</span> 量化策略矩阵
+        </router-link>
+        <router-link to="/okx-agent" class="nav-link" active-class="active">
+          <span class="nav-icon">🦅</span> OKX AI 交易
+        </router-link>
+        <router-link to="/okx-console" class="nav-link" active-class="active">
+          <span class="nav-icon">⌨️</span> OKX 操作台
+        </router-link>
       </nav>
     </aside>
     <div class="content">
@@ -48,11 +64,12 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import ChatBot from '../components/ChatBot.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 onMounted(() => {
@@ -125,6 +142,14 @@ function handleLogout() {
   font-weight: 600;
 }
 .nav-icon { font-size: 16px; }
+.nav-icon-eth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #627eea;
+}
+.nav-link.active .nav-icon-eth { color: #8296f0; }
+
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .header {
   height: 60px;
