@@ -1,0 +1,102 @@
+.stat-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #f3f4f6;
+}
+
+.stat-progress-bar {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s;
+}
+
+.stat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.stat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 4px;
+}
+
+.stat-value-wrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.stat-percentage {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.stat-change {
+  font-size: 14px;
+  margin-top: 4px;
+  display: block;
+}
+
+.stat-change.positive {
+  color: #16a34a;
+}
+
+.stat-change.negative {
+  color: #dc2626;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+  background: #3b82f6;
+}
+
+.stat-icon.bg-blue-500 {
+  background: #3b82f6;
+}
+
+.stat-icon.bg-blue-400 {
+  background: #60a5fa;
+}
+
+.stat-icon.bg-blue-100 {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.stat-icon-svg {
+  width: 24px;
+  height: 24px;
+}

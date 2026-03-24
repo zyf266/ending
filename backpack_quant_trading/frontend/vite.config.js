@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [react()],
   optimizeDeps: {
-    include: ['element-plus', 'element-plus/dist/locale/zh-cn.js', 'vue', 'vue-router', 'pinia', 'axios', 'echarts'],
+    include: ['axios', 'echarts'],
     force: false,
   },
   build: {
@@ -12,8 +12,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'element-plus': ['element-plus'],
-          'echarts': ['echarts'],
+          echarts: ['echarts'],
         },
       },
     },

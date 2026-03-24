@@ -1,7 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as _date
 from pathlib import Path
 from typing import List, Optional
 from decimal import Decimal as PyDecimal
+
+# 每天只同步一次 ETH K 线，避免每次请求都连币安
+_eth_kline_last_sync_date: _date = None
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
@@ -24,21 +27,21 @@ TIMEFRAME = "2h"
 
 # 注意：CSV 放在项目根目录（与 backpack_quant_trading 同级）
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-CSV_PATH = PROJECT_ROOT / "2h趋势策略_(隐藏优化版)_BINANCE_ETHUSDT_2026-03-05_86efa.csv"
+CSV_PATH = PROJECT_ROOT / "BINANCE_ETHUSDT.P_交易数据.csv"
 
 # 大宗（黄金）策略 PAXG_2H
 PAXG_STRATEGY_NAME = "PAXG_2H"
 PAXG_SYMBOL = "PAXGUSDT"
 PAXG_TIMEFRAME = "2H"
 PAXG_KLINE_CSV = PROJECT_ROOT / "FOREXCOM_XAUUSD, 120_13e88.csv"
-PAXG_TRADES_CSV = PROJECT_ROOT / "【沐龙】黄金波动率追踪策略_2H_FOREXCOM_XAUUSD_2026-03-06_c5de1.csv"
+PAXG_TRADES_CSV = PROJECT_ROOT / "ICMARKETS_XAUUSD 交易数据.csv"
 
 # 纳指策略 NAS100_2H
 NAS100_STRATEGY_NAME = "NAS100_2H"
 NAS100_SYMBOL = "NAS100USD"
 NAS100_TIMEFRAME = "2H"
 NAS100_KLINE_CSV = PROJECT_ROOT / "FX_NAS100, 120_0946a.csv"
-NAS100_TRADES_CSV = PROJECT_ROOT / "【沐龙】纳指趋势追踪增强策略_FX_NAS100_2026-03-06_87155.csv"
+NAS100_TRADES_CSV = PROJECT_ROOT / "CME 纳指交易数据.csv"
 
 
 Base = declarative_base()
@@ -227,6 +230,11 @@ def import_eth_2h_csv():
 
     session = db_manager.get_session()
     try:
+        session.query(StrategyBacktestTrade).filter_by(
+            strategy_name=STRATEGY_NAME,
+            symbol=SYMBOL,
+            timeframe=TIMEFRAME,
+        ).delete(synchronize_session=False)
         for t in records:
             session.add(StrategyBacktestTrade(**t))
         session.commit()
@@ -470,6 +478,26 @@ def get_eth_2h_overview():
 # ---------- 大宗（黄金）策略 PAXG_2H ----------
 
 
+def _ensure_paxg_klines_loaded_from_csv() -> None:
+    """若尚无 PAXG K 线数据，则自动从 FOREXCOM_XAUUSD CSV 导入一次。"""
+    session = db_manager.get_session()
+    try:
+        exists = (
+            session.query(StrategyKline.id)
+            .filter_by(
+                strategy_name=PAXG_STRATEGY_NAME,
+                symbol=PAXG_SYMBOL,
+                timeframe=PAXG_TIMEFRAME,
+            )
+            .first()
+        )
+    finally:
+        session.close()
+    if exists:
+        return
+    import_paxg_klines_csv()
+
+
 def _ensure_paxg_trades_loaded_from_csv() -> None:
     """若尚无 PAXG 回测数据，则自动从黄金交易 CSV 导入一次。"""
     session = db_manager.get_session()
@@ -534,6 +562,11 @@ def import_paxg_klines_csv():
 
     session = db_manager.get_session()
     try:
+        session.query(StrategyKline).filter_by(
+            strategy_name=PAXG_STRATEGY_NAME,
+            symbol=PAXG_SYMBOL,
+            timeframe=PAXG_TIMEFRAME,
+        ).delete(synchronize_session=False)
         for r in records:
             session.add(r)
         session.commit()
@@ -603,6 +636,11 @@ def import_paxg_trades_csv():
 
     session = db_manager.get_session()
     try:
+        session.query(StrategyBacktestTrade).filter_by(
+            strategy_name=PAXG_STRATEGY_NAME,
+            symbol=PAXG_SYMBOL,
+            timeframe=PAXG_TIMEFRAME,
+        ).delete(synchronize_session=False)
         for t in records:
             session.add(StrategyBacktestTrade(**t))
         session.commit()
@@ -613,6 +651,7 @@ def import_paxg_trades_csv():
 
 @router.get("/paxg-2h/klines", response_model=List[KlinePoint], summary="获取大宗 2H K 线")
 def get_paxg_2h_klines():
+    _ensure_paxg_klines_loaded_from_csv()
     session = db_manager.get_session()
     try:
         q = (
@@ -715,11 +754,14 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
     base_trades = exit_trades if exit_trades else trades
     # 以“交易号 trade_no”为一笔交易，只保留每笔交易的一次 pnl，避免进/出两行导致翻倍
     trade_pnls = {}
-    for r in base_trades:
+    for idx, r in enumerate(base_trades):
         try:
-            key = int(getattr(r, "trade_no", 0))
-        except Exception:
-            key = getattr(r, "trade_no", None)
+            key = int(getattr(r, "trade_no", None))
+        except (TypeError, ValueError):
+            key = None
+        # trade_no 为 None 才用索引兜底，trade_no 为有效整数（含0）都是合法 key
+        if key is None:
+            key = f"idx_{idx}"
         trade_pnls[key] = float(r.pnl)
     profits = list(trade_pnls.values())
     win = [p for p in profits if p > 0]
@@ -762,6 +804,7 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
 
 @router.get("/paxg-2h/overview", response_model=StrategyOverview, summary="大宗 2H 策略总体表现")
 def get_paxg_2h_overview():
+    _ensure_paxg_klines_loaded_from_csv()
     _ensure_paxg_trades_loaded_from_csv()
     session = db_manager.get_session()
     try:
@@ -789,7 +832,7 @@ def get_paxg_2h_overview():
         session.close()
     if not trades:
         raise HTTPException(404, "尚未导入大宗回测数据，请先调用 POST /api/strategy/paxg-2h/import-trades 与 import-klines")
-    # 展示本金 200 万，实际下单按两倍本金 400 万
+    # 展示本金 300 万，实际下单按两倍本金 600 万
     return _compute_overview_from_trades_klines(trades, kls, 2_000_000, "黄金波动策略", trading_capital=4_000_000)
 
 
@@ -859,6 +902,11 @@ def import_nas100_klines_csv():
 
     session = db_manager.get_session()
     try:
+        session.query(StrategyKline).filter_by(
+            strategy_name=NAS100_STRATEGY_NAME,
+            symbol=NAS100_SYMBOL,
+            timeframe=NAS100_TIMEFRAME,
+        ).delete(synchronize_session=False)
         for r in records:
             session.add(r)
         session.commit()
@@ -928,6 +976,11 @@ def import_nas100_trades_csv():
 
     session = db_manager.get_session()
     try:
+        session.query(StrategyBacktestTrade).filter_by(
+            strategy_name=NAS100_STRATEGY_NAME,
+            symbol=NAS100_SYMBOL,
+            timeframe=NAS100_TIMEFRAME,
+        ).delete(synchronize_session=False)
         for t in records:
             session.add(StrategyBacktestTrade(**t))
         session.commit()

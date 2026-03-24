@@ -1,0 +1,479 @@
+.mon-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: #f9fafb;
+}
+
+/* ===== Card ===== */
+.mon-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.mon-card-orange {
+  border-color: #fed7aa;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+}
+
+.mon-card-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #ffffff;
+}
+
+.mon-card-header-orange {
+  border-bottom-color: #fed7aa;
+}
+
+.mon-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.mon-icon {
+  font-size: 16px;
+}
+
+.mon-card-body {
+  padding: 24px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== 2-col grid (照搬 grid-cols-2 gap-6) ===== */
+.mon-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* ===== Field group ===== */
+.mon-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mon-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.mon-label-sm {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* ===== Multi-select (照搬 MultiSelect 外观) ===== */
+.mon-select-multi {
+  width: 100%;
+  min-height: 200px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+/* ===== Checkbox list (照搬 space-y-3 vertical) ===== */
+.mon-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.mon-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+}
+
+.mon-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+/* ===== Params stack (照搬 space-y-4 vertical) ===== */
+.mon-params-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mon-params-stack .mon-field-group {
+  gap: 8px;
+}
+
+/* ===== Input / Select (照搬 h-10) ===== */
+.mon-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #111827;
+}
+
+/* ===== Buttons (照搬 Button 样式) ===== */
+.mon-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.mon-btn-primary {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mon-btn-primary:hover { background: #1d4ed8; }
+.mon-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mon-btn-orange {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #ea580c;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mon-btn-orange:hover { background: #c2410c; }
+.mon-btn-orange:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mon-btn-outline-red {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: transparent;
+  color: #dc2626;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mon-btn-outline-red:hover { background: #fef2f2; }
+.mon-btn-outline-red:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== Badges ===== */
+.mon-badge-blue {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mon-badge-red {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+.mon-badge-orange {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ===== Hints ===== */
+.mon-hint-blue { font-size: 12px; color: #2563eb; margin: 0; }
+.mon-hint-orange { font-size: 12px; color: #ea580c; margin: 0; }
+.mon-hint { font-size: 15px; color: #4b5563; margin: 0 0 16px 0; }
+
+/* ===== Status box (照搬 p-4 bg-orange-50 border-orange-200 rounded-lg) ===== */
+.mon-status-box {
+  display: flex;
+  gap: 8px;
+  padding: 16px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #9a3412;
+}
+
+.mon-status-title {
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.mon-status-detail {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ===== Empty state (照搬 text-center py-12) ===== */
+.mon-empty {
+  text-align: center;
+  padding: 48px 16px;
+}
+
+.mon-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 32px;
+}
+
+.mon-empty h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.mon-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* ===== Chips (照搬 flex flex-wrap gap-2) ===== */
+.mon-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  transition: all 0.2s;
+}
+
+.mon-chip:hover {
+  border-color: #60a5fa;
+  background: #dbeafe;
+}
+
+.mon-chip-alert {
+  background: #fee2e2;
+  border-color: #f87171;
+  animation: pulse 2s infinite;
+}
+
+.mon-chip-symbol {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.mon-chip-tf {
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  color: #6b7280;
+}
+
+.mon-chip-x {
+  margin-left: 4px;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 999px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mon-chip-x:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* ===== MultiSelectDropdown ===== */
+.msd {
+  position: relative;
+  width: 100%;
+}
+
+.msd-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  gap: 8px;
+}
+
+.msd-trigger:hover {
+  border-color: #93c5fd;
+}
+
+.msd-placeholder {
+  color: #9ca3af;
+  font-size: 15px;
+}
+
+.msd-arrow {
+  font-size: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.msd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.msd-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.msd-tag-more {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.msd-tag-x {
+  border: none;
+  background: none;
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
+
+.msd-tag-x:hover {
+  color: #dc2626;
+}
+
+.msd-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 50;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.msd-search {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 15px;
+  outline: none;
+  border-radius: 8px 8px 0 0;
+}
+
+.msd-list {
+  overflow-y: auto;
+  max-height: 260px;
+  padding: 4px 0;
+}
+
+.msd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #111827;
+  cursor: pointer;
+}
+
+.msd-option:hover {
+  background: #f9fafb;
+}
+
+.msd-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.msd-empty {
+  padding: 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
