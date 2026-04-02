@@ -25,7 +25,21 @@ class HyperliquidAPIClient:
         self.exchange_url = f"{base_url}/exchange"
         
         if private_key:
-            self.account = Account.from_key(private_key)
+            # 清理私钥格式
+            pk = private_key.strip()
+            # 移除 0x 前缀（如果存在）
+            if pk.startswith('0x') or pk.startswith('0X'):
+                pk = pk[2:]
+            # 验证私钥长度（64位十六进制字符）
+            if len(pk) != 64:
+                raise ValueError(f"私钥长度错误: 应为64位十六进制字符(不含0x前缀)，当前{len(pk)}位")
+            # 验证是否为有效的十六进制
+            try:
+                int(pk, 16)
+            except ValueError:
+                raise ValueError("私钥包含非十六进制字符，请检查私钥格式")
+            
+            self.account = Account.from_key(pk)
             # 【核心修复】地址统一转小写，Hyperliquid API 内部索引对大小写极度敏感
             self.address = self.account.address.lower().strip()
             logger.info(f"Hyperliquid 账户已加载: {self.address}")
@@ -70,6 +84,50 @@ class HyperliquidAPIClient:
         asset = symbol.replace("-USD", "").replace("-USDT", "").split("_")[0]
         all_mids = await self.post_info({"type": "allMids"})
         return float(all_mids.get(asset, 0.0))
+
+    async def get_klines(self, symbol: str, interval: str, limit: int = 500) -> List[Dict]:
+        """
+        获取历史 K 线数据（使用 Hyperliquid candleSnapshot 接口）
+        返回格式: [{"t", "o", "h", "l", "c", "v"}, ...]
+        """
+        INTERVAL_MS = {
+            "1m":  60_000,      "3m":  180_000,     "5m":  300_000,
+            "15m": 900_000,     "30m": 1_800_000,
+            "1h":  3_600_000,   "2h":  7_200_000,   "4h":  14_400_000,
+            "8h":  28_800_000,  "12h": 43_200_000,
+            "1d":  86_400_000,  "3d":  259_200_000,  "1w": 604_800_000,
+        }
+        interval_ms = INTERVAL_MS.get(interval, 3_600_000)
+        end_time = int(time.time() * 1000)
+        start_time = end_time - interval_ms * (limit + 10)  # 多拉 10 根做缓冲
+
+        asset = symbol.replace("-USD", "").replace("-USDT", "").split("_")[0]
+        data = await self.post_info({
+            "type": "candleSnapshot",
+            "req": {
+                "coin": asset,
+                "interval": interval,
+                "startTime": start_time,
+                "endTime": end_time,
+            }
+        })
+
+        result = []
+        for item in (data or []):
+            try:
+                result.append({
+                    "t": item["t"],
+                    "o": float(item["o"]),
+                    "h": float(item["h"]),
+                    "l": float(item["l"]),
+                    "c": float(item["c"]),
+                    "v": float(item["v"]),
+                })
+            except (KeyError, TypeError, ValueError):
+                continue
+        # 按时间升序，返回最新 limit 根
+        result.sort(key=lambda x: x["t"])
+        return result[-limit:] if len(result) > limit else result
 
     async def check_user_exists(self) -> bool:
         """检查用户账户是否存在于 Hyperliquid"""

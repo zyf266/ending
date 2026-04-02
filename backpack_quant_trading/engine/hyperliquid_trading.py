@@ -228,3 +228,12 @@ class HyperliquidTradingEngine:
             if self.current_position:
                 # 监控逻辑...
                 pass
+
+    async def close(self):
+        """关闭引擎，释放资源"""
+        self.is_stopped = True
+        try:
+            await self.client.close()
+            logger.info("Hyperliquid 引擎已关闭")
+        except Exception as e:
+            logger.error(f"关闭 Hyperliquid 客户端失败: {e}")

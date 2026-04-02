@@ -42,6 +42,25 @@ export function getEthTrendTrades(cacheBust = false) {
   return cacheBust ? bust(key, fn) : cached(key, fn)
 }
 
+// ---------- ETH 独立策略 ----------
+export function getEthOnlyOverview(cacheBust = false) {
+  const key = 'eth-only-overview'
+  const fn = () => request.get('/strategy/eth-only-2h/overview')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getEthOnlyKlines(cacheBust = false) {
+  const key = 'eth-only-klines'
+  const fn = () => request.get('/strategy/eth-only-2h/klines')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getEthOnlyTrades(cacheBust = false) {
+  const key = 'eth-only-trades'
+  const fn = () => request.get('/strategy/eth-only-2h/trades')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
 // ---------- PAXG 黄金 ----------
 export function getPaxgTrendOverview(cacheBust = false) {
   const key = 'paxg-overview'

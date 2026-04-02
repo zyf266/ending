@@ -12,6 +12,7 @@ import StrategyMatrixAlt from './views/StrategyMatrixAlt'
 import EthTrendStrategy from './views/EthTrendStrategy'
 import PaxgTrendStrategy from './views/PaxgTrendStrategy'
 import Nas100TrendStrategy from './views/Nas100TrendStrategy'
+import EthOnlyStrategy from './views/EthOnlyStrategy'
 import OkxConsole from './views/OkxConsole'
 
 const RequireAuth = ({ children }) => {
@@ -60,6 +61,7 @@ function App() {
           <Route path="stock-ai" element={<StockAi />} />
           <Route path="strategies" element={<StrategyMatrixAlt />} />
           <Route path="strategies/eth-trend" element={<EthTrendStrategy />} />
+          <Route path="strategies/eth-only" element={<EthOnlyStrategy />} />
           <Route path="strategies/paxg-trend" element={<PaxgTrendStrategy />} />
           <Route path="strategies/nas100-trend" element={<Nas100TrendStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />

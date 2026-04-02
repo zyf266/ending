@@ -24,7 +24,7 @@ if __name__ == "__main__":
             "backpack_quant_trading.api.main:app",
             host="0.0.0.0",
             port=8100,
-            reload=True,
+            reload=False,
         )
     except KeyboardInterrupt:
         print("\n服务已停止")

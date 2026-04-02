@@ -34,6 +34,7 @@ STRATEGY_REGISTRY: dict[str, Any] = {
     "ai_adaptive": AIAdaptiveStrategy,
     "high_frequency": "日内高频交易",
     "dual_freq_trend": DualFreqTrendResonanceStrategy,
+    "hype_adaptive_short": "HYPE做空策略(Webhook版)",
 }
 
 # 策略显示名称映射
@@ -42,6 +43,7 @@ STRATEGY_DISPLAY_NAMES = {
     "ai_adaptive": "Ai自适应策略",
     "high_frequency": "日内高频交易",
     "dual_freq_trend": "双频趋势共振(1m入场/15m趋势)",
+    "hype_adaptive_short": "HYPE做空策略(Webhook版)",
 }
 
 # 交易所注册表：目前支持 backpack, deepcoin, ostium

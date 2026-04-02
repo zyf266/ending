@@ -5,6 +5,9 @@ import {
   launchStrategy,
   stopInstance,
   getLogs,
+  getHypeStatus,
+  toggleHypeStrategy,
+  startHypeStrategy,
 } from '../api/trading'
 import './Trading.css'
 
@@ -23,6 +26,8 @@ const Trading = () => {
   const [launching, setLaunching] = useState(false)
   const [instancesCollapsed, setInstancesCollapsed] = useState(false)
   const [logsCollapsed, setLogsCollapsed] = useState(false)
+  const [hypeStatus, setHypeStatus] = useState({ running: false, instances: [] })
+  const [togglingHype, setTogglingHype] = useState(false)
   const [form, setForm] = useState({
     platform: 'backpack',
     strategy: 'mean_reversion',
@@ -35,6 +40,11 @@ const Trading = () => {
     api_secret: '',
     passphrase: '',
     private_key: '',
+    // HYPE策略专用参数
+    hype_stop_loss: 3.0,
+    hype_take_profit: 6.0,
+    hype_break_even: 3.0,
+
   })
 
   const isDualFreq = form.strategy === 'dual_freq_trend'
@@ -66,8 +76,15 @@ const Trading = () => {
     } catch (_) {}
   }
 
+  const refreshHypeStatus = async () => {
+    try {
+      const res = await getHypeStatus()
+      setHypeStatus(res || { running: false, instances: [] })
+    } catch (_) {}
+  }
+
   useEffect(() => {
-    let t1, t2
+    let t1, t2, t3
     const load = async () => {
       try {
         const res = await getStrategies()
@@ -75,17 +92,50 @@ const Trading = () => {
       } catch (_) {}
       await refresh()
       await refreshLogs()
+      await refreshHypeStatus()
       t1 = setInterval(refresh, 5000)
       t2 = setInterval(refreshLogs, 10000)
+      t3 = setInterval(refreshHypeStatus, 5000)
     }
     load()
     return () => {
       if (t1) clearInterval(t1)
       if (t2) clearInterval(t2)
+      if (t3) clearInterval(t3)
     }
   }, [])
 
   const handleLaunch = async () => {
+    // 【HYPE自适应做空策略】使用独立的启动端点
+    if (form.strategy === 'hype_adaptive_short') {
+      if (!form.private_key) {
+        alert('请输入 Hyperliquid 私钥')
+        return
+      }
+      setLaunching(true)
+      try {
+        // 从交易对中提取币种（如 ETH/USDC -> ETH）
+        const symbol = form.symbol.split('/')[0].split('_')[0] || 'ETH'
+        const res = await startHypeStrategy(symbol, form.private_key, {
+          stop_loss_pct: form.hype_stop_loss / 100,
+          take_profit_pct: form.hype_take_profit / 100,
+          break_even_pct: form.hype_break_even / 100,
+          margin_amount: form.size,
+          leverage: form.leverage,
+        })
+        alert(res.message || 'HYPE做空策略启动成功')
+        setShowModal(false)
+        await refresh()
+        await refreshHypeStatus()
+      } catch (e) {
+        alert(e?.response?.data?.detail || '启动失败')
+      } finally {
+        setLaunching(false)
+      }
+      return
+    }
+
+    // 其他策略使用通用启动逻辑
     if (['backpack', 'deepcoin'].includes(form.platform)) {
       if (!form.api_key || !form.api_secret) {
         alert('请输入 API Key 和 Secret')
@@ -129,6 +179,24 @@ const Trading = () => {
       await refresh()
     } catch (e) {
       alert(e?.response?.data?.detail || '停止失败')
+    }
+  }
+
+  const getHypeEnabled = (instanceId) => {
+    const item = (hypeStatus.instances || []).find((x) => x.instance_id === instanceId)
+    return item ? !!item.is_enabled : true
+  }
+
+  const toggleHype = async (instanceId, enabled) => {
+    setTogglingHype(true)
+    try {
+      const res = await toggleHypeStrategy(enabled, instanceId)
+      alert(res?.message || `策略已${enabled ? '开启' : '关闭'}`)
+      await refreshHypeStatus()
+    } catch (e) {
+      alert(e?.response?.data?.detail || '切换失败')
+    } finally {
+      setTogglingHype(false)
     }
   }
 
@@ -208,27 +276,50 @@ const Trading = () => {
           <div className="instance-grid">
             {instances.map((inst) => (
               <div key={inst.id} className="instance-card">
-                <div className="inst-info">
-                  <div className="tags">
+                {/* 顶部状态栏 */}
+                <div className="inst-header">
+                  <div className="inst-tags">
                     <span className={`tag ${inst.platform === 'ostium' ? 'tag-warning' : ''}`}>
                       {(inst.platform || '').toUpperCase()}
                     </span>
                     <span className={inst.status === 'registering' ? 'status reg' : 'status run'}>
+                      <span className="status-dot" />
                       {inst.status === 'registering' ? 'REGISTERING' : 'RUNNING'}
                     </span>
                   </div>
-                  <h3>{inst.strategy_name}</h3>
-                  <p className="inst-symbol">{inst.symbol}</p>
-                  <p className="meta">开始时间：{inst.start_time}</p>
-                  <p className="meta">PID: {inst.pid}</p>
-                </div>
-                <div className="inst-actions">
-                  <div className="balance">
-                    <p>账户余额</p>
-                    <h2>${Number(inst.balance || 0).toLocaleString()}</h2>
+                  <div className="inst-balance">
+                    <span className="inst-balance-label">账户余额</span>
+                    <span className="inst-balance-value">
+                      {inst.balance && !isNaN(Number(inst.balance))
+                        ? `$${Number(inst.balance).toLocaleString()}`
+                        : '--'}
+                    </span>
                   </div>
-                  <button type="button" className="btn-danger-sm" onClick={() => stopOne(inst.id)}>
-                    停止策略
+                </div>
+
+                {/* 策略名称与交易对 */}
+                <div className="inst-body">
+                  <h3 className="inst-name">{inst.strategy_name}</h3>
+                  <div className="inst-meta-row">
+                    <span className="inst-symbol-badge">{inst.symbol}</span>
+                    <span className="inst-meta-text">{inst.start_time || '--'}</span>
+                  </div>
+                </div>
+
+                {/* 底部操作区 */}
+                <div className="inst-footer">
+                  {inst.strategy_name === 'HYPE做空策略(Webhook版)' && (
+                    <button
+                      type="button"
+                      className={`inst-btn ${getHypeEnabled(inst.id) ? 'inst-btn-warning' : 'inst-btn-primary'}`}
+                      disabled={togglingHype}
+                      onClick={() => toggleHype(inst.id, !getHypeEnabled(inst.id))}
+                    >
+                      {getHypeEnabled(inst.id) ? '⏸ 暂停策略' : '▶ 启用策略'}
+                    </button>
+                  )}
+                  <button type="button" className="inst-btn inst-btn-danger" onClick={() => stopOne(inst.id)}>
+                    ⏹ 停止
                   </button>
                 </div>
               </div>
@@ -349,11 +440,81 @@ const Trading = () => {
                       placeholder="输入 0x 开头的私钥"
                     />
                   </div>
+                  {/* HYPE策略专用参数 - 只在HYPE策略时显示 */}
+                  {form.strategy === 'hype_adaptive_short' && (
+                    <>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>保证金 (USD)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={form.size}
+                            onChange={(e) => setField('size', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>开仓保证金金额</small>
+                        </div>
+                        <div className="form-item">
+                          <label>杠杆倍数</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={form.leverage}
+                            onChange={(e) => setField('leverage', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>实际仓位 = 保证金 × 杠杆</small>
+                        </div>
+                      </div>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>止损比例 (%)</label>
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={50}
+                            step={0.1}
+                            value={form.hype_stop_loss}
+                            onChange={(e) => setField('hype_stop_loss', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格涨超入场价此比例时止损</small>
+                        </div>
+                        <div className="form-item">
+                          <label>止盈比例 (%)</label>
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={50}
+                            step={0.1}
+                            value={form.hype_take_profit}
+                            onChange={(e) => setField('hype_take_profit', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格跌超入场价此比例时止盈</small>
+                        </div>
+                      </div>
+                      <div className="form-item" style={{marginTop: '12px'}}>
+                        <label>保本触发比例 (%)</label>
+                        <input
+                          type="number"
+                          min={0.1}
+                          max={50}
+                          step={0.1}
+                          value={form.hype_break_even}
+                          onChange={(e) => setField('hype_break_even', Number(e.target.value))}
+                        />
+                        <small style={{color: '#888', fontSize: '12px'}}>盈利达到此比例时，止损移动到入场价（保本）</small>
+                      </div>
+
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* 交易参数配置 */}
-              <div className="modal-section modal-section-blue">
+              {/* 交易参数配置 - HYPE策略不显示此区域 */}
+              {form.strategy !== 'hype_adaptive_short' && (
+                <div className="modal-section modal-section-blue">
                 <div className="modal-section-title">
                   <span>交易参数配置</span>
                   <small>设置交易品种、保证金、杠杆和止盈止损参数</small>
@@ -411,7 +572,8 @@ const Trading = () => {
                     onChange={(e) => setField('stop_loss', Number(e.target.value))}
                   />
                 </div>
-              </div>
+                </div>
+              )}
             </div>
 
             <div className="dialog-footer">

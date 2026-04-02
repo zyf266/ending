@@ -3,15 +3,28 @@ import { useLocation } from 'react-router-dom'
 import { BarChart3, Activity, TrendingUp, Wallet, Search, Filter, Plus, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { StrategyCardMatrix } from '../components/StrategyCardMatrix'
-import { getEthTrendOverview, getPaxgTrendOverview, getNas100TrendOverview } from '../api/strategy'
+import { getEthTrendOverview, getEthOnlyOverview, getPaxgTrendOverview, getNas100TrendOverview } from '../api/strategy'
 
 const strategies = [
   {
-    to: '/strategies/eth-trend',
+    to: '/strategies/eth-only',
     icon: '₿',
-    title: '沐龙加密波动率增强策略',
+    title: '沐龙加密趋势追踪策略',
     code: 'ML-DTS',
     description: '专注 BTC / ETH 等主流加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 98,
+    progressColor: '#10b981',
+    riskIndex: '低风险',
+    isRiskWarning: false,
+  },
+  {
+    to: '/strategies/eth-trend',
+    icon: '🔥',
+    title: '沐龙加密趋势追踪策略 · HYPE',
+    code: 'ML-DTS',
+    description: '专注 HYPE 等新兴加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 98,
@@ -58,32 +71,50 @@ const strategies = [
     riskIndex: '低风险',
     isRiskWarning: false,
   },
+  {
+    to: '/strategies/nas100-trend',
+    icon: '🇺🇸',
+    title: '美股动量轮动策略',
+    code: 'ML-USM',
+    description: '聚焦美股核心指数与强势板块，结合趋势强度、回撤过滤与风险预算，进行中短期动量轮动配置。',
+    status: '测试中',
+    statusColor: 'bg-blue-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '低风险',
+    isRiskWarning: false,
+  },
 ]
 
 export default function StrategyMatrixAlt() {
   const path = useLocation().pathname
-  const [overviews, setOverviews] = useState([])
+  const [overviews, setOverviews] = useState({})
 
   useEffect(() => {
-    Promise.allSettled([
-      getEthTrendOverview(),
-      getPaxgTrendOverview(),
-      getNas100TrendOverview(),
-    ]).then((results) => {
-      const data = results
-        .filter((r) => r.status === 'fulfilled' && r.value)
-        .map((r) => r.value)
-      setOverviews(data)
+    const reqs = [
+      { key: 'eth', fn: getEthOnlyOverview },
+      { key: 'hype', fn: getEthTrendOverview },
+      { key: 'paxg', fn: getPaxgTrendOverview },
+      { key: 'nas100', fn: getNas100TrendOverview },
+    ]
+
+    Promise.allSettled(reqs.map((r) => r.fn())).then((results) => {
+      const next = {}
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value) next[reqs[i].key] = r.value
+      })
+      setOverviews(next)
     })
   }, [])
 
   // 动态计算统计数据
   const runningCount = strategies.filter((s) => s.status === '运行中').length
-  const avgWinRate = overviews.length
-    ? (overviews.reduce((s, o) => s + (o.win_rate_pct || 0), 0) / overviews.length).toFixed(2)
+  const overviewList = Object.values(overviews)
+  const avgWinRate = overviewList.length
+    ? (overviewList.reduce((s, o) => s + (o.win_rate_pct || 0), 0) / overviewList.length).toFixed(2)
     : '--'
-  const totalProfit = overviews.length
-    ? overviews.reduce((s, o) => s + (o.strategy_profit || 0), 0)
+  const totalProfit = overviewList.length
+    ? overviewList.reduce((s, o) => s + (o.strategy_profit || 0), 0)
     : null
   const totalProfitStr = totalProfit != null
     ? totalProfit >= 1e6
@@ -107,7 +138,7 @@ export default function StrategyMatrixAlt() {
     },
     {
       title: '平均胜率',
-      value: overviews.length ? `${avgWinRate}%` : '--',
+      value: overviewList.length ? `${avgWinRate}%` : '--',
       icon: TrendingUp,
       iconColor: 'bg-blue-500',
     },
@@ -119,19 +150,13 @@ export default function StrategyMatrixAlt() {
     },
   ]
 
-  // 用 overview 动态填充策略卡片的年化和盈亏比
-  const overviewMap = {}
-  const keys = ['eth', 'paxg', 'nas100']
-  overviews.forEach((o, i) => { overviewMap[keys[i]] = o })
-
-  const strategyKeys = ['eth', 'paxg', 'nas100', null]
+  const strategyKeys = ['eth', 'hype', 'paxg', 'nas100', null, null]
   const enrichedStrategies = strategies.map((s, i) => {
-    const ov = overviewMap[strategyKeys[i]]
+    const ov = overviews[strategyKeys[i]]
     // 固定展示值：最大回撤和盈亏比
-    const fixedDrawdown = ['-8%', '-3%', '-4%', '--']
-    const fixedProfitFactor = ['2.72', '3.11', '0.71', '--']
+    const fixedDrawdown = ['-3.48%', '-6.47%', '-1.44%', '-4%', '--', '--']
+    const fixedProfitFactor = ['2.58', '2.84', '2.25', '0.71', '--', '--']
     if (!ov) return { ...s, annualReturn: '--', drawdown: fixedDrawdown[i], profitFactor: fixedProfitFactor[i] }
-    // 年化收益：用 total_return_pct 按实际天数年化
     let annualReturn = '--'
     if (ov.total_return_pct != null && ov.start_date && ov.end_date) {
       const days = Math.max(1, (new Date(ov.end_date) - new Date(ov.start_date)) / 86400000)

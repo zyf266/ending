@@ -14,6 +14,7 @@ export default function PaxgTrendStrategy() {
       currencyLabel="USD"
       initialCapital={2000000}
       startDate="2024-01-01"
+      fixedProfitFactor={2.25}
       getOverview={getPaxgTrendOverview}
       getTrades={getPaxgTrendTrades}
       getKlines={getPaxgTrendKlines}

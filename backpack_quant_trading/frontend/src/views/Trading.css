@@ -261,18 +261,199 @@
 
 .instance-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 18px 16px 18px;
+  flex-direction: column;
+  gap: 0;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-  transition: box-shadow 0.2s;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s, transform 0.15s;
+  overflow: hidden;
 }
 
 .instance-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+  transform: translateY(-1px);
+}
+
+/* 卡片顶部：标签 + 余额 */
+.inst-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.inst-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inst-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.inst-balance-label {
+  font-size: 11px;
+  color: #9ca3af;
+  letter-spacing: 0.3px;
+}
+
+.inst-balance-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2563eb;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 卡片中部：策略名 + 交易对 */
+.inst-body {
+  padding: 14px 16px 10px 16px;
+  flex: 1;
+}
+
+.inst-name {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.inst-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inst-symbol-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.inst-meta-text {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* 卡片底部：操作按钮 */
+.inst-footer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px 12px 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.inst-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0.2px;
+}
+
+.inst-btn:active {
+  transform: scale(0.97);
+}
+
+.inst-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inst-btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.inst-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.inst-btn-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.inst-btn-warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.inst-btn-danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.inst-btn-danger:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+/* 状态点动画 */
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  letter-spacing: 0.4px;
+}
+
+.tag-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status.run {
+  display: inline-flex;
+  align-items: center;
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.status.reg {
+  display: inline-flex;
+  align-items: center;
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
 }
 
 .instances-empty {
@@ -306,73 +487,6 @@
   color: #6b7280;
 }
 
-.inst-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.inst-info p {
-  margin: 0 0 4px 0;
-  font-size: 15px;
-  color: var(--color-text-secondary);
-}
-
-.inst-info .meta {
-  font-size: 15px;
-  color: var(--color-text-muted);
-}
-
-.tags {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 15px;
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.tag-warning {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.status.run {
-  color: var(--color-success);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.status.reg {
-  color: var(--color-warning);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.inst-actions {
-  min-width: 120px;
-  text-align: right;
-}
-
-.balance p {
-  margin: 0;
-  font-size: 15px;
-  color: var(--color-text-muted);
-}
-
-.balance h2 {
-  margin: 6px 0 12px 0;
-  font-size: 17px;
-  color: var(--color-primary);
-  font-weight: 700;
-}
 
 .empty {
   text-align: center;
@@ -561,4 +675,73 @@
 .modal-section-title small {
   font-size: 14px;
   color: #4b5563;
+}
+
+/* ========== Trading 移动端自适应 ========== */
+@media (max-width: 768px) {
+  /* 页头 Banner */
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .header-row-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* 4列统计卡 → 2列 */
+  .trading-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* 策略实例卡片 → 单列 */
+  .instance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* 弹窗全屏显示 */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-dialog {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* 卡片底部按钮列展开 */
+  .inst-footer {
+    flex-wrap: wrap;
+  }
+
+  .inst-btn {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  /* 实例卡片头部局面调整 */
+  .inst-header {
+    padding: 10px 12px;
+  }
+
+  .inst-body {
+    padding: 12px 12px 8px;
+  }
+
+  .inst-footer {
+    padding: 8px 12px 10px;
+  }
+
+  /* 日志展示 */
+  .log-window {
+    max-height: 250px;
+  }
 }

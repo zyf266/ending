@@ -341,3 +341,56 @@
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
+
+/* ========== Dashboard 移动端自适应 ========== */
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 12px 10px 24px;
+  }
+
+  .dashboard-page .title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dashboard-page .meta {
+    align-items: flex-start;
+  }
+
+  /* 4列 → 2列 */
+  .dashboard-page .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .dashboard-page .sum-value .main {
+    font-size: 18px;
+  }
+
+  /* 双列表格 → 单列 */
+  .dashboard-page .tables-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-page .chart-card .chart-area {
+    height: 200px;
+  }
+
+  .dashboard-page .chart-card .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .dashboard-page .cap-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .dashboard-page .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

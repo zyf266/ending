@@ -2781,3 +2781,198 @@ INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [5960]
+C:\Users\A1\PycharmProjects\PythonProject - 副本\backpack_quant_trading\webhook_service.py:47: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+2026-03-30 17:43:25 | INFO     | WebhookService | 正在启动 Webhook 服务于 0.0.0.0:8005
+INFO:     Started server process [28480]
+INFO:     Waiting for application startup.
+2026-03-30 17:43:25 | INFO     | WebhookService | 🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)
+2026-03-30 17:43:25 | INFO     | WebhookService | ✅ 等待注册引擎实例...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8005 (Press CTRL+C to quit)
+2026-03-30 17:43:25 | INFO     | WebhookService | 🔧 创建 Hyperliquid 引擎实例: hl_174323_683370
+2026-03-30 17:43:25 | INFO     | backpack_quant_trading.core.hyperliquid_client | Hyperliquid 账户已加载: 0x316408b30fad991c30bfa656f5a5cf367dbe38c6
+INFO:     127.0.0.1:59224 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59229 - "GET /instances HTTP/1.1" 200 OK
+2026-03-30 17:43:26 | INFO     | backpack_quant_trading.engine.hyperliquid_trading | Hyperliquid 交易引擎已初始化
+2026-03-30 17:43:26 | INFO     | WebhookService | ✅ Hyperliquid 引擎实例 hl_174323_683370 注册成功
+INFO:     127.0.0.1:62529 - "POST /register_instance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61941 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61942 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60311 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60312 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50003 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50004 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58661 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58662 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49156 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49157 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65385 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65386 - "GET /balance/hl_174323_683370 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28480]
+2026-03-30 17:43:40 | ERROR    | asyncio | Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x000001D1A9741A90>
+2026-03-30 17:43:40 | ERROR    | asyncio | Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x000001D1A92FF170>, 1617104.551632)])']
+connector: <aiohttp.connector.TCPConnector object at 0x000001D1A9742900>
+C:\Users\A1\PycharmProjects\PythonProject - 副本\backpack_quant_trading\webhook_service.py:47: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+2026-03-30 17:51:45 | INFO     | WebhookService | 正在启动 Webhook 服务于 0.0.0.0:8005
+INFO:     Started server process [86332]
+INFO:     Waiting for application startup.
+2026-03-30 17:51:45 | INFO     | WebhookService | 🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)
+2026-03-30 17:51:45 | INFO     | WebhookService | ✅ 等待注册引擎实例...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8005 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63884 - "GET /instances HTTP/1.1" 200 OK
+2026-03-30 17:51:46 | INFO     | WebhookService | 🔧 创建 Hyperliquid 引擎实例: hl_175144_359823
+2026-03-30 17:51:46 | INFO     | backpack_quant_trading.core.hyperliquid_client | Hyperliquid 账户已加载: 0x316408b30fad991c30bfa656f5a5cf367dbe38c6
+2026-03-30 17:51:46 | INFO     | backpack_quant_trading.engine.hyperliquid_trading | Hyperliquid 交易引擎已初始化
+2026-03-30 17:51:46 | INFO     | WebhookService | ✅ Hyperliquid 引擎实例 hl_175144_359823 注册成功
+INFO:     127.0.0.1:60559 - "POST /register_instance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57805 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57806 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51686 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51687 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61567 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61568 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50438 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50440 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49695 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49696 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59818 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59819 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64224 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64225 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57639 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57641 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62649 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62650 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58223 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58224 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52926 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57337 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58922 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58923 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60605 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60606 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64109 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64110 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51611 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51612 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59592 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59593 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63209 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63210 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59451 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59452 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64501 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64502 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59099 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59100 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50000 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56385 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50283 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50284 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52423 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52425 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52238 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52239 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64464 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64465 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55097 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55098 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57899 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57900 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55771 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55772 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54596 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54597 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62766 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62767 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58769 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58770 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60583 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60584 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50854 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53803 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57756 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57758 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63798 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63799 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61344 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61345 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63732 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63733 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58000 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58001 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62460 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62461 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61353 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61354 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59068 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54597 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55757 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55758 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53437 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53438 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50315 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50316 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55362 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55364 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52150 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52151 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58954 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58956 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56864 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56865 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57680 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57681 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52529 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52530 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55276 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55277 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58015 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58016 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56430 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56431 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62687 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62688 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59908 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59910 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56678 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56679 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56641 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56642 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63258 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63259 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58776 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58660 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53460 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53461 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58829 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58832 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63557 - "GET /instances HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63558 - "GET /balance/hl_175144_359823 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [86332]
+2026-03-30 17:54:21 | ERROR    | asyncio | Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x000001DD30FA0C20>
+2026-03-30 17:54:21 | ERROR    | asyncio | Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x000001DD30FAF170>, 1617744.9946971)])']
+connector: <aiohttp.connector.TCPConnector object at 0x000001DD30FA1A90>

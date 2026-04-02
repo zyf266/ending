@@ -4,11 +4,14 @@ import sys
 import json
 import socket
 import subprocess
+import logging
 import requests
 import psutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict
+import threading
+import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -16,11 +19,17 @@ from pydantic import BaseModel
 from backpack_quant_trading.api.deps import require_user
 from backpack_quant_trading.database.models import DatabaseManager
 from backpack_quant_trading.main import STRATEGY_REGISTRY, STRATEGY_DISPLAY_NAMES
+from backpack_quant_trading.strategy.hype_adaptive_short import HYPEAdaptiveShortStrategy
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 WEBHOOK_PORT = 8005
-# api/routers/trading.py -> api -> backpack_quant_trading -> project root
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+HYPE_STRATEGY_INSTANCES: Dict[str, HYPEAdaptiveShortStrategy] = {}
+HYPE_STRATEGY_TASKS: Dict[str, asyncio.AbstractEventLoop] = {}
+HYPE_STRATEGY_THREADS: Dict[str, threading.Thread] = {}
 
 
 def _is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
@@ -88,6 +97,9 @@ def list_strategies():
             {"value": "deepcoin", "label": "Deepcoin"},
             {"value": "ostium", "label": "Ostium"},
             {"value": "hyperliquid", "label": "Hyperliquid"},
+        ],
+        "hype_strategies": [
+            {"value": "hype_adaptive_short", "label": "自适应做空策略(Webhook版)"},
         ],
     }
 
@@ -165,6 +177,24 @@ def list_instances(user: dict = Depends(require_user)):
             except Exception:
                 obj = {}
             pid = _pids.get(iid, 0)
+            
+            # HYPE 内存实例：直接从内存读取余额和启动时间
+            if iid in HYPE_STRATEGY_INSTANCES:
+                hype = HYPE_STRATEGY_INSTANCES[iid]
+                balance_str = f"{hype.balance_cache:,.2f}" if hype.balance_cache is not None else "--"
+                start_time_str = hype.start_time.strftime("%m-%d %H:%M")
+                instances.append({
+                    "id": iid,
+                    "pid": pid,
+                    "platform": "hyperliquid",
+                    "strategy_name": "HYPE做空策略(Webhook版)",
+                    "symbol": hype.symbol,
+                    "start_time": start_time_str,
+                    "balance": balance_str,
+                    "status": "running",
+                })
+                continue
+
             balance_str = "--"
             if iid in _balances:
                 bal = _balances[iid].get("balance")
@@ -205,6 +235,265 @@ class LaunchRequest(BaseModel):
     forbidden_ranges: Optional[List[List[int]]] = None  # [[3,8],[13,15]]
 
 
+class HypeStartRequest(BaseModel):
+    symbol: str = "ETH"
+    private_key: Optional[str] = None
+    stop_loss_pct: float = 0.03
+    take_profit_pct: float = 0.06
+    break_even_pct: float = 0.03
+    margin_amount: float = 20.0
+    leverage: int = 50
+    kline_interval: str = "2h"  # K线级别: 15m / 1h / 2h / 4h / 1d
+
+
+class HypeToggleRequest(BaseModel):
+    instance_id: Optional[str] = None
+    enabled: bool
+
+
+def _run_hype_strategy_in_thread(instance_id: str, strategy: HYPEAdaptiveShortStrategy):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    HYPE_STRATEGY_TASKS[instance_id] = loop
+    try:
+        loop.run_until_complete(strategy.run())
+    finally:
+        try:
+            loop.run_until_complete(strategy.close())
+        except Exception:
+            pass
+        loop.close()
+        HYPE_STRATEGY_TASKS.pop(instance_id, None)
+
+
+@router.post("/hype/start")
+def start_hype_strategy(req: HypeStartRequest, user: dict = Depends(require_user)):
+    if not req.private_key and not config.hyperliquid.PRIVATE_KEY:
+        raise HTTPException(status_code=400, detail="请提供 Hyperliquid 私钥")
+    symbol = (req.symbol or "ETH").upper()
+    instance_id = f"hype_{datetime.now().strftime('%H%M%S_%f')}"
+    
+    # 使用用户提供的私钥或配置中的私钥
+    private_key = req.private_key or config.hyperliquid.PRIVATE_KEY
+    
+    try:
+        strategy = HYPEAdaptiveShortStrategy(
+            symbol=symbol,
+            private_key=private_key,
+            instance_id=instance_id,
+            stop_loss_pct=req.stop_loss_pct,
+            take_profit_pct=req.take_profit_pct,
+            break_even_pct=req.break_even_pct,
+            margin_amount=req.margin_amount,
+            leverage=req.leverage,
+            kline_interval=req.kline_interval,
+        )
+    except ValueError as e:
+        # 私钥格式错误
+        raise HTTPException(status_code=400, detail=f"私钥格式错误: {str(e)}")
+    except Exception as e:
+        # 其他初始化错误
+        raise HTTPException(status_code=500, detail=f"策略初始化失败: {str(e)}")
+    
+    thread = threading.Thread(target=_run_hype_strategy_in_thread, args=(instance_id, strategy), daemon=True)
+    HYPE_STRATEGY_INSTANCES[instance_id] = strategy
+    HYPE_STRATEGY_THREADS[instance_id] = thread
+    thread.start()
+
+    db = DatabaseManager()
+    cfg = json.dumps({"platform": "hyperliquid", "strategy": "hype_adaptive_short", "symbol": symbol}, ensure_ascii=False)
+    db.save_user_instance(user["id"], "live", instance_id, cfg)
+    return {"ok": True, "instance_id": instance_id, "message": "自适应做空策略已启动"}
+
+
+@router.post("/hype/stop")
+def stop_hype_strategy(user: dict = Depends(require_user)):
+    db = DatabaseManager()
+    my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    target_ids = [iid for iid in list(HYPE_STRATEGY_INSTANCES.keys()) if iid in my_ids]
+    if not target_ids:
+        return {"ok": True, "message": "没有运行中的 HYPE 策略"}
+
+    for instance_id in target_ids:
+        strategy = HYPE_STRATEGY_INSTANCES.pop(instance_id, None)
+        loop = HYPE_STRATEGY_TASKS.get(instance_id)
+        HYPE_STRATEGY_THREADS.pop(instance_id, None)
+        if strategy and loop:
+            strategy._stop = True
+            asyncio.run_coroutine_threadsafe(strategy.close(), loop)
+        db.delete_user_instance(user["id"], "live", instance_id)
+    return {"ok": True, "message": "HYPE做空策略已停止"}
+
+
+@router.get("/hype/status")
+def get_hype_status():
+    """获取HYPE策略状态（免登录，供调试和TradingView调用）"""
+    try:
+        # 直接返回内存中的实例状态
+        items = []
+        logger.info(f"[DEBUG] HYPE_STRATEGY_INSTANCES 数量: {len(HYPE_STRATEGY_INSTANCES)}")
+        logger.info(f"[DEBUG] HYPE_STRATEGY_INSTANCES keys: {list(HYPE_STRATEGY_INSTANCES.keys())}")
+        
+        for instance_id, strategy in HYPE_STRATEGY_INSTANCES.items():
+            try:
+                item = strategy.get_status()
+                item["running"] = True
+                items.append(item)
+                logger.info(f"[DEBUG] 实例 {instance_id}: is_enabled={strategy.is_enabled}, position={strategy.position}")
+            except Exception as e:
+                logger.error(f"获取策略状态失败 {instance_id}: {e}")
+                items.append({
+                    "instance_id": instance_id,
+                    "error": str(e),
+                    "running": False
+                })
+        
+        return {"running": len(items) > 0, "instances": items, "debug_count": len(HYPE_STRATEGY_INSTANCES)}
+    except Exception as e:
+        logger.error(f"获取HYPE状态失败: {e}")
+        return {"running": False, "instances": [], "error": str(e)}
+
+
+@router.post("/hype/toggle")
+def toggle_hype_strategy(req: HypeToggleRequest, user: dict = Depends(require_user)):
+    db = DatabaseManager()
+    my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    target_id = req.instance_id
+    if not target_id:
+        for iid in HYPE_STRATEGY_INSTANCES.keys():
+            if iid in my_ids:
+                target_id = iid
+                break
+    if not target_id or target_id not in HYPE_STRATEGY_INSTANCES or target_id not in my_ids:
+        raise HTTPException(status_code=404, detail="未找到对应的 HYPE 策略实例")
+    strategy = HYPE_STRATEGY_INSTANCES[target_id]
+    strategy.set_enabled(req.enabled)
+    return {"ok": True, "instance_id": target_id, "enabled": req.enabled, "message": f"策略已{'开启' if req.enabled else '关闭'}"}
+
+
+class WebhookSignal(BaseModel):
+    """
+    TradingView Webhook 信号，兼容新旧两种格式：
+
+    新格式（推荐）:
+      { "ID": "趋势信号提醒", "策略": "2h级别趋势增强",
+        "交易品种": "ETHUSD", "方向": "sell", "成交价格": "2091.5" }
+
+    旧格式（兼容）:
+      { "交易品种": "ETH", "操作": "sell", "价格": 2091.5, "先前仓位大小": "0" }
+    """
+    # 新格式字段
+    ID: Optional[str] = None
+    策略: Optional[str] = None
+    方向: Optional[str] = None        # 新格式：'sell' / 'buy'
+    成交价格: Optional[str] = None    # 新格式：字符串价格
+
+    # 旧格式字段（兼容保留）
+    交易品种: str = "ETH"
+    价格: Optional[float] = None
+    操作: Optional[str] = None        # 旧格式：'sell' / 'buy'
+    仓位方向: Optional[str] = None
+    先前仓位大小: Optional[str] = None  # 旧格式专用，新格式无此字段
+
+    @property
+    def resolved_action(self) -> str:
+        """统一取操作方向：优先新格式 方向，回退旧格式 操作"""
+        return (self.方向 or self.操作 or "").lower().strip()
+
+    @property
+    def resolved_price(self) -> Optional[float]:
+        """统一取价格：优先新格式 成交价格，回退旧格式 价格"""
+        if self.成交价格 is not None:
+            try:
+                return float(self.成交价格)
+            except (ValueError, TypeError):
+                return None
+        return self.价格
+
+    @property
+    def resolved_symbol(self) -> str:
+        """清理交易品种：'ETHUSD' / 'ETH/USD' → 'ETH'"""
+        raw = self.交易品种 or "ETH"
+        # 去掉后缀 USD/USDT/PERP 等
+        for suffix in ["USDT", "USD", "PERP", "/USDT", "/USD"]:
+            if raw.upper().endswith(suffix.upper()):
+                raw = raw[: -len(suffix)]
+                break
+        return raw.upper().strip() or "ETH"
+
+
+@router.post("/hype/webhook")
+def hype_webhook(req: WebhookSignal):
+    """接收 TradingView Webhook 信号并转发给策略（无需登录，供 TradingView 调用）"""
+    # 找到第一个运行中的 HYPE 策略实例
+    target_id = None
+    for iid, strategy in HYPE_STRATEGY_INSTANCES.items():
+        if strategy.is_enabled:
+            target_id = iid
+            break
+
+    if not target_id:
+        raise HTTPException(status_code=404, detail="没有运行中的 HYPE 策略实例")
+
+    strategy = HYPE_STRATEGY_INSTANCES[target_id]
+
+    # 解析统一字段
+    action = req.resolved_action           # 'sell' / 'buy'
+    price = req.resolved_price             # float 或 None
+    symbol = req.resolved_symbol           # 'ETH'
+
+    # 推断 先前仓位大小：
+    #   新格式没有 先前仓位大小，改为从策略当前持仓状态推断
+    #   - sell + 无持仓 → 开空 (先前=0)
+    #   - buy  + 有持仓 → 平空 (先前!=0)
+    if req.先前仓位大小 is not None:
+        # 旧格式：直接使用原字段
+        prev_size = req.先前仓位大小
+    else:
+        # 新格式：根据策略当前持仓状态自动设置
+        if strategy.position == "SHORT":
+            prev_size = "1"   # 有持仓 → buy 信号触发平仓
+        else:
+            prev_size = "0"   # 无持仓 → sell 信号触发开空
+
+    logger.info(
+        f"📡 Webhook 收到信号: action={action} symbol={symbol} price={price} "
+        f"prev_size={prev_size} 来源={req.ID or '未知'} 策略={req.策略 or '未知'}"
+    )
+
+    # 转换为策略内部使用的 TVSignal
+    from backpack_quant_trading.strategy.hype_adaptive_short import TVSignal
+    signal = TVSignal(
+        交易品种=symbol,
+        价格=price,
+        操作=action,
+        仓位方向=req.仓位方向,
+        先前仓位大小=prev_size,
+    )
+
+    # 异步执行信号
+    import asyncio
+    try:
+        loop = HYPE_STRATEGY_TASKS.get(target_id)
+        if loop:
+            future = asyncio.run_coroutine_threadsafe(
+                strategy.execute_signal(signal, req.dict()),
+                loop
+            )
+            result = future.result(timeout=5)
+            return {
+                "ok": True,
+                "instance_id": target_id,
+                "position": strategy.position,
+                "message": f"信号已处理: {action}"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="策略事件循环未找到")
+    except Exception as e:
+        logger.error(f"处理 Webhook 信号失败: {e}")
+        raise HTTPException(status_code=500, detail=f"信号处理失败: {str(e)}")
+
+
 @router.post("/launch")
 def launch_strategy(req: LaunchRequest, user: dict = Depends(require_user)):
     """启动实盘策略"""
@@ -213,6 +502,13 @@ def launch_strategy(req: LaunchRequest, user: dict = Depends(require_user)):
 
     # 解析交易对：ETH/BTC 等简写 -> 交易所完整格式
     symbol = _resolve_symbol(req.symbol or "", req.platform)
+
+    # 【HYPE自适应做空策略】使用独立的线程模式，不走 Webhook
+    if req.strategy == "hype_adaptive_short":
+        raise HTTPException(
+            status_code=400, 
+            detail="HYPE做空策略请使用专用端点 /trading/hype/start"
+        )
 
     if req.platform in ["ostium", "hyperliquid"]:
         # Webhook 模式
@@ -346,12 +642,21 @@ def stop_instance(instance_id: str, user: dict = Depends(require_user)):
     platform = obj.get("platform", "backpack")
 
     if platform in ["ostium", "hyperliquid"]:
-        try:
-            r = requests.post(f"http://127.0.0.1:{WEBHOOK_PORT}/unregister_instance/{instance_id}", timeout=5)
-            if r.status_code != 200:
-                raise HTTPException(status_code=500, detail="注销 Webhook 实例失败")
-        except requests.exceptions.ConnectionError:
-            pass  # 服务已关闭
+        # HYPE 自适应做空策略是本地线程模式，不走 webhook 注销
+        if instance_id.startswith("hype_"):
+            strategy = HYPE_STRATEGY_INSTANCES.pop(instance_id, None)
+            loop = HYPE_STRATEGY_TASKS.get(instance_id)
+            HYPE_STRATEGY_THREADS.pop(instance_id, None)
+            if strategy and loop:
+                strategy._stop = True
+                asyncio.run_coroutine_threadsafe(strategy.close(), loop)
+        else:
+            try:
+                r = requests.post(f"http://127.0.0.1:{WEBHOOK_PORT}/unregister_instance/{instance_id}", timeout=5)
+                if r.status_code != 200:
+                    raise HTTPException(status_code=500, detail="注销 Webhook 实例失败")
+            except requests.exceptions.ConnectionError:
+                pass  # 服务已关闭
     else:
         # 子进程实例：从 live_pids.json 读取 PID 并杀死
         _pids_path = PROJECT_ROOT / "backpack_quant_trading" / "log" / "live_pids.json"
@@ -388,7 +693,8 @@ def get_logs(user: dict = Depends(require_user)):
     try:
         log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
         lines = []
-        for fname in ["webhook_server.log", "live_console.log"]:
+        # 添加 HYPE 策略日志文件到读取列表
+        for fname in ["webhook_server.log", "live_console.log", "hype_strategy.log"]:
             fp = log_dir / fname
             if fp.exists():
                 try:

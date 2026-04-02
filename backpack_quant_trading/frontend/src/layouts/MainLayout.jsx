@@ -11,6 +11,8 @@ import {
   Layers,
   Repeat,
   ChevronRight,
+  Menu,
+  X,
 } from 'lucide-react'
 import ChatBot from '../components/ChatBot'
 import './MainLayout.css'
@@ -39,7 +41,7 @@ const navItems = [
     ],
   },
   { type: 'item', to: '/currency-monitor', icon: Bell, label: '币种监视' },
-  { type: 'item', to: '/strategies', icon: Layers, label: 'AI矩阵策略' },
+  { type: 'item', to: '/strategies', icon: Layers, label: 'AI策略矩阵' },
 ]
 
 const pageTitles = {
@@ -49,12 +51,12 @@ const pageTitles = {
   '/grid-trading': '网格交易',
   '/currency-monitor': '币种监视',
   '/stock-ai': 'A股 AI 选股',
-  '/strategies': 'AI矩阵策略',
+  '/strategies': 'AI策略矩阵',
   '/okx-console': 'OKX 操作台',
 }
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith('/strategies')) return 'AI矩阵策略'
+  if (pathname.startsWith('/strategies')) return 'AI策略矩阵'
   // 实盘交易父菜单下的两个子页面，统一父标题
   if (pathname === '/trading' || pathname === '/grid-trading') return '实盘交易'
   // AI 实验室父菜单下的三个子页面，统一父标题
@@ -70,9 +72,15 @@ const MainLayout = () => {
 
   const [showTradingGroup, setShowTradingGroup] = useState(false)
   const [showAiGroup, setShowAiGroup] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navigate = useNavigate()
   const location = useLocation()
+
+  // 路由切换时关闭侧边栏
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     if (!user) {
@@ -91,7 +99,13 @@ const MainLayout = () => {
 
   return (
     <div className="main-layout">
-      <aside className="sidebar">
+      {/* 移动端遗罩层 */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="logo-section">
           <div className="logo-wrapper">
             <div className="logo-icon">
@@ -102,7 +116,7 @@ const MainLayout = () => {
               </svg>
             </div>
             <div>
-              <div className="logo-text">沐龙量化</div>
+              <div className="logo-text">ApexAI Quant</div>
               <div className="logo-subtext">Admin · v1.0</div>
             </div>
           </div>
@@ -179,6 +193,15 @@ const MainLayout = () => {
       <div className="content">
         <header className="header">
           <div className="header-left">
+            {/* 移动端汉堡菜单按钮 */}
+            <button
+              type="button"
+              className="hamburger-btn"
+              aria-label="展开菜单"
+              onClick={() => setSidebarOpen((v) => !v)}
+            >
+              {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
             <h1 className="page-title">{pageTitle}</h1>
             <span className="status-badge">
               <span className="status-dot" />
@@ -186,17 +209,17 @@ const MainLayout = () => {
             </span>
           </div>
           <div className="header-right">
-            <button type="button" className="icon-btn" aria-label="通知">
+            <button type="button" className="icon-btn desktop-only" aria-label="通知">
               <Bell size={22} />
             </button>
-            <button type="button" className="icon-btn" aria-label="刷新">
+            <button type="button" className="icon-btn desktop-only" aria-label="刷新">
               <RefreshCw size={22} />
             </button>
             <div className="user-info">
               <div className="user-avatar">
                 {(user?.username || '用').slice(0, 2).toUpperCase()}
               </div>
-              <div className="user-details">
+              <div className="user-details desktop-only">
                 <div className="user-name">{user?.username || 'zyf'} {user?.role === 'superuser' ? '管理员' : '用户'}</div>
               </div>
             </div>
@@ -205,7 +228,7 @@ const MainLayout = () => {
               className="btn-logout"
               onClick={handleLogout}
             >
-              退出系统
+              退出
             </button>
           </div>
         </header>

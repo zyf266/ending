@@ -50,6 +50,23 @@ async def startup_event():
     logger.info("🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)")
     logger.info("✅ 等待注册引擎实例...")
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    """关闭所有引擎实例，释放资源"""
+    logger.info("🛑 Webhook 服务正在关闭，清理引擎实例...")
+    for instance_id, engine in list(engine_instances.items()):
+        try:
+            if hasattr(engine, 'close'):
+                await engine.close()
+                logger.info(f"✅ 引擎 {instance_id} 已关闭")
+            elif hasattr(engine, 'is_stopped'):
+                engine.is_stopped = True
+        except Exception as e:
+            logger.warning(f"关闭引擎 {instance_id} 时出错: {e}")
+    engine_instances.clear()
+    engine_locks.clear()
+    logger.info("✅ 所有引擎实例已清理")
+
 @app.get("/")
 async def root():
     return {
@@ -231,6 +248,16 @@ async def unregister_instance(instance_id: str):
     """注销引擎实例"""
     if instance_id not in engine_instances:
         raise HTTPException(status_code=404, detail=f"实例 {instance_id} 不存在")
+    
+    # 关闭引擎资源
+    engine = engine_instances[instance_id]
+    try:
+        if hasattr(engine, 'close'):
+            await engine.close()
+        elif hasattr(engine, 'is_stopped'):
+            engine.is_stopped = True
+    except Exception as e:
+        logger.warning(f"关闭引擎 {instance_id} 时出错: {e}")
     
     # 删除实例
     del engine_instances[instance_id]

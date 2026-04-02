@@ -207,3 +207,27 @@
 2026-02-05 17:16:07 | INFO     | backpack_quant_trading.core.ostium_client | 获取账户余额成功: (Decimal('0.000383865037679832'), Decimal('18.75213'))
 2026-02-05 17:16:08 | INFO     | backpack_quant_trading.core.ostium_client | 获取账户余额成功: (Decimal('0.000383865037679832'), Decimal('18.75213'))
 2026-02-05 17:16:10 | INFO     | WebhookService | ✅ 引擎实例 ostium_171422_460808 已注销
+2026-03-30 17:43:25 | INFO     | WebhookService | 正在启动 Webhook 服务于 0.0.0.0:8005
+2026-03-30 17:43:25 | INFO     | WebhookService | 🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)
+2026-03-30 17:43:25 | INFO     | WebhookService | ✅ 等待注册引擎实例...
+2026-03-30 17:43:25 | INFO     | WebhookService | 🔧 创建 Hyperliquid 引擎实例: hl_174323_683370
+2026-03-30 17:43:25 | INFO     | backpack_quant_trading.core.hyperliquid_client | Hyperliquid 账户已加载: 0x316408b30fad991c30bfa656f5a5cf367dbe38c6
+2026-03-30 17:43:26 | INFO     | backpack_quant_trading.engine.hyperliquid_trading | Hyperliquid 交易引擎已初始化
+2026-03-30 17:43:26 | INFO     | WebhookService | ✅ Hyperliquid 引擎实例 hl_174323_683370 注册成功
+2026-03-30 17:43:40 | ERROR    | asyncio | Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x000001D1A9741A90>
+2026-03-30 17:43:40 | ERROR    | asyncio | Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x000001D1A92FF170>, 1617104.551632)])']
+connector: <aiohttp.connector.TCPConnector object at 0x000001D1A9742900>
+2026-03-30 17:51:45 | INFO     | WebhookService | 正在启动 Webhook 服务于 0.0.0.0:8005
+2026-03-30 17:51:45 | INFO     | WebhookService | 🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)
+2026-03-30 17:51:45 | INFO     | WebhookService | ✅ 等待注册引擎实例...
+2026-03-30 17:51:46 | INFO     | WebhookService | 🔧 创建 Hyperliquid 引擎实例: hl_175144_359823
+2026-03-30 17:51:46 | INFO     | backpack_quant_trading.core.hyperliquid_client | Hyperliquid 账户已加载: 0x316408b30fad991c30bfa656f5a5cf367dbe38c6
+2026-03-30 17:51:46 | INFO     | backpack_quant_trading.engine.hyperliquid_trading | Hyperliquid 交易引擎已初始化
+2026-03-30 17:51:46 | INFO     | WebhookService | ✅ Hyperliquid 引擎实例 hl_175144_359823 注册成功
+2026-03-30 17:54:21 | ERROR    | asyncio | Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x000001DD30FA0C20>
+2026-03-30 17:54:21 | ERROR    | asyncio | Unclosed connector
+connections: ['deque([(<aiohttp.client_proto.ResponseHandler object at 0x000001DD30FAF170>, 1617744.9946971)])']
+connector: <aiohttp.connector.TCPConnector object at 0x000001DD30FA1A90>

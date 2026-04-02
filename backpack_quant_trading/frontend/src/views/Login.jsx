@@ -83,7 +83,7 @@ const Login = () => {
               />
             </svg>
           </div>
-          <h1>沐龙量化</h1>
+          <h1>ApexAI Quant</h1>
           <p>Quantitative Trading Platform</p>
         </div>
 

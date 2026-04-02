@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import * as echarts from 'echarts'
 import './StrategyDetail.css'
 
-const DEFAULT_INITIAL_CAPITAL = 30000000
+const DEFAULT_INITIAL_CAPITAL = 2000000
 const FIXED_START_DATE = '2024-04-01'
 const _today = new Date().toISOString().slice(0, 10)
 const FIXED_END_DATE = _today
@@ -84,7 +84,7 @@ function computeOverviewFromTrades(tradesArray, initial = DEFAULT_INITIAL_CAPITA
   }
 }
 
-export default function StrategyDetail({ title, subtitle, currencyLabel, initialCapital = DEFAULT_INITIAL_CAPITAL, startDate, endDate, getOverview, getTrades, getKlines }) {
+export default function StrategyDetail({ title, subtitle, currencyLabel, initialCapital = DEFAULT_INITIAL_CAPITAL, startDate, endDate, fixedProfitFactor = null, getOverview, getTrades, getKlines }) {
   const navigate = useNavigate()
   const initial = useMemo(() => Number(initialCapital || DEFAULT_INITIAL_CAPITAL), [initialCapital])
   const fixedStart = startDate || FIXED_START_DATE
@@ -162,7 +162,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
 
     const netProfit = Number(ov.strategy_profit ?? 0)
     const unrealized = 0
-    const profitFactor = Number(ov.profit_factor ?? 0)
+    const profitFactor = Number(fixedProfitFactor ?? ov.profit_factor ?? 0)
     const totalTradesVal = Number(ov.total_trades ?? 0)
     const expectedPayoff = totalTradesVal ? netProfit / totalTradesVal : 0
 
@@ -413,13 +413,12 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
     setLoading(true)
     setLoadingSignals(true)
     try {
-      const cacheBust = true
       const promises = [
-        getOverview ? (getOverview.length ? getOverview(cacheBust) : getOverview()) : Promise.resolve(null),
-        getTrades ? (getTrades.length ? getTrades(cacheBust) : getTrades()) : Promise.resolve([]),
+        getOverview ? getOverview(true) : Promise.resolve(null),
+        getTrades ? getTrades(true) : Promise.resolve([]),
       ]
       if (getKlines) {
-        promises.push(getKlines.length ? getKlines(cacheBust) : getKlines())
+        promises.push(getKlines(true))
       }
       const results = await Promise.all(promises)
       const ovRes = results[0]
@@ -1047,7 +1046,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
           </div>
           <div className="summary-card">
             <p>⚖️ 盈亏比</p>
-            <h3>{(currentOverviewForSimpleCards.profit_factor ?? 0).toFixed(2)}</h3>
+            <h3>{Number(fixedProfitFactor ?? currentOverviewForSimpleCards.profit_factor ?? 0).toFixed(2)}</h3>
           </div>
         </div>
       )}
@@ -1169,13 +1168,33 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
             )}
             {displayTrades.length > 0 && (() => {
               const PAGE_SIZE = 20
-              const totalPages = Math.ceil(displayTrades.length / PAGE_SIZE)
-              const pageRows = displayTrades.slice((tradePage - 1) * PAGE_SIZE, tradePage * PAGE_SIZE)
+              // 先按 trade_no 分组配对，让进场和出场相邻
+              const grouped = {}
+              displayTrades.forEach(r => {
+                if (!grouped[r.trade_no]) grouped[r.trade_no] = []
+                grouped[r.trade_no].push(r)
+              })
+              // 每组内部：进场行排前，出场行排后
               const isEntry = (row) => {
                 const tp = String(row.trade_type || '')
                 const sig = String(row.signal || '').toLowerCase()
                 return tp.includes('进') || tp.includes('进场') || tp.includes('入场') || sig.includes('buy') || sig.includes('long 1') || sig === '买' || sig.includes('买')
               }
+              const sortedGroups = Object.keys(grouped)
+                .map(Number)
+                .sort((a, b) => b - a) // 按 trade_no 降序（最新在前）
+              const reorderedRows = []
+              sortedGroups.forEach(no => {
+                const group = grouped[no]
+                const entries = group.filter(r => isEntry(r))
+                const exits = group.filter(r => !isEntry(r))
+                // 出场行在前，进场行在后（与原始展示一致）
+                exits.forEach(r => reorderedRows.push(r))
+                entries.forEach(r => reorderedRows.push(r))
+              })
+              const totalPages = Math.ceil(sortedGroups.length / PAGE_SIZE)
+              const pageNos = sortedGroups.slice((tradePage - 1) * PAGE_SIZE, tradePage * PAGE_SIZE)
+              const pageRows = reorderedRows.filter(r => pageNos.includes(r.trade_no))
               return (
                 <>
                   <div className="trades-table-wrap">

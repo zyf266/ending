@@ -298,3 +298,125 @@
   padding: 20px 16px;
   background: #f9fafb;
 }
+
+/* ========== 汉堡按钮（桌面隐藏） ========== */
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+  background: #f3f4f6;
+}
+
+/* ========== 移动端遮罩层 ========== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.open {
+  display: block;
+}
+
+/* ========== 桌面端专用元素 ========== */
+.desktop-only {
+  display: flex;
+}
+
+/* ========== 移动端自适应 (max-width: 768px) ========== */
+@media (max-width: 768px) {
+  /* 侧边栏变为抽屉式 Drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    width: 260px;
+    min-width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+  }
+
+  /* 主内容区占满全屏 */
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .content {
+    width: 100%;
+  }
+
+  /* Header 紧凑 */
+  .header {
+    padding: 10px 14px;
+    min-height: 52px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .status-badge {
+    display: none;
+  }
+
+  /* 不展示桌面专用元素 */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* 展示汉堡按钮 */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* 退出按钮缩小 */
+  .btn-logout {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  /* 页面内容区 padding 缩小 */
+  .page-content {
+    padding: 12px 10px;
+  }
+
+  /* 导航内容排版 */
+  .nav-link {
+    font-size: 16px;
+    padding: 10px 14px;
+  }
+
+  .nav-link-child {
+    font-size: 14px;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+}
