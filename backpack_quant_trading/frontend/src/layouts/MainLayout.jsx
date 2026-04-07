@@ -20,14 +20,10 @@ import './MainLayout.css'
 // 导航配置：支持父菜单 + 子菜单
 const navItems = [
   {
-    type: 'group',
+    type: 'item',
     icon: Zap,
     label: '实盘交易',
-    to: '/trading', // 点击父菜单时默认跳到策略交易
-    children: [
-      { to: '/trading', label: '策略交易' },
-      { to: '/grid-trading', label: '网格交易' },
-    ],
+    to: '/trading',
   },
   {
     type: 'group',
@@ -57,8 +53,7 @@ const pageTitles = {
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/strategies')) return 'AI策略矩阵'
-  // 实盘交易父菜单下的两个子页面，统一父标题
-  if (pathname === '/trading' || pathname === '/grid-trading') return '实盘交易'
+  if (pathname === '/trading') return '策略交易'
   // AI 实验室父菜单下的三个子页面，统一父标题
   if (pathname === '/ai-lab' || pathname === '/stock-ai' || pathname === '/okx-console') return 'AI 实验室'
   return pageTitles[pathname] || '沐龙量化'

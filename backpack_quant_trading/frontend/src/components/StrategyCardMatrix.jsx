@@ -64,7 +64,7 @@ export function StrategyCardMatrix({
           )}
           <div className="min-w-0">
             <h3 className="mb-1 text-xl font-bold text-gray-900">{title}</h3>
-            <p className="text-base text-gray-400">{code}</p>
+            {/* code 已隐藏 */}
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -9,9 +9,9 @@ const strategies = [
   {
     to: '/strategies/eth-only',
     icon: '₿',
-    title: '沐龙加密趋势追踪策略',
+    title: '加密趋势追踪策略 · ETH',
     code: 'ML-DTS',
-    description: '专注 BTC / ETH 等主流加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
+    description: '专注BTC/ETH/HYPE等主流加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 98,
@@ -22,9 +22,9 @@ const strategies = [
   {
     to: '/strategies/eth-trend',
     icon: '🔥',
-    title: '沐龙加密趋势追踪策略 · HYPE',
+    title: '加密趋势追踪策略 · HYPE',
     code: 'ML-DTS',
-    description: '专注 HYPE 等新兴加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
+    description: '专注BTC/ETH/HYPE等新兴加密货币，捕捉由波动率扩张驱动的中长期趋势，通过多周期协同过滤震荡噪音，追求稳健的风险调整后收益。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 98,
@@ -35,7 +35,7 @@ const strategies = [
   {
     to: '/strategies/paxg-trend',
     icon: '🥇',
-    title: '沐龙黄金波动率周期捕捉策略',
+    title: '黄金波动率周期捕捉策略',
     code: 'ML-GVCS',
     description: '专注 XAU/USD 波动率周期，结合宏观趋势与关键支撑区间布局，坚持「低位等待、确定性介入」原则，利用波动率扩张捕捉中期行情。',
     status: '运行中',
@@ -48,7 +48,7 @@ const strategies = [
   {
     to: '/strategies/nas100-trend',
     icon: '📈',
-    title: '沐龙纳指趋势追踪增强策略',
+    title: '纳指波动率增强策略',
     code: 'ML-NAS',
     description: '聚焦纳斯达克指数的中长期趋势行情，结合趋势强度与回撤过滤，围绕关键趋势段进行分批建仓与风控，强调顺势持有与风险控制。',
     status: '运行中',
@@ -61,7 +61,7 @@ const strategies = [
   {
     to: '/strategies/eth-trend',
     icon: '🏮',
-    title: '沐龙A股动量轮动策略',
+    title: 'A股动量轮动策略',
     code: 'ML-AMR',
     description: '聚焦A股市场中的强势板块与个股，结合市场情绪指标与技术支撑进行动量捕捉，在震荡市依托强势因子做板块轮动，在趋势市集中持仓捕捉主升。',
     status: '测试中',
@@ -176,7 +176,7 @@ export default function StrategyMatrixAlt() {
     <div className="strategy-matrix-alt min-h-full w-full bg-[#f9fafb]">
       <div className="mx-auto w-full max-w-[1920px] px-4 py-5">
         {/* Stats Grid */}
-        <div className="stats-grid-strategy mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="stats-grid-strategy mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
           {stats.map((stat, index) => (
             <StatCard
               key={index}

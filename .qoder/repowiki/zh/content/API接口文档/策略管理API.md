@@ -12,6 +12,14 @@
 - [strategy/comprehensive.py](file://backpack_quant_trading/strategy/comprehensive.py)
 </cite>
 
+## 更新摘要
+**变更内容**
+- 新增ETH-only策略端点，支持独立的ETH趋势策略
+- 改进CSV导入功能，增强数据验证和错误处理
+- 新增通用概览计算函数，支持不同策略的出场规则
+- 增强数据验证规则，包括时间格式解析和字段映射
+- 新增自动数据加载机制，提升用户体验
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -47,7 +55,7 @@ H --> G
 I["综合策略V2<br/>strategy/comprehensive.py"] --> H
 ```
 
-图表来源
+**图表来源**
 - [api/main.py:36-48](file://backpack_quant_trading/api/main.py#L36-L48)
 - [api/routers/strategy.py:22-109](file://backpack_quant_trading/api/routers/strategy.py#L22-L109)
 - [database/models.py:267-288](file://backpack_quant_trading/database/models.py#L267-L288)
@@ -56,7 +64,7 @@ I["综合策略V2<br/>strategy/comprehensive.py"] --> H
 - [strategy/base.py:41-91](file://backpack_quant_trading/strategy/base.py#L41-L91)
 - [strategy/comprehensive.py:17-91](file://backpack_quant_trading/strategy/comprehensive.py#L17-L91)
 
-章节来源
+**章节来源**
 - [api/main.py:36-48](file://backpack_quant_trading/api/main.py#L36-L48)
 - [api/routers/strategy.py:22-109](file://backpack_quant_trading/api/routers/strategy.py#L22-L109)
 
@@ -67,7 +75,7 @@ I["综合策略V2<br/>strategy/comprehensive.py"] --> H
 - 回测引擎：提供回测框架，支持多策略、多标的、多时间周期回测
 - 策略基类与具体策略：定义策略抽象接口、信号生成、参数管理与性能指标
 
-章节来源
+**章节来源**
 - [database/models.py:14-43](file://backpack_quant_trading/database/models.py#L14-L43)
 - [engine/live_trading.py:23-47](file://backpack_quant_trading/engine/live_trading.py#L23-L47)
 - [engine/backtest.py:16-46](file://backpack_quant_trading/engine/backtest.py#L16-L46)
@@ -96,7 +104,7 @@ API->>Engine : 触发策略生命周期注册/启动/停止
 Engine-->>API : 状态变更/性能指标
 ```
 
-图表来源
+**图表来源**
 - [api/routers/strategy.py:180-244](file://backpack_quant_trading/api/routers/strategy.py#L180-L244)
 - [database/models.py:267-288](file://backpack_quant_trading/database/models.py#L267-L288)
 - [engine/live_trading.py:536-567](file://backpack_quant_trading/engine/live_trading.py#L536-L567)
@@ -129,12 +137,14 @@ Engine-->>API : 状态变更/性能指标
   - GET /api/strategy/nas100-2h/trades：获取NAS100 2H回测交易明细
   - GET /api/strategy/nas100-2h/overview：获取NAS100 2H策略总体表现
 
+**更新** 新增ETH-only策略端点，支持独立的ETH趋势策略，包括导入CSV、同步K线、查询交易明细和概览
+
 请求/响应模式
 - 导入接口：请求体为空，响应为包含导入记录数的对象
 - 同步接口：请求体为空，响应为包含新增条数的对象
 - 查询接口：响应为对应的模型列表或概览模型
 
-章节来源
+**章节来源**
 - [api/routers/strategy.py:180-244](file://backpack_quant_trading/api/routers/strategy.py#L180-L244)
 - [api/routers/strategy.py:252-325](file://backpack_quant_trading/api/routers/strategy.py#L252-L325)
 - [api/routers/strategy.py:328-390](file://backpack_quant_trading/api/routers/strategy.py#L328-L390)
@@ -187,10 +197,10 @@ class RiskSeverity {
 }
 ```
 
-图表来源
+**图表来源**
 - [database/models.py:14-43](file://backpack_quant_trading/database/models.py#L14-L43)
 
-章节来源
+**章节来源**
 - [database/models.py:14-43](file://backpack_quant_trading/database/models.py#L14-L43)
 
 ### 参数验证规则与配置模板
@@ -198,11 +208,15 @@ class RiskSeverity {
   - 导入CSV接口：校验CSV文件是否存在；对字段进行重命名与类型转换；缺失字段使用默认值或0填充；时间字段支持多种格式解析
   - 同步K线接口：校验最后一条K线时间戳；从最后时间点续拉；避免重复插入；批量写入数据库
   - 查询接口：自动确保数据已导入；按时间顺序排序；缺失字段返回空值或0
+  - **新增**：时间格式解析支持ISO格式和本地格式，自动处理时区信息
+  - **新增**：字段映射增强，支持多种CSV格式的兼容性处理
 - 配置模板
   - 策略配置表（strategy_config）：包含策略名称、模块、类名、默认参数JSON、启用状态
   - 用户实例表（user_instances）：按用户隔离的实盘/网格/币种监视配置，存储非敏感元数据
 
-章节来源
+**更新** 增强了CSV导入的数据验证和错误处理机制，包括时间格式解析和字段映射的改进
+
+**章节来源**
 - [api/routers/strategy.py:180-244](file://backpack_quant_trading/api/routers/strategy.py#L180-L244)
 - [api/routers/strategy.py:252-325](file://backpack_quant_trading/api/routers/strategy.py#L252-L325)
 - [database/models.py:254-266](file://backpack_quant_trading/database/models.py#L254-L266)
@@ -235,11 +249,11 @@ Engine-->>API : 状态更新
 API-->>Client : 同步结果
 ```
 
-图表来源
+**图表来源**
 - [engine/live_trading.py:536-567](file://backpack_quant_trading/engine/live_trading.py#L536-L567)
 - [engine/live_trading.py:126-345](file://backpack_quant_trading/engine/live_trading.py#L126-L345)
 
-章节来源
+**章节来源**
 - [engine/live_trading.py:588-607](file://backpack_quant_trading/engine/live_trading.py#L588-L607)
 - [engine/live_trading.py:536-567](file://backpack_quant_trading/engine/live_trading.py#L536-L567)
 - [strategy/base.py:170-174](file://backpack_quant_trading/strategy/base.py#L170-L174)
@@ -248,8 +262,11 @@ API-->>Client : 同步结果
 - HTTP异常：导入/同步接口在文件不存在或数据获取失败时返回404/500
 - 数据库异常：导入接口使用事务回滚，确保数据一致性
 - 引擎异常：WebSocket连接失败时指数退避重试；连接关闭时触发重连
+- **新增**：CSV导入异常处理增强，包括字段缺失、格式错误等情况的处理
 
-章节来源
+**更新** 增强了异常处理机制，特别是在CSV导入过程中的错误处理和数据验证
+
+**章节来源**
 - [api/routers/strategy.py:182-183](file://backpack_quant_trading/api/routers/strategy.py#L182-L183)
 - [api/routers/strategy.py:272-273](file://backpack_quant_trading/api/routers/strategy.py#L272-L273)
 - [engine/live_trading.py:153-235](file://backpack_quant_trading/engine/live_trading.py#L153-L235)
@@ -257,6 +274,9 @@ API-->>Client : 同步结果
 ### 策略性能指标获取
 - 概览接口：计算总收益、最大回撤、胜率、盈利因子、买入持有收益、年化超额收益、总交易数、起止时间等
 - 通用计算函数：支持不同策略的出场规则（如纳指策略仅依据信号close判定出场）
+- **新增**：通用概览计算函数，支持自定义初始资本、交易资本和出场规则
+
+**更新** 新增了通用概览计算函数，支持不同策略的差异化处理，包括出场规则和资金管理
 
 ```mermaid
 flowchart TD
@@ -270,11 +290,11 @@ BuyHold --> Annual["计算年化收益与超额收益"]
 Annual --> Output["输出概览模型"]
 ```
 
-图表来源
+**图表来源**
 - [api/routers/strategy.py:392-488](file://backpack_quant_trading/api/routers/strategy.py#L392-L488)
 - [api/routers/strategy.py:922-1005](file://backpack_quant_trading/api/routers/strategy.py#L922-L1005)
 
-章节来源
+**章节来源**
 - [api/routers/strategy.py:392-488](file://backpack_quant_trading/api/routers/strategy.py#L392-L488)
 - [api/routers/strategy.py:1008-1039](file://backpack_quant_trading/api/routers/strategy.py#L1008-L1039)
 
@@ -282,7 +302,7 @@ Annual --> Output["输出概览模型"]
 - 回测接口：通过回测引擎运行策略回测，支持多标的、多周期、多时间窗口
 - 实时监控：WebSocket订阅K线与成交数据；引擎定期更新订单/仓位/余额；支持回调通知
 
-章节来源
+**章节来源**
 - [engine/backtest.py:65-187](file://backpack_quant_trading/engine/backtest.py#L65-L187)
 - [engine/live_trading.py:558-567](file://backpack_quant_trading/engine/live_trading.py#L558-L567)
 
@@ -294,7 +314,7 @@ Annual --> Output["输出概览模型"]
   - 实盘引擎在开仓时检查是否已有同向持仓，避免重复开仓
   - 回测引擎在执行交易时遵循冷静期（平仓后N根K线内不开新仓）以降低过度交易
 
-章节来源
+**章节来源**
 - [engine/live_trading.py:588-607](file://backpack_quant_trading/engine/live_trading.py#L588-L607)
 - [engine/backtest.py:173-179](file://backpack_quant_trading/engine/backtest.py#L173-L179)
 
@@ -324,14 +344,14 @@ BT --> StratBase
 StratBase --> StratImpl["具体策略实现"]
 ```
 
-图表来源
+**图表来源**
 - [api/main.py:36-48](file://backpack_quant_trading/api/main.py#L36-L48)
 - [api/routers/strategy.py:22-109](file://backpack_quant_trading/api/routers/strategy.py#L22-L109)
 - [engine/live_trading.py:347-535](file://backpack_quant_trading/engine/live_trading.py#L347-L535)
 - [engine/backtest.py:48-66](file://backpack_quant_trading/engine/backtest.py#L48-L66)
 - [strategy/base.py:41-91](file://backpack_quant_trading/strategy/base.py#L41-L91)
 
-章节来源
+**章节来源**
 - [api/main.py:36-48](file://backpack_quant_trading/api/main.py#L36-L48)
 - [api/routers/strategy.py:22-109](file://backpack_quant_trading/api/routers/strategy.py#L22-L109)
 
@@ -340,22 +360,31 @@ StratBase --> StratImpl["具体策略实现"]
 - 缓存与去重：余额查询使用缓存；交易ID去重避免重复插入
 - WebSocket重连与指数退避：提升网络不稳定场景下的稳定性
 - 回测预热期：跳过前100根K线，确保技术指标充分计算
+- **新增**：自动数据加载机制：首次访问时自动导入CSV数据，提升用户体验
+
+**更新** 新增了自动数据加载机制，减少手动操作步骤
 
 ## 故障排除指南
 - 导入CSV失败
   - 检查CSV文件是否存在与编码格式
   - 确认字段映射与时间格式解析
+  - **新增**：检查CSV格式兼容性和字段完整性
 - 同步K线失败
   - 检查最后时间戳与续拉逻辑
   - 确认数据源可用性与网络连接
 - WebSocket连接异常
   - 查看重连日志与代理设置
   - 确认订阅频道与交易对格式
+- **新增**：数据验证失败
+  - 检查时间格式解析是否正确
+  - 确认数值字段的类型转换
 
-章节来源
+**更新** 新增了数据验证和格式兼容性的故障排除指导
+
+**章节来源**
 - [api/routers/strategy.py:182-183](file://backpack_quant_trading/api/routers/strategy.py#L182-L183)
 - [api/routers/strategy.py:272-273](file://backpack_quant_trading/api/routers/strategy.py#L272-L273)
 - [engine/live_trading.py:153-235](file://backpack_quant_trading/engine/live_trading.py#L153-L235)
 
 ## 结论
-策略管理API提供了完整的策略数据导入、同步、查询与概览能力，并通过实盘与回测引擎支撑策略生命周期管理。结合参数验证、异常处理与性能优化，系统能够稳定地支持多策略、多标的的量化交易需求。建议在生产环境中进一步完善鉴权与审计日志，确保策略配置与参数变更的可追溯性。
+策略管理API提供了完整的策略数据导入、同步、查询与概览能力，并通过实盘与回测引擎支撑策略生命周期管理。结合参数验证、异常处理与性能优化，系统能够稳定地支持多策略、多标的的量化交易需求。**新增的ETH-only策略端点**增强了系统的灵活性，**改进的CSV导入功能**提升了数据处理的可靠性，**增强的错误处理机制**确保了系统的稳定性。建议在生产环境中进一步完善鉴权与审计日志，确保策略配置与参数变更的可追溯性。

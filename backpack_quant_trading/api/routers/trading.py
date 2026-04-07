@@ -13,13 +13,16 @@ from typing import Optional, List, Dict
 import threading
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from backpack_quant_trading.api.deps import require_user
+from backpack_quant_trading.config.settings import config
 from backpack_quant_trading.database.models import DatabaseManager
 from backpack_quant_trading.main import STRATEGY_REGISTRY, STRATEGY_DISPLAY_NAMES
 from backpack_quant_trading.strategy.hype_adaptive_short import HYPEAdaptiveShortStrategy
+from backpack_quant_trading.strategy.eth_trend_short import ETHTrendShortStrategy
+from backpack_quant_trading.strategy.adaptive_long_strategy import AdaptiveLongStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 HYPE_STRATEGY_INSTANCES: Dict[str, HYPEAdaptiveShortStrategy] = {}
 HYPE_STRATEGY_TASKS: Dict[str, asyncio.AbstractEventLoop] = {}
 HYPE_STRATEGY_THREADS: Dict[str, threading.Thread] = {}
+
+# ETH 趋势做空策略全局实例（复用同一字典模式）
+ETH_TREND_INSTANCES: Dict[str, ETHTrendShortStrategy] = {}
+ETH_TREND_TASKS: Dict[str, asyncio.AbstractEventLoop] = {}
+ETH_TREND_THREADS: Dict[str, threading.Thread] = {}
+
+# 自适应做多策略全局实例
+ADAPTIVE_LONG_INSTANCES: Dict[str, AdaptiveLongStrategy] = {}
+ADAPTIVE_LONG_TASKS: Dict[str, asyncio.AbstractEventLoop] = {}
+ADAPTIVE_LONG_THREADS: Dict[str, threading.Thread] = {}
 
 
 def _is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
@@ -91,7 +104,11 @@ def _resolve_symbol(user_input: str, platform: str) -> str:
 @router.get("/strategies")
 def list_strategies():
     return {
-        "strategies": [{"value": k, "label": STRATEGY_DISPLAY_NAMES.get(k, k)} for k in STRATEGY_REGISTRY.keys()],
+        "strategies": [{"value": k, "label": STRATEGY_DISPLAY_NAMES.get(k, k)} for k in STRATEGY_REGISTRY.keys()] + [
+            {"value": "hype_adaptive_short", "label": "自适应做空策略(Webhook版)"},
+            {"value": "eth_trend_short",     "label": "ETH趋势做空策略"},
+            {"value": "adaptive_long",       "label": "自适应做多策略(Webhook版)"},
+        ],
         "exchanges": [
             {"value": "backpack", "label": "Backpack"},
             {"value": "deepcoin", "label": "Deepcoin"},
@@ -195,6 +212,40 @@ def list_instances(user: dict = Depends(require_user)):
                 })
                 continue
 
+            # ETH趋势做空实例：直接从内存读取
+            if iid in ETH_TREND_INSTANCES:
+                eth = ETH_TREND_INSTANCES[iid]
+                balance_str = f"{eth.balance_cache:,.2f}" if eth.balance_cache is not None else "--"
+                start_time_str = eth.start_time.strftime("%m-%d %H:%M") if hasattr(eth, "start_time") else "--:--"
+                instances.append({
+                    "id": iid,
+                    "pid": pid,
+                    "platform": "hyperliquid",
+                    "strategy_name": "ETH趋势做空策略",
+                    "symbol": getattr(eth, "symbol", "ETH"),
+                    "start_time": start_time_str,
+                    "balance": balance_str,
+                    "status": "running",
+                })
+                continue
+
+            # 自适应做多实例：直接从内存读取
+            if iid in ADAPTIVE_LONG_INSTANCES:
+                al = ADAPTIVE_LONG_INSTANCES[iid]
+                balance_str = f"{al.balance_cache:,.2f}" if al.balance_cache is not None else "--"
+                start_time_str = al.start_time.strftime("%m-%d %H:%M") if hasattr(al, "start_time") else "--:--"
+                instances.append({
+                    "id": iid,
+                    "pid": pid,
+                    "platform": "hyperliquid",
+                    "strategy_name": "自适应做多策略(Webhook版)",
+                    "symbol": al.symbol or "动态(Webhook)",
+                    "start_time": start_time_str,
+                    "balance": balance_str,
+                    "status": "running",
+                })
+                continue
+
             balance_str = "--"
             if iid in _balances:
                 bal = _balances[iid].get("balance")
@@ -243,7 +294,7 @@ class HypeStartRequest(BaseModel):
     break_even_pct: float = 0.03
     margin_amount: float = 20.0
     leverage: int = 50
-    kline_interval: str = "2h"  # K线级别: 15m / 1h / 2h / 4h / 1d
+
 
 
 class HypeToggleRequest(BaseModel):
@@ -286,7 +337,6 @@ def start_hype_strategy(req: HypeStartRequest, user: dict = Depends(require_user
             break_even_pct=req.break_even_pct,
             margin_amount=req.margin_amount,
             leverage=req.leverage,
-            kline_interval=req.kline_interval,
         )
     except ValueError as e:
         # 私钥格式错误
@@ -423,8 +473,14 @@ class WebhookSignal(BaseModel):
 
 
 @router.post("/hype/webhook")
-def hype_webhook(req: WebhookSignal):
+async def hype_webhook(request: Request):
     """接收 TradingView Webhook 信号并转发给策略（无需登录，供 TradingView 调用）"""
+    # 直接读取原始 JSON，避免 Pydantic 对中文字段名解析失败
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="无效的 JSON 请求体")
+
     # 找到第一个运行中的 HYPE 策略实例
     target_id = None
     for iid, strategy in HYPE_STRATEGY_INSTANCES.items():
@@ -437,50 +493,51 @@ def hype_webhook(req: WebhookSignal):
 
     strategy = HYPE_STRATEGY_INSTANCES[target_id]
 
-    # 解析统一字段
-    action = req.resolved_action           # 'sell' / 'buy'
-    price = req.resolved_price             # float 或 None
-    symbol = req.resolved_symbol           # 'ETH'
+    # 兼容新旧两种格式提取字段（直接从 dict 读取，避免中文字段名编码问题）
+    action = (data.get("方向") or data.get("操作") or data.get("signal") or "").lower().strip()
+    price_raw = data.get("成交价格") or data.get("价格") or data.get("price")
+    try:
+        price = float(price_raw) if price_raw is not None else None
+    except (ValueError, TypeError):
+        price = None
 
-    # 推断 先前仓位大小：
-    #   新格式没有 先前仓位大小，改为从策略当前持仓状态推断
-    #   - sell + 无持仓 → 开空 (先前=0)
-    #   - buy  + 有持仓 → 平空 (先前!=0)
-    if req.先前仓位大小 is not None:
-        # 旧格式：直接使用原字段
-        prev_size = req.先前仓位大小
-    else:
-        # 新格式：根据策略当前持仓状态自动设置
-        if strategy.position == "SHORT":
-            prev_size = "1"   # 有持仓 → buy 信号触发平仓
-        else:
-            prev_size = "0"   # 无持仓 → sell 信号触发开空
+    # 清理交易品种后缀
+    symbol_raw = str(data.get("交易品种") or data.get("symbol") or "ETH")
+    for suffix in ["USDT", "USD", "PERP", "/USDT", "/USD"]:
+        if symbol_raw.upper().endswith(suffix.upper()):
+            symbol_raw = symbol_raw[: -len(suffix)]
+            break
+    symbol = symbol_raw.upper().strip() or "ETH"
+
+    # 推断先前仓位大小
+    prev_size = str(data.get("先前仓位大小") or "")
+    if not prev_size:
+        prev_size = "1" if strategy.position == "SHORT" else "0"
 
     logger.info(
-        f"📡 Webhook 收到信号: action={action} symbol={symbol} price={price} "
-        f"prev_size={prev_size} 来源={req.ID or '未知'} 策略={req.策略 or '未知'}"
+        f"📡 Webhook 收到信号: action={action} symbol={symbol} price={price} prev_size={prev_size}"
     )
 
-    # 转换为策略内部使用的 TVSignal
+    # 转换为策略内部 TVSignal
     from backpack_quant_trading.strategy.hype_adaptive_short import TVSignal
     signal = TVSignal(
         交易品种=symbol,
         价格=price,
         操作=action,
-        仓位方向=req.仓位方向,
+        仓位方向=data.get("仓位方向"),
         先前仓位大小=prev_size,
     )
 
-    # 异步执行信号
+    # 通过策略所在事件循环异步执行
     import asyncio
     try:
         loop = HYPE_STRATEGY_TASKS.get(target_id)
         if loop:
             future = asyncio.run_coroutine_threadsafe(
-                strategy.execute_signal(signal, req.dict()),
+                strategy.execute_signal(signal, data),
                 loop
             )
-            result = future.result(timeout=5)
+            future.result(timeout=5)
             return {
                 "ok": True,
                 "instance_id": target_id,
@@ -650,6 +707,26 @@ def stop_instance(instance_id: str, user: dict = Depends(require_user)):
             if strategy and loop:
                 strategy._stop = True
                 asyncio.run_coroutine_threadsafe(strategy.close(), loop)
+        # ETH 趋势做空
+        elif instance_id.startswith("eth_trend_"):
+            strategy = ETH_TREND_INSTANCES.pop(instance_id, None)
+            loop = ETH_TREND_TASKS.get(instance_id)
+            ETH_TREND_THREADS.pop(instance_id, None)
+            if strategy:
+                strategy.stop()
+            if loop and loop.is_running():
+                asyncio.run_coroutine_threadsafe(strategy.client.close(), loop)
+            ETH_TREND_TASKS.pop(instance_id, None)
+        # 自适应做多策略
+        elif instance_id.startswith("al_"):
+            strategy = ADAPTIVE_LONG_INSTANCES.pop(instance_id, None)
+            loop = ADAPTIVE_LONG_TASKS.get(instance_id)
+            ADAPTIVE_LONG_THREADS.pop(instance_id, None)
+            if strategy:
+                strategy.stop()
+            if loop and loop.is_running():
+                asyncio.run_coroutine_threadsafe(strategy.client.close(), loop)
+            ADAPTIVE_LONG_TASKS.pop(instance_id, None)
         else:
             try:
                 r = requests.post(f"http://127.0.0.1:{WEBHOOK_PORT}/unregister_instance/{instance_id}", timeout=5)
@@ -693,8 +770,8 @@ def get_logs(user: dict = Depends(require_user)):
     try:
         log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
         lines = []
-        # 添加 HYPE 策略日志文件到读取列表
-        for fname in ["webhook_server.log", "live_console.log", "hype_strategy.log"]:
+        # 添加各策略日志文件到读取列表
+        for fname in ["webhook_server.log", "live_console.log", "hype_strategy.log", "eth_trend_short.log", "adaptive_long.log"]:
             fp = log_dir / fname
             if fp.exists():
                 try:
@@ -721,3 +798,292 @@ def get_logs(user: dict = Depends(require_user)):
         _log = __import__("logging").getLogger(__name__)
         _log.exception("get_logs: %s", e)
         return {"logs": "暂无日志"}
+
+
+# ═══════════════════════════════════════════════════════
+#  ETH 趋势做空策略  start / stop / status
+# ═══════════════════════════════════════════════════════
+
+class EthTrendStartRequest(BaseModel):
+    symbol: str = "ETH"
+    private_key: Optional[str] = None
+    margin_amount: float = 20.0
+    leverage: int = 50
+    stop_loss_pct: float = 0.03
+    take_profit_pct: float = 0.10
+    lockin_trig_pct: float = 0.04
+    lockin_prot_pct: float = 0.02
+    breakeven_pct: float = 0.05
+    price_filter_min: float = 2000.0
+
+
+def _run_eth_trend_in_thread(instance_id: str, strategy: ETHTrendShortStrategy):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    ETH_TREND_TASKS[instance_id] = loop
+    try:
+        loop.run_until_complete(strategy.run())
+    finally:
+        try:
+            loop.run_until_complete(strategy.client.close())
+        except Exception:
+            pass
+        loop.close()
+        ETH_TREND_TASKS.pop(instance_id, None)
+
+
+@router.post("/eth-trend-short/start", summary="启动 ETH 趋势做空策略")
+def start_eth_trend_short(req: EthTrendStartRequest, user: dict = Depends(require_user)):
+    if ETH_TREND_INSTANCES:
+        running = [iid for iid, s in ETH_TREND_INSTANCES.items() if not s._stop]
+        if running:
+            return {"ok": False, "message": "ETH趋势做空策略已在运行中，请先停止再启动"}
+
+    private_key = req.private_key or config.hyperliquid.PRIVATE_KEY
+    if not private_key:
+        raise HTTPException(status_code=400, detail="请提供 Hyperliquid 私钥")
+
+    instance_id = f"eth_trend_{datetime.now().strftime('%H%M%S_%f')}"
+    try:
+        strategy = ETHTrendShortStrategy(
+            symbol=req.symbol,
+            private_key=private_key,
+            instance_id=instance_id,
+            margin_amount=req.margin_amount,
+            leverage=req.leverage,
+            stop_loss_pct=req.stop_loss_pct,
+            take_profit_pct=req.take_profit_pct,
+            lockin_trig_pct=req.lockin_trig_pct,
+            lockin_prot_pct=req.lockin_prot_pct,
+            breakeven_pct=req.breakeven_pct,
+            price_filter_min=req.price_filter_min,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"私钥格式错误: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"策略初始化失败: {str(e)}")
+
+    thread = threading.Thread(
+        target=_run_eth_trend_in_thread, args=(instance_id, strategy), daemon=True
+    )
+    ETH_TREND_INSTANCES[instance_id] = strategy
+    ETH_TREND_THREADS[instance_id] = thread
+    thread.start()
+
+    db = DatabaseManager()
+    cfg = json.dumps({"platform": "hyperliquid", "strategy": "eth_trend_short", "symbol": req.symbol}, ensure_ascii=False)
+    db.save_user_instance(user["id"], "live", instance_id, cfg)
+    logger.info(f"✅ ETH趋势做空策略已启动: {instance_id}")
+    return {"ok": True, "instance_id": instance_id, "message": "ETH趋势做空策略已启动"}
+
+
+@router.post("/eth-trend-short/stop", summary="停止 ETH 趋势做空策略")
+def stop_eth_trend_short(user: dict = Depends(require_user)):
+    db = DatabaseManager()
+    my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    target_ids = [iid for iid in list(ETH_TREND_INSTANCES.keys()) if iid in my_ids]
+    if not target_ids:
+        # 如果数据库没记录但内存有实例，也一并清除
+        target_ids = list(ETH_TREND_INSTANCES.keys())
+    if not target_ids:
+        return {"ok": True, "message": "没有运行中的ETH趋势做空策略"}
+
+    for iid in target_ids:
+        strategy = ETH_TREND_INSTANCES.pop(iid, None)
+        ETH_TREND_THREADS.pop(iid, None)
+        loop = ETH_TREND_TASKS.get(iid)
+        if strategy:
+            strategy.stop()
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(strategy.client.close(), loop)
+        ETH_TREND_TASKS.pop(iid, None)
+        try:
+            db.delete_user_instance(user["id"], "live", iid)
+        except Exception:
+            pass
+    logger.info("🛑 ETH趋势做空策略已停止")
+    return {"ok": True, "message": "ETH趋势做空策略已停止"}
+
+
+@router.get("/eth-trend-short/status", summary="获取 ETH 趋势做空策略状态")
+def get_eth_trend_short_status():
+    items = []
+    for iid, strategy in ETH_TREND_INSTANCES.items():
+        try:
+            status = strategy.get_status()
+            status["running"] = not strategy._stop
+            items.append(status)
+        except Exception as e:
+            items.append({"instance_id": iid, "error": str(e), "running": False})
+    return {"running": len(items) > 0, "instances": items}
+
+
+# ═══════════════════════════════════════════════════════
+#  自适应做多策略  start / stop / status / webhook
+# ═══════════════════════════════════════════════════════
+
+class AdaptiveLongStartRequest(BaseModel):
+    private_key: Optional[str] = None
+    margin_amount: float = 20.0
+    leverage: int = 50
+    stop_loss_pct: float = 0.03
+    take_profit_pct: float = 0.06
+    break_even_pct: float = 0.03
+
+
+def _run_adaptive_long_in_thread(instance_id: str, strategy: AdaptiveLongStrategy):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    ADAPTIVE_LONG_TASKS[instance_id] = loop
+    try:
+        loop.run_until_complete(strategy.run())
+    finally:
+        try:
+            loop.run_until_complete(strategy.client.close())
+        except Exception:
+            pass
+        loop.close()
+        ADAPTIVE_LONG_TASKS.pop(instance_id, None)
+
+
+@router.post("/adaptive-long/start", summary="启动自适应做多策略")
+def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(require_user)):
+    if ADAPTIVE_LONG_INSTANCES:
+        running = [iid for iid, s in ADAPTIVE_LONG_INSTANCES.items() if not s._stop]
+        if running:
+            return {"ok": False, "message": "自适应做多策略已在运行中，请先停止再启动"}
+
+    private_key = req.private_key or config.hyperliquid.PRIVATE_KEY
+    if not private_key:
+        raise HTTPException(status_code=400, detail="请提供 Hyperliquid 私钥")
+
+    instance_id = f"al_{datetime.now().strftime('%H%M%S_%f')}"
+    try:
+        strategy = AdaptiveLongStrategy(
+            private_key=private_key,
+            instance_id=instance_id,
+            margin_amount=req.margin_amount,
+            leverage=req.leverage,
+            stop_loss_pct=req.stop_loss_pct,
+            take_profit_pct=req.take_profit_pct,
+            break_even_pct=req.break_even_pct,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"私钥格式错误: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"策略初始化失败: {str(e)}")
+
+    thread = threading.Thread(
+        target=_run_adaptive_long_in_thread, args=(instance_id, strategy), daemon=True
+    )
+    ADAPTIVE_LONG_INSTANCES[instance_id] = strategy
+    ADAPTIVE_LONG_THREADS[instance_id] = thread
+    thread.start()
+
+    db = DatabaseManager()
+    cfg = json.dumps(
+        {"platform": "hyperliquid", "strategy": "adaptive_long", "symbol": "动态(Webhook)"},
+        ensure_ascii=False
+    )
+    db.save_user_instance(user["id"], "live", instance_id, cfg)
+    logger.info(f"✅ 自适应做多策略已启动: {instance_id}")
+    return {"ok": True, "instance_id": instance_id, "message": "自适应做多策略已启动"}
+
+
+@router.post("/adaptive-long/stop", summary="停止自适应做多策略")
+def stop_adaptive_long(user: dict = Depends(require_user)):
+    db = DatabaseManager()
+    my_ids = set(db.get_user_instance_ids(user["id"], "live"))
+    target_ids = [iid for iid in list(ADAPTIVE_LONG_INSTANCES.keys()) if iid in my_ids]
+    if not target_ids:
+        target_ids = list(ADAPTIVE_LONG_INSTANCES.keys())
+    if not target_ids:
+        return {"ok": True, "message": "没有运行中的自适应做多策略"}
+
+    for iid in target_ids:
+        strategy = ADAPTIVE_LONG_INSTANCES.pop(iid, None)
+        ADAPTIVE_LONG_THREADS.pop(iid, None)
+        loop = ADAPTIVE_LONG_TASKS.get(iid)
+        if strategy:
+            strategy.stop()
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(strategy.client.close(), loop)
+        ADAPTIVE_LONG_TASKS.pop(iid, None)
+        try:
+            db.delete_user_instance(user["id"], "live", iid)
+        except Exception:
+            pass
+    logger.info("🛑 自适应做多策略已停止")
+    return {"ok": True, "message": "自适应做多策略已停止"}
+
+
+@router.get("/adaptive-long/status", summary="获取自适应做多策略状态")
+def get_adaptive_long_status():
+    items = []
+    for iid, strategy in ADAPTIVE_LONG_INSTANCES.items():
+        try:
+            status = strategy.get_status()
+            status["running"] = not strategy._stop
+            items.append(status)
+        except Exception as e:
+            items.append({"instance_id": iid, "error": str(e), "running": False})
+    return {"running": len(items) > 0, "instances": items}
+
+
+@router.post("/adaptive-long/webhook", summary="接收 TradingView Webhook 信号（自适应做多）")
+async def adaptive_long_webhook(request: Request):
+    """
+    接收 TradingView Webhook 信号，格式:
+      {"交易品种":"ETH","操作":"buy","先前仓位大小":"0"}   → 开多
+      {"交易品种":"ETH","操作":"sell","先前仓位大小":"0.1"} → 平多
+    币种不匹配时 sell 信号自动忽略。
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="无效的 JSON 请求体")
+
+    # 找第一个运行中且已启用的实例
+    target_id = None
+    for iid, strategy in ADAPTIVE_LONG_INSTANCES.items():
+        if strategy.is_enabled and not strategy._stop:
+            target_id = iid
+            break
+
+    if not target_id:
+        raise HTTPException(status_code=404, detail="没有运行中的自适应做多策略实例")
+
+    strategy = ADAPTIVE_LONG_INSTANCES[target_id]
+
+    # 解析信号字段（兼容中文字段名）
+    action = (data.get("方向") or data.get("操作") or "").lower().strip()
+    symbol_raw = str(data.get("交易品种") or data.get("symbol") or "ETH")
+    for suffix in ["USDT", "USD", "PERP", "/USDT", "/USD"]:
+        if symbol_raw.upper().endswith(suffix.upper()):
+            symbol_raw = symbol_raw[: -len(suffix)]
+            break
+    signal_symbol = symbol_raw.upper().strip() or "ETH"
+
+    logger.info(f"📡 自适应做多 Webhook: action={action}  symbol={signal_symbol}")
+
+    loop = ADAPTIVE_LONG_TASKS.get(target_id)
+    if not loop:
+        raise HTTPException(status_code=500, detail="策略事件循环未找到")
+
+    try:
+        future = asyncio.run_coroutine_threadsafe(
+            strategy.execute_signal(signal_symbol, action),
+            loop
+        )
+        future.result(timeout=10)
+        return {
+            "ok": True,
+            "instance_id": target_id,
+            "position": strategy.position,
+            "symbol": strategy.symbol,
+            "message": f"信号已处理: {action} {signal_symbol}",
+        }
+    except Exception as e:
+        logger.error(f"处理自适应做多 Webhook 信号失败: {e}")
+        raise HTTPException(status_code=500, detail=f"信号处理失败: {str(e)}")
+

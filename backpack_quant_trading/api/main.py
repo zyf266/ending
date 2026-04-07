@@ -53,6 +53,89 @@ def health():
     return {"status": "ok", "service": "backpack-quant-api"}
 
 
+# ── HYPE 策略 Webhook 快捷入口（无需 /api/trading 前缀，供 TradingView 直接调用）──
+from fastapi import Request as _Request
+from fastapi.responses import JSONResponse as _JSONResponse
+from backpack_quant_trading.api.routers.trading import HYPE_STRATEGY_INSTANCES, WebhookSignal
+
+
+@app.post("/hype/webhook", tags=["HYPE Webhook"])
+async def hype_webhook_shortcut(request: _Request):
+    """TradingView Webhook 快捷入口，策略启动后立即可用。
+
+    开空: POST /hype/webhook  {"交易品种":"ETH","操作":"sell","先前仓位大小":"0"}
+    平空: POST /hype/webhook  {"交易品种":"ETH","操作":"buy","先前仓位大小":"0.5"}
+    """
+    try:
+        data = await request.json()
+
+        # 找到第一个运行中的 HYPE 实例
+        target_id = None
+        for iid, strategy in HYPE_STRATEGY_INSTANCES.items():
+            if strategy.is_enabled:
+                target_id = iid
+                break
+
+        if not target_id:
+            return _JSONResponse(
+                {"status": "error", "message": "没有运行中的 HYPE 策略，请先从前端启动"},
+                status_code=404,
+            )
+
+        strategy = HYPE_STRATEGY_INSTANCES[target_id]
+
+        # 直接从 dict 读取，避免中文字段名 Pydantic 解析失败
+        action = (data.get("方向") or data.get("操作") or data.get("signal") or "").lower().strip()
+        price_raw = data.get("成交价格") or data.get("价格") or data.get("price")
+        try:
+            price = float(price_raw) if price_raw is not None else None
+        except (ValueError, TypeError):
+            price = None
+        symbol_raw = str(data.get("交易品种") or data.get("symbol") or "ETH")
+        for suffix in ["USDT", "USD", "PERP", "/USDT", "/USD"]:
+            if symbol_raw.upper().endswith(suffix.upper()):
+                symbol_raw = symbol_raw[: -len(suffix)]
+                break
+        symbol = symbol_raw.upper().strip() or "ETH"
+        prev_size = str(data.get("先前仓位大小") or "")
+        if not prev_size:
+            prev_size = "1" if strategy.position == "SHORT" else "0"
+
+        import asyncio as _asyncio
+        from backpack_quant_trading.strategy.hype_adaptive_short import TVSignal
+        signal = TVSignal(
+            交易品种=symbol,
+            价格=price,
+            操作=action,
+            仓位方向=data.get("仓位方向"),
+            先前仓位大小=prev_size,
+        )
+
+        from backpack_quant_trading.api.routers.trading import HYPE_STRATEGY_TASKS
+        loop = HYPE_STRATEGY_TASKS.get(target_id)
+        if loop:
+            future = _asyncio.run_coroutine_threadsafe(
+                strategy.execute_signal(signal, data), loop
+            )
+            future.result(timeout=5)
+        else:
+            _asyncio.ensure_future(strategy.execute_signal(signal, data))
+
+        return {"status": "ok", "signal": action, "instance_id": target_id}
+
+    except Exception as e:
+        return _JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+@app.get("/hype/position", tags=["HYPE Webhook"])
+def hype_position_shortcut():
+    """查询 HYPE 策略当前持仓"""
+    result = {}
+    for iid, strategy in HYPE_STRATEGY_INSTANCES.items():
+        result[iid] = strategy.get_status()
+    return result if result else {"position": None, "message": "无运行中实例"}
+
+
 # 生产构建后挂载 Vue 静态文件
 # 尝试多个可能路径（兼容不同启动方式）
 _pkg_dir = Path(__file__).resolve().parents[1]

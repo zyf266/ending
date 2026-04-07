@@ -587,6 +587,195 @@ async def update_config(
         logger.error(f"[实例 {instance_id}] 更新配置失败: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+# ==================== HYPE 做空策略 Webhook 路由 ====================
+
+from backpack_quant_trading.strategy.hype_adaptive_short import HYPEAdaptiveShortStrategy, TVSignal
+
+# HYPE 策略实例管理（键: instance_id）
+hype_instances: Dict[str, HYPEAdaptiveShortStrategy] = {}
+hype_threads: Dict[str, "threading.Thread"] = {}
+
+import threading
+import asyncio as _asyncio
+
+
+def _run_hype_in_thread(iid: str, strategy: HYPEAdaptiveShortStrategy):
+    loop = _asyncio.new_event_loop()
+    _asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(strategy.run())
+    finally:
+        try:
+            loop.run_until_complete(strategy.close())
+        except Exception:
+            pass
+        loop.close()
+        hype_instances.pop(iid, None)
+        hype_threads.pop(iid, None)
+
+
+@app.post("/hype/start")
+async def hype_start(request: Request):
+    """启动 HYPE 做空策略实例
+
+    Body 示例:
+    {
+      "private_key": "0x...",
+      "symbol": "ETH",
+      "stop_loss_pct": 0.03,
+      "take_profit_pct": 0.06,
+      "break_even_pct": 0.03,
+      "margin_amount": 20.0,
+      "leverage": 50
+    }
+    """
+    try:
+        data = await request.json()
+        private_key = data.get("private_key") or config.hyperliquid.PRIVATE_KEY
+        if not private_key:
+            raise HTTPException(status_code=400, detail="请提供 private_key")
+
+        symbol = str(data.get("symbol", "ETH")).upper()
+        iid = f"hype_{datetime.now().strftime('%H%M%S_%f')}"
+
+        strategy = HYPEAdaptiveShortStrategy(
+            symbol=symbol,
+            private_key=private_key,
+            instance_id=iid,
+            stop_loss_pct=float(data.get("stop_loss_pct", 0.03)),
+            take_profit_pct=float(data.get("take_profit_pct", 0.06)),
+            break_even_pct=float(data.get("break_even_pct", 0.03)),
+            margin_amount=float(data.get("margin_amount", 20.0)),
+            leverage=int(data.get("leverage", 50)),
+        )
+
+        hype_instances[iid] = strategy
+        t = threading.Thread(target=_run_hype_in_thread, args=(iid, strategy), daemon=True)
+        hype_threads[iid] = t
+        t.start()
+
+        logger.info(f"✅ HYPE 策略实例已启动: {iid} 品种={symbol}")
+        return {"status": "ok", "instance_id": iid, "symbol": symbol}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"启动 HYPE 策略失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/hype/webhook")
+async def hype_webhook(request: Request):
+    """接收 TradingView Webhook 信号。
+
+    路由优先级：
+    1. 若本地 hype_instances 有运行中实例（通过 /hype/start 启动），直接处理
+    2. 否则代理转发到主 API (http://localhost:8100/api/trading/hype/webhook)
+
+    Body 示例（开空）: {"交易品种":"ETH","操作":"sell","先前仓位大小":"0"}
+    Body 示例（平空）: {"交易品种":"ETH","操作":"buy","先前仓位大小":"0.5"}
+    """
+    try:
+        data = await request.json()
+
+        # --- 优先路由到本地 hype_instances ---
+        target: Optional[HYPEAdaptiveShortStrategy] = None
+        for inst in hype_instances.values():
+            if inst.is_enabled:
+                target = inst
+                break
+
+        if target:
+            signal = TVSignal(
+                交易品种=data.get("交易品种", data.get("symbol", "ETH")),
+                价格=data.get("价格", data.get("price")),
+                操作=data.get("操作", data.get("signal", "")),
+                仓位方向=data.get("仓位方向"),
+                先前仓位大小=str(data.get("先前仓位大小", "0")),
+            )
+            logger.info(f"📡 [HYPE Webhook 本地] 操作={signal.signal} 品种={signal.symbol}")
+            _asyncio.create_task(target.execute_signal(signal, data))
+            return {"status": "ok", "signal": signal.signal, "position": target.position, "source": "local"}
+
+        # --- 代理转发到主 API ---
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    "http://localhost:8100/api/trading/hype/webhook",
+                    json=data,
+                    headers={"Content-Type": "application/json"},
+                )
+            logger.info(f"📡 [HYPE Webhook 代理→8100] 状态={resp.status_code}")
+            return resp.json()
+        except Exception as proxy_err:
+            logger.error(f"❌ 代理转发失败: {proxy_err}")
+            raise HTTPException(
+                status_code=503,
+                detail=f"本地无运行实例，且代理到主API失败: {proxy_err}。"
+                       f"请先通过前端启动策略，或调用 POST /hype/start"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ HYPE Webhook 错误: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/hype/position")
+async def hype_position():
+    """查询 HYPE 策略当前持仓"""
+    if not hype_instances:
+        return {"position": None, "message": "无运行中实例"}
+    result = {}
+    for iid, inst in hype_instances.items():
+        result[iid] = inst.get_status()
+    return result
+
+
+@app.post("/hype/close")
+async def hype_close(request: Request):
+    """手动平掉所有 HYPE 仓位"""
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+    iid = data.get("instance_id")
+
+    closed = []
+    for inst_id, inst in list(hype_instances.items()):
+        if iid and inst_id != iid:
+            continue
+        if inst.position:
+            loop = _asyncio.get_event_loop()
+            _asyncio.ensure_future(inst.close_position("手动平仓(webhook_service)"))
+            closed.append(inst_id)
+    return {"status": "ok", "closed": closed}
+
+
+@app.post("/hype/stop")
+async def hype_stop(request: Request):
+    """停止 HYPE 策略实例"""
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        pass
+    iid = data.get("instance_id")
+
+    stopped = []
+    for inst_id, inst in list(hype_instances.items()):
+        if iid and inst_id != iid:
+            continue
+        inst._stop = True
+        stopped.append(inst_id)
+    return {"status": "ok", "stopped": stopped}
+
+
+# ==================== 主入口 ====================
+
 def main():
     host = config.webhook.HOST
     port = config.webhook.PORT

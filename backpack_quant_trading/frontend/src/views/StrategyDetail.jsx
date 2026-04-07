@@ -1201,21 +1201,21 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
                     <table className="trades-table">
                       <thead>
                         <tr>
-                          <th>交易 #</th>
+                          <th>#</th>
                           <th>类型</th>
                           <th>信号</th>
                           <th>时间</th>
                           <th>价格</th>
-                          <th>仓位大小</th>
-                          <th>仓位价值 {currencyLabel}</th>
-                          <th>净损益 {currencyLabel}</th>
-                          <th>净损益 %</th>
-                          <th>有利波动 {currencyLabel}</th>
-                          <th>有利波动 %</th>
-                          <th>不利波动 {currencyLabel}</th>
-                          <th>不利波动 %</th>
-                          <th>累计P&L {currencyLabel}</th>
-                          <th>累计P&L %</th>
+                          <th>数量</th>
+                          <th>仓位值</th>
+                          <th>净损益</th>
+                          <th>损益%</th>
+                          <th>有利↑</th>
+                          <th>有利↑%</th>
+                          <th>不利↓</th>
+                          <th>不利↓%</th>
+                          <th>累计P&L</th>
+                          <th>累计%</th>
                         </tr>
                       </thead>
                       <tbody>

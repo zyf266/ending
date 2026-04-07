@@ -130,18 +130,22 @@
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .summary-card p {
   margin: 0 0 6px 0;
   font-size: 14px;
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .summary-card h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
+  word-break: break-word;
 }
 
 .summary-card h3.profit {
@@ -275,24 +279,89 @@
 
 .trades-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;  /* iOS 惯性滚动 */
 }
 
 .trades-table {
-  width: 100%;
+  width: max-content;         /* 让表格按内容宽度撑开，不被压缩 */
+  min-width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .trades-table th,
 .trades-table td {
-  padding: 8px 10px;
+  padding: 7px 8px;
   border: 1px solid #e5e7eb;
   text-align: left;
+  white-space: nowrap;        /* 关键：禁止文字换行竖排 */
 }
 
 .trades-table th {
   background: #f9fafb;
   font-weight: 600;
+  font-size: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 手机端移动适配 */
+@media (max-width: 768px) {
+  /* 摘要卡片：4列 → 2列 */
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .summary-card {
+    padding: 10px 12px;
+  }
+  .summary-card p {
+    font-size: 12px;
+  }
+  .summary-card h3 {
+    font-size: 13px;
+  }
+
+  /* 分析图表区：2列 → 1列 */
+  .analysis-row {
+    grid-template-columns: 1fr;
+  }
+  .chart-area-small {
+    height: 220px;
+  }
+  .chart-area {
+    height: 280px;
+  }
+
+  /* 指标/详细信息表 */
+  .metrics-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .metrics-table {
+    width: max-content;
+    min-width: 100%;
+    font-size: 12px;
+  }
+  .metrics-table th,
+  .metrics-table td {
+    white-space: nowrap;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  /* 交易明细表 */
+  .trades-table {
+    font-size: 11px;
+  }
+  .trades-table th,
+  .trades-table td {
+    padding: 5px 6px;
+  }
+  .trades-table th {
+    font-size: 10px;
+  }
 }
 
 .trades-table .profit {

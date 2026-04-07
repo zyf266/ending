@@ -100,3 +100,27 @@
   width: 24px;
   height: 24px;
 }
+
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 12px 14px 16px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .stat-label {
+    font-size: 12px;
+  }
+  .stat-percentage {
+    font-size: 12px;
+  }
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .stat-icon-svg {
+    width: 18px;
+    height: 18px;
+  }
+}

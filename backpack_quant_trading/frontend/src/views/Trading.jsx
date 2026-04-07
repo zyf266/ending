@@ -8,6 +8,8 @@ import {
   getHypeStatus,
   toggleHypeStrategy,
   startHypeStrategy,
+  startEthTrendShort,
+  startAdaptiveLong,
 } from '../api/trading'
 import './Trading.css'
 
@@ -40,11 +42,11 @@ const Trading = () => {
     api_secret: '',
     passphrase: '',
     private_key: '',
-    // HYPE策略专用参数
+    // HYPE / 做空做多策略专用参数
     hype_stop_loss: 3.0,
     hype_take_profit: 6.0,
     hype_break_even: 3.0,
-
+    eth_price_filter: 2000,
   })
 
   const isDualFreq = form.strategy === 'dual_freq_trend'
@@ -59,6 +61,10 @@ const Trading = () => {
         take_profit: 150,
         stop_loss: 50,
       }))
+    }
+    // ETH趋势做空 / HYPE做空 / 自适应做多 固定平台为 hyperliquid
+    if (name === 'strategy' && ['eth_trend_short', 'hype_adaptive_short', 'adaptive_long'].includes(value)) {
+      setForm((prev) => ({ ...prev, platform: 'hyperliquid' }))
     }
   }
 
@@ -127,6 +133,57 @@ const Trading = () => {
         setShowModal(false)
         await refresh()
         await refreshHypeStatus()
+      } catch (e) {
+        alert(e?.response?.data?.detail || '启动失败')
+      } finally {
+        setLaunching(false)
+      }
+      return
+    }
+
+    // 【自适应做多策略】Webhook驱动，无需币种
+    if (form.strategy === 'adaptive_long') {
+      setLaunching(true)
+      try {
+        const res = await startAdaptiveLong({
+          private_key:     form.private_key || undefined,
+          margin_amount:   form.size,
+          leverage:        form.leverage,
+          stop_loss_pct:   form.hype_stop_loss / 100,
+          take_profit_pct: form.hype_take_profit / 100,
+          break_even_pct:  form.hype_break_even / 100,
+        })
+        alert(res.message || '自适应做多策略启动成功')
+        setShowModal(false)
+        await refresh()
+      } catch (e) {
+        alert(e?.response?.data?.detail || '启动失败')
+      } finally {
+        setLaunching(false)
+      }
+      return
+    }
+
+    // 【ETH趋势做空策略】使用独立的启动端点
+    if (form.strategy === 'eth_trend_short') {
+      if (!form.private_key) {
+        alert('请输入 Hyperliquid 私钥')
+        return
+      }
+      setLaunching(true)
+      try {
+        const res = await startEthTrendShort({
+          symbol:           form.symbol.split('/')[0].split('_')[0] || 'ETH',
+          private_key:      form.private_key,
+          margin_amount:    form.size,
+          leverage:         form.leverage,
+          stop_loss_pct:    form.hype_stop_loss / 100,
+          take_profit_pct:  form.hype_take_profit / 100,
+          price_filter_min: form.eth_price_filter,
+        })
+        alert(res.message || 'ETH趋势做空策略启动成功')
+        setShowModal(false)
+        await refresh()
       } catch (e) {
         alert(e?.response?.data?.detail || '启动失败')
       } finally {
@@ -443,6 +500,14 @@ const Trading = () => {
                   {/* HYPE策略专用参数 - 只在HYPE策略时显示 */}
                   {form.strategy === 'hype_adaptive_short' && (
                     <>
+                      <div className="form-item" style={{marginTop: '12px'}}>
+                        <label>交易对</label>
+                        <input
+                          value={form.symbol}
+                          onChange={(e) => setField('symbol', e.target.value)}
+                          placeholder="HYPE/USDC"
+                        />
+                      </div>
                       <div className="modal-row-2" style={{marginTop: '12px'}}>
                         <div className="form-item">
                           <label>保证金 (USD)</label>
@@ -509,11 +574,143 @@ const Trading = () => {
 
                     </>
                   )}
+
+                  {/* 自适应做多策略专用参数 - 无币种输入，币种从 Webhook 信号中自动获取 */}
+                  {form.strategy === 'adaptive_long' && (
+                    <>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>保证金 (USD)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={form.size}
+                            onChange={(e) => setField('size', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>开仓保证金金额</small>
+                        </div>
+                        <div className="form-item">
+                          <label>杠杆倍数</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={form.leverage}
+                            onChange={(e) => setField('leverage', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>实际仓位 = 保证金 × 杠杆</small>
+                        </div>
+                      </div>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>止损比例 (%)</label>
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={50}
+                            step={0.1}
+                            value={form.hype_stop_loss}
+                            onChange={(e) => setField('hype_stop_loss', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格跌破入场价此比例时止损（做多）</small>
+                        </div>
+                        <div className="form-item">
+                          <label>止盈比例 (%)</label>
+                          <input
+                            type="number"
+                            min={0.1}
+                            max={50}
+                            step={0.1}
+                            value={form.hype_take_profit}
+                            onChange={(e) => setField('hype_take_profit', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格涨超入场价此比例时止盈（做多）</small>
+                        </div>
+                      </div>
+                      <div className="form-item" style={{marginTop: '12px'}}>
+                        <label>保本触发比例 (%)</label>
+                        <input
+                          type="number"
+                          min={0.1}
+                          max={50}
+                          step={0.1}
+                          value={form.hype_break_even}
+                          onChange={(e) => setField('hype_break_even', Number(e.target.value))}
+                        />
+                        <small style={{color: '#888', fontSize: '12px'}}>盈利达到此比例时，止损上移至入场价（保本）</small>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ETH趋势做空策略专用参数 */}
+                  {form.strategy === 'eth_trend_short' && (
+                    <>
+                      <div className="form-item" style={{marginTop: '12px'}}>
+                        <label>交易对</label>
+                        <input
+                          value={form.symbol}
+                          onChange={(e) => setField('symbol', e.target.value)}
+                          placeholder="ETH/USDC"
+                        />
+                      </div>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>保证金 (USD)</label>
+                          <input
+                            type="number" min={1} step={1}
+                            value={form.size}
+                            onChange={(e) => setField('size', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>开仓保证金金额</small>
+                        </div>
+                        <div className="form-item">
+                          <label>杠杆倍数</label>
+                          <input
+                            type="number" min={1} max={100} step={1}
+                            value={form.leverage}
+                            onChange={(e) => setField('leverage', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>实际仓位 = 保证金 × 杠杆</small>
+                        </div>
+                      </div>
+                      <div className="modal-row-2" style={{marginTop: '12px'}}>
+                        <div className="form-item">
+                          <label>止损比例 (%)</label>
+                          <input
+                            type="number" min={0.1} max={50} step={0.1}
+                            value={form.hype_stop_loss}
+                            onChange={(e) => setField('hype_stop_loss', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格涨超此比例时止损（做空）</small>
+                        </div>
+                        <div className="form-item">
+                          <label>止盈比例 (%)</label>
+                          <input
+                            type="number" min={0.1} max={50} step={0.1}
+                            value={form.hype_take_profit}
+                            onChange={(e) => setField('hype_take_profit', Number(e.target.value))}
+                          />
+                          <small style={{color: '#888', fontSize: '12px'}}>价格跌超此比例时止盈（做空）</small>
+                        </div>
+                      </div>
+                      <div className="form-item" style={{marginTop: '12px'}}>
+                        <label>价格下限 (USD)</label>
+                        <input
+                          type="number" min={0} step={100}
+                          value={form.eth_price_filter}
+                          onChange={(e) => setField('eth_price_filter', Number(e.target.value))}
+                        />
+                        <small style={{color: '#888', fontSize: '12px'}}>ETH 价格低于此值时不开空单（0 = 不限制）</small>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* 交易参数配置 - HYPE策略不显示此区域 */}
-              {form.strategy !== 'hype_adaptive_short' && (
+              {/* 交易参数配置 - HYPE/自适应做多/ETH趋势做空策略不显示此区域 */}
+              {!['hype_adaptive_short', 'adaptive_long', 'eth_trend_short'].includes(form.strategy) && (
                 <div className="modal-section modal-section-blue">
                 <div className="modal-section-title">
                   <span>交易参数配置</span>
