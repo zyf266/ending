@@ -19,10 +19,11 @@ import './MainLayout.css'
 
 // 导航配置：支持父菜单 + 子菜单
 const navItems = [
+  { type: 'item', to: '/strategies', icon: Layers, label: 'AI量化实盘' },
   {
     type: 'item',
     icon: Zap,
-    label: '实盘交易',
+    label: '策略交易',
     to: '/trading',
   },
   {
@@ -37,7 +38,6 @@ const navItems = [
     ],
   },
   { type: 'item', to: '/currency-monitor', icon: Bell, label: '币种监视' },
-  { type: 'item', to: '/strategies', icon: Layers, label: 'AI策略矩阵' },
 ]
 
 const pageTitles = {
@@ -47,12 +47,12 @@ const pageTitles = {
   '/grid-trading': '网格交易',
   '/currency-monitor': '币种监视',
   '/stock-ai': 'A股 AI 选股',
-  '/strategies': 'AI策略矩阵',
+  '/strategies': 'AI量化实盘',
   '/okx-console': 'OKX 操作台',
 }
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith('/strategies')) return 'AI策略矩阵'
+  if (pathname.startsWith('/strategies')) return 'AI量化实盘'
   if (pathname === '/trading') return '策略交易'
   // AI 实验室父菜单下的三个子页面，统一父标题
   if (pathname === '/ai-lab' || pathname === '/stock-ai' || pathname === '/okx-console') return 'AI 实验室'
@@ -122,7 +122,7 @@ const MainLayout = () => {
             if (item.type === 'group') {
               const { icon: Icon, label, to, children } = item
               const inGroup = children.some((c) => location.pathname === c.to)
-              const isTradingGroup = label === '实盘交易'
+              const isTradingGroup = label === '策略交易'
               const isAiGroup = label === 'AI 实验室'
               const opened = isTradingGroup ? showTradingGroup : isAiGroup ? showAiGroup : true
               return (

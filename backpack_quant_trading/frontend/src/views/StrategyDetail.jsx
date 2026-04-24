@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as echarts from 'echarts'
+import TradingViewWidget from '../components/TradingViewWidget'
 import './StrategyDetail.css'
 
 const DEFAULT_INITIAL_CAPITAL = 2000000
@@ -84,7 +85,7 @@ function computeOverviewFromTrades(tradesArray, initial = DEFAULT_INITIAL_CAPITA
   }
 }
 
-export default function StrategyDetail({ title, subtitle, currencyLabel, initialCapital = DEFAULT_INITIAL_CAPITAL, startDate, endDate, fixedProfitFactor = null, getOverview, getTrades, getKlines }) {
+export default function StrategyDetail({ title, subtitle, currencyLabel, initialCapital = DEFAULT_INITIAL_CAPITAL, startDate, endDate, fixedProfitFactor = null, getOverview, getTrades, getKlines, tvSymbol = null }) {
   const navigate = useNavigate()
   const initial = useMemo(() => Number(initialCapital || DEFAULT_INITIAL_CAPITAL), [initialCapital])
   const fixedStart = startDate || FIXED_START_DATE
@@ -1015,7 +1016,9 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
       {getKlines && (
         <div className="chart-card">
           <div className="card-block-header">📍 价格 K 线</div>
-          {loadingSignals ? (
+          {tvSymbol ? (
+            <TradingViewWidget symbol={tvSymbol} interval="D" height={460} />
+          ) : loadingSignals ? (
             <div className="chart-loading">加载中...</div>
           ) : klines.length ? (
             <div ref={klineChartRef} className="kline-area" />

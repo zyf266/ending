@@ -32,6 +32,7 @@ export function StrategyCardMatrix({
   progress,
   progressColor,
   annualReturn,
+  annualReturnLabel = '平均年化',
   drawdown,
   profitFactor,
   riskIndex,
@@ -43,6 +44,7 @@ export function StrategyCardMatrix({
     const s = String(status || '')
     if (s.includes('运行')) return 'bg-green-500 text-white'
     if (s.includes('测试')) return 'bg-blue-500 text-white'
+    if (s.includes('已平仓')) return 'bg-gray-400 text-white'
     return statusColor || 'bg-gray-100 text-gray-700'
   })()
 
@@ -71,14 +73,13 @@ export function StrategyCardMatrix({
           <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${derivedStatusColor}`}>
             {status}
           </span>
-          <CircularProgress percentage={progress} color={derivedProgressColor} />
         </div>
       </div>
       <p className="strategy-card-desc mb-4 line-clamp-2 text-base leading-relaxed text-[#6b7280]">{description}</p>
       <div className="grid grid-cols-2 gap-3">
         <MetricCard
           icon={<TrendingUp className="h-5 w-5 text-blue-500" />}
-          label="平均年化"
+          label={annualReturnLabel}
           value={annualReturn}
           isPositive={true}
           bgColor="bg-blue-50"

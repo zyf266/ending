@@ -774,6 +774,74 @@ async def hype_stop(request: Request):
     return {"status": "ok", "stopped": stopped}
 
 
+# ==================== HYPE做多策略 Webhook 透传 ====================
+
+import aiohttp as _aiohttp
+
+
+@app.post("/adaptive-long/webhook")
+async def adaptive_long_webhook_proxy(request: Request):
+    """透传到主 API 8100 的 adaptive-long webhook"""
+    body = await request.body()
+    try:
+        data = await request.json()
+        logger.info(f"📥 adaptive-long 收到 Webhook: {data}")
+    except Exception as e:
+        logger.error(f"📥 adaptive-long JSON 解析失败: {e}, 原始: {body[:200]}")
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        async with _aiohttp.ClientSession() as client:
+            async with client.post(
+                "http://127.0.0.1:8100/api/trading/adaptive-long/webhook",
+                json=data,
+                headers={"Content-Type": "application/json"},
+                timeout=_aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                result = await resp.json(content_type=None)
+                if resp.status >= 400:
+                    logger.error(f"❌ adaptive-long webhook 返回错误 {resp.status}: {result}")
+                    raise HTTPException(status_code=resp.status, detail=result.get("detail", str(result)))
+                return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ adaptive-long webhook 透传失败: {e}")
+        raise HTTPException(status_code=503, detail=f"透传失败: {e}")
+
+
+# ==================== ETH趋势做空策略 Webhook 透传 ====================
+
+
+@app.post("/eth-trend-short/webhook")
+async def eth_trend_short_webhook_proxy(request: Request):
+    """透传到主 API 8100 的 eth-trend-short webhook"""
+    body = await request.body()
+    try:
+        data = await request.json()
+        logger.info(f"📥 eth-trend-short 收到 Webhook: {data}")
+    except Exception as e:
+        logger.error(f"📥 eth-trend-short JSON 解析失败: {e}, 原始: {body[:200]}")
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        async with _aiohttp.ClientSession() as client:
+            async with client.post(
+                "http://127.0.0.1:8100/api/trading/eth-trend-short/webhook",
+                json=data,
+                headers={"Content-Type": "application/json"},
+                timeout=_aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                result = await resp.json(content_type=None)
+                if resp.status >= 400:
+                    logger.error(f"❌ eth-trend-short webhook 返回错误 {resp.status}: {result}")
+                    raise HTTPException(status_code=resp.status, detail=result.get("detail", str(result)))
+                return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ eth-trend-short webhook 透传失败: {e}")
+        raise HTTPException(status_code=503, detail=f"透传失败: {e}")
+
+
 # ==================== 主入口 ====================
 
 def main():

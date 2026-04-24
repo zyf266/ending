@@ -13,19 +13,21 @@ ETH 趋势做空策略 - 实盘版（基于 hype_backtest.py 逻辑）
 import asyncio
 import json
 import logging
+import os
 import sys
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-import websockets
+import aiohttp
 
 import numpy as np
 import pandas as pd
 
 from backpack_quant_trading.config.settings import config
 from backpack_quant_trading.core.hyperliquid_client import HyperliquidAPIClient
+from backpack_quant_trading.core.binance_client import BinanceAPIClient, _to_binance_symbol
 
 # ─── 日志 ──────────────────────────────────────────────────────────────────────
 logger = logging.getLogger("eth_trend_short")
@@ -144,6 +146,9 @@ class ETHTrendShortStrategy:
         self,
         symbol: str = "ETH",
         private_key: Optional[str] = None,
+        exchange: str = "hyperliquid",
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
         instance_id: str = "",
         margin_amount: float = 20.0,
         leverage: int = 50,
@@ -151,13 +156,17 @@ class ETHTrendShortStrategy:
         take_profit_pct: float = 0.10,
         lockin_trig_pct: float = 0.04,
         lockin_prot_pct: float = 0.02,
-        breakeven_pct: float = 0.05,
+        breakeven_pct: float = 0.03,
         price_filter_min: float = 2000.0,
     ):
         self.symbol        = symbol.upper()
+        self.exchange      = exchange.lower()
         self.instance_id   = instance_id or f"eth_trend_{int(datetime.now().timestamp())}"
-        self.private_key   = private_key or config.hyperliquid.PRIVATE_KEY
-        self.client        = HyperliquidAPIClient(private_key=self.private_key)
+        if self.exchange == "binance":
+            self.client = BinanceAPIClient(api_key=api_key, secret_key=api_secret)
+        else:
+            self.private_key = private_key or config.hyperliquid.PRIVATE_KEY
+            self.client = HyperliquidAPIClient(private_key=self.private_key)
 
         self.margin_amount   = margin_amount
         self.leverage        = leverage
@@ -200,18 +209,26 @@ class ETHTrendShortStrategy:
         await self.client._get_session()
         await self._sync_position()
         logger.info("=" * 60)
-        logger.info(f"🚀 ETH趋势做空策略启动  symbol={self.symbol}  instance={self.instance_id}")
+        logger.info(f"🚀 ETH趋势做空策略启动  exchange={self.exchange}  symbol={self.symbol}  instance={self.instance_id}")
         logger.info(f"   SL={self.stop_loss_pct*100:.0f}%  TP={self.take_profit_pct*100:.0f}%  "
                     f"锁利={self.lockin_trig_pct*100:.0f}%→{self.lockin_prot_pct*100:.0f}%  "
                     f"保本={self.breakeven_pct*100:.0f}%  价格下限={self.price_filter_min}")
+        bal_str = f"{self.balance_cache:,.2f} USDC" if self.balance_cache is not None else "--"
+        logger.info(f"💰 账户余额: {bal_str}")
         logger.info("=" * 60)
 
-        # ① 预加载历史K线（为指标计算预热）
-        await self._preload_bars(500)
+        # ① 预加载历史K线
+        if self.exchange == "binance":
+            await self._preload_bars_binance(500)
+        else:
+            await self._preload_bars(500)
 
         # ② 两个并发任务：WebSocket实时K线 + 30s风控轮询
-        signal_task = asyncio.create_task(self._ws_loop())
-        risk_task   = asyncio.create_task(self._risk_loop())
+        if self.exchange == "binance":
+            signal_task = asyncio.create_task(self._ws_loop_binance())
+        else:
+            signal_task = asyncio.create_task(self._ws_loop())
+        risk_task = asyncio.create_task(self._risk_loop())
         try:
             await asyncio.gather(signal_task, risk_task)
         except asyncio.CancelledError:
@@ -220,10 +237,66 @@ class ETHTrendShortStrategy:
             await self.client.close()
             logger.info(f"✅ 策略已停止: {self.instance_id}")
 
+    # ─── 格式转换 ────────────────────────────────────────
+    @staticmethod
+    def _norm_bar(bar: dict) -> dict:
+        """将 Binance K线格式 {time,open,...} 统一为内部格式 {t,o,h,l,c,v}"""
+        if "t" in bar:
+            return bar  # 已是 HL 格式
+        return {
+            "t": int(bar.get("time", 0)),
+            "o": float(bar.get("open", 0)),
+            "h": float(bar.get("high", 0)),
+            "l": float(bar.get("low", 0)),
+            "c": float(bar.get("close", 0)),
+            "v": float(bar.get("volume", 0)),
+        }
+
+    # ─── 兼容层：价格 / 余额 / 下单 ────────────────────────
+    async def _get_price(self) -> float:
+        """获取标记价格（兼容 HL 和 Binance）"""
+        if self.exchange == "binance":
+            bn_sym = _to_binance_symbol(self.symbol)
+            data = await self.client._get("/fapi/v1/ticker/price", {"symbol": bn_sym})
+            return float(data.get("price", 0))
+        return await self.client.get_price(self.symbol)
+
+    async def _get_balance_float(self) -> float:
+        """获取 USDT 可用余额（兼容 HL 和 Binance）"""
+        if self.exchange == "binance":
+            return await self.client.get_usdt_balance()
+        return await self.client.get_balance()
+
+    async def _open_short_order(self, qty: float) -> bool:
+        """开空仓（兼容 HL 和 Binance）"""
+        if self.exchange == "binance":
+            try:
+                await self.client.set_leverage(self.symbol, self.leverage)
+                await self.client.set_margin_type(self.symbol, "ISOLATED")
+                data = await self.client.execute_order(
+                    self.symbol, "SELL", qty, order_type="MARKET"
+                )
+                return bool(data.get("orderId") or data.get("status") in ("FILLED", "NEW"))
+            except Exception as e:
+                logger.error(f"[Binance] 开空失败: {e}")
+                return False
+        return await self.client.open_short_position(qty)
+
+    async def _close_short_order(self) -> bool:
+        """平空仓（兼容 HL 和 Binance）"""
+        if self.exchange == "binance":
+            try:
+                result = await self.client.close_position(self.symbol)
+                return True  # close_position 不报错即视为成功
+            except Exception as e:
+                logger.error(f"[Binance] 平空失败: {e}")
+                return False
+        return await self.client.close_position(self.symbol)
+
     # ─── 预加载历史K线 ──────────────────────────────────
     async def _preload_bars(self, limit: int = 500):
-        """启动时预加载历史K线，为指标计算预热"""
-        logger.info(f"📦 预加载历史K线: 2H×{limit}  4H×{limit}  1D×200 ...")
+        """启动时预加载历史K线（Hyperliquid），为指标计算预热"""
+        logger.info(f"📦 预加载历史K线(HL): 2H×{limit}  4H×{limit}  1D×200 ...")
         try:
             self._bars_2h = await self.client.get_klines(self.symbol, "2h", limit=limit)
             self._bars_4h = await self.client.get_klines(self.symbol, "4h", limit=limit)
@@ -233,78 +306,190 @@ class ETHTrendShortStrategy:
         except Exception as e:
             logger.error(f"   ❌ 预加载失败: {e}")
 
-    # ─── WebSocket 实时K线循环 ───────────────────────────
-    async def _ws_loop(self):
+    async def _preload_bars_binance(self, limit: int = 500):
+        """启动时预加载历史K线（Binance），为指标计算预热"""
+        logger.info(f"📦 预加载历史K线(Binance): 2H×{limit}  4H×{limit}  1D×200 ...")
+        try:
+            raw_2h = await self.client.get_klines(self.symbol, "2h", limit=limit)
+            raw_4h = await self.client.get_klines(self.symbol, "4h", limit=limit)
+            raw_1d = await self.client.get_klines(self.symbol, "1d", limit=200)
+            self._bars_2h = [self._norm_bar(b) for b in raw_2h]
+            self._bars_4h = [self._norm_bar(b) for b in raw_4h]
+            self._bars_1d = [self._norm_bar(b) for b in raw_1d]
+            logger.info(f"   ✅ 预加载完成  2H={len(self._bars_2h)}根  "
+                        f"4H={len(self._bars_4h)}根  1D={len(self._bars_1d)}根")
+        except Exception as e:
+            logger.error(f"   ❌ 预加载失败: {e}")
+
+    # ─── Binance WebSocket 实时K线循环 ─────────────────────
+    async def _ws_loop_binance(self):
         """
-        订阅 Hyperliquid WebSocket 2H K线。
-        检测到新bar出现（bar时间戳变化）→ 刷新4H/1D → 计算信号。
-        断线自动重连。
+        订阅 Binance USD-M Futures 2H K线，断线自动重连。
+        wss://fstream.binance.com/ws/{symbol}@kline_2h
         """
-        HL_WS = "wss://api.hyperliquid.xyz/ws"
-        asset = self.symbol.upper()
+        bn_sym = _to_binance_symbol(self.symbol).lower()
+        WS_URL = f"wss://fstream.binance.com/ws/{bn_sym}@kline_2h"
+        _raw_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        proxy = _raw_proxy if _raw_proxy and "127.0.0.1" not in _raw_proxy and "localhost" not in _raw_proxy else None
 
         while not self._stop:
             try:
-                async with websockets.connect(
-                    HL_WS,
-                    ping_interval=20,
-                    ping_timeout=30,
-                    open_timeout=15,
-                ) as ws:
-                    sub_msg = json.dumps({
-                        "method": "subscribe",
-                        "subscription": {"type": "candle", "coin": asset, "interval": "2h"}
-                    })
-                    await ws.send(sub_msg)
-                    logger.info(f"📡 WebSocket 已连接，订阅 {asset}/2H K线")
+                logger.info(f"🔌 [Binance WS] 正在连接: {WS_URL} proxy={proxy or '无'}")
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(
+                        WS_URL,
+                        proxy=proxy,
+                        heartbeat=20,
+                        timeout=aiohttp.ClientWSTimeout(ws_close=30.0),
+                    ) as ws:
+                        logger.info(f"📡 [Binance WS] 已连接，订阅 {bn_sym.upper()}/2H K线")
 
-                    async for raw in ws:
-                        if self._stop:
-                            break
-                        try:
-                            msg = json.loads(raw)
-                        except Exception:
-                            continue
+                        async for msg in ws:
+                            if self._stop:
+                                break
+                            if msg.type == aiohttp.WSMsgType.TEXT:
+                                try:
+                                    data = json.loads(msg.data)
+                                except Exception:
+                                    continue
 
-                        if msg.get("channel") != "candle":
-                            continue
+                                kline = data.get("k")
+                                if not kline:
+                                    continue
 
-                        bar = msg.get("data", {})
-                        bar_ts = int(bar.get("t", 0))
-                        if bar_ts == 0:
-                            continue
+                                bar_ts = int(kline.get("t", 0))
+                                if bar_ts == 0:
+                                    continue
 
-                        # 更新2H缓存
-                        self._update_bar_cache(self._bars_2h, {
-                            "t": bar_ts,
-                            "o": float(bar.get("o", 0)),
-                            "h": float(bar.get("h", 0)),
-                            "l": float(bar.get("l", 0)),
-                            "c": float(bar.get("c", 0)),
-                            "v": float(bar.get("v", 0)),
-                        })
+                                # 更新 2H 缓存（统一格式）
+                                self._update_bar_cache(self._bars_2h, {
+                                    "t": bar_ts,
+                                    "o": float(kline.get("o", 0)),
+                                    "h": float(kline.get("h", 0)),
+                                    "l": float(kline.get("l", 0)),
+                                    "c": float(kline.get("c", 0)),
+                                    "v": float(kline.get("v", 0)),
+                                })
 
-                        # 新bar出现（时间戳变化）→ 上一根bar已完成
-                        if self._ws_last_bar_ts != 0 and bar_ts != self._ws_last_bar_ts:
-                            logger.info(
-                                f"🕯️ 新2H bar 出现: "
-                                f"{datetime.fromtimestamp(bar_ts/1000).strftime('%m-%d %H:%M')}  "
-                                f"close={bar.get('c')}"
-                            )
-                            # 刷新4H/1D（低频，REST即可）
-                            await self._refresh_slow_bars()
-                            # 计算信号
-                            if self.is_enabled:
-                                await self._on_new_bar()
+                                # 新bar出现（时间戳变化）→ 上一根已完成
+                                if self._ws_last_bar_ts != 0 and bar_ts != self._ws_last_bar_ts:
+                                    logger.info(
+                                        f"🕯️ [Binance] 新2H bar: "
+                                        f"{datetime.fromtimestamp(bar_ts/1000).strftime('%m-%d %H:%M')}  "
+                                        f"close={kline.get('c')}"
+                                    )
+                                    await self._refresh_slow_bars()
+                                    if self.is_enabled:
+                                        await self._on_new_bar()
 
-                        self._ws_last_bar_ts = bar_ts
+                                self._ws_last_bar_ts = bar_ts
+
+                            elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                                logger.warning(f"⚠️ [Binance WS] 连接中断 type={msg.type.name}，5s后重连")
+                                break
+
+                if not self._stop:
+                    logger.warning("⚠️ [Binance WS] 服务器关闭连接，5s后重连")
+                    await asyncio.sleep(5)
 
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 if not self._stop:
-                    logger.warning(f"⚠️ WebSocket断开，5s后重连: {e}")
+                    logger.warning(f"⚠️ [Binance WS] 异常({type(e).__name__}: {e!r})，5s后重连")
                     await asyncio.sleep(5)
+
+    # ─── Hyperliquid WebSocket 实时K线循环 ───────────────────
+    async def _ws_loop(self):
+        """
+        订阅 Hyperliquid WebSocket 2H K线（使用 aiohttp，自动走代理）。
+        检测到新bar出现（bar时间戳变化）→ 刷新4H/1D → 计算信号。
+        断线自动重连。
+        """
+        HL_WS = "wss://api.hyperliquid.xyz/ws"
+        asset  = self.symbol.upper()
+        # 自动读取环境变量中的代理设置（过滤 127.0.0.1 本地代理，服务器上无效）
+        _raw_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        proxy = _raw_proxy if _raw_proxy and "127.0.0.1" not in _raw_proxy and "localhost" not in _raw_proxy else None
+
+        while not self._stop:
+            try:
+                logger.info(f"🔌 正在连接 WebSocket: {HL_WS} proxy={proxy or '无'}")
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(
+                        HL_WS,
+                        proxy=proxy,
+                        heartbeat=20,
+                        timeout=aiohttp.ClientWSTimeout(ws_close=30.0),
+                    ) as ws:
+                        sub_msg = json.dumps({
+                            "method": "subscribe",
+                            "subscription": {"type": "candle", "coin": asset, "interval": "2h"}
+                        })
+                        await ws.send_str(sub_msg)
+                        logger.info(f"📡 WebSocket 已连接，订阅 {asset}/2H K线")
+
+                        async for msg in ws:
+                            if self._stop:
+                                break
+
+                            if msg.type == aiohttp.WSMsgType.TEXT:
+                                try:
+                                    data = json.loads(msg.data)
+                                except Exception:
+                                    continue
+
+                                if data.get("channel") != "candle":
+                                    ch = data.get("channel") or data.get("type") or "unknown"
+                                    if ch not in ("subscriptionResponse", "pong"):
+                                        logger.debug(f"WS msg channel={ch}: {str(data)[:120]}")
+                                    continue
+
+                                bar    = data.get("data", {})
+                                bar_ts = int(bar.get("t", 0))
+                                if bar_ts == 0:
+                                    continue
+
+                                # 更新2H缓存
+                                self._update_bar_cache(self._bars_2h, {
+                                    "t": bar_ts,
+                                    "o": float(bar.get("o", 0)),
+                                    "h": float(bar.get("h", 0)),
+                                    "l": float(bar.get("l", 0)),
+                                    "c": float(bar.get("c", 0)),
+                                    "v": float(bar.get("v", 0)),
+                                })
+
+                                # 新bar出现（时间戳变化）→ 上一根bar已完成
+                                if self._ws_last_bar_ts != 0 and bar_ts != self._ws_last_bar_ts:
+                                    logger.info(
+                                        f"🕯️ 新2H bar: "
+                                        f"{datetime.fromtimestamp(bar_ts/1000).strftime('%m-%d %H:%M')}  "
+                                        f"close={bar.get('c')}"
+                                    )
+                                    await self._refresh_slow_bars()
+                                    if self.is_enabled:
+                                        await self._on_new_bar()
+
+                                self._ws_last_bar_ts = bar_ts
+
+                            elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                                logger.warning(f"⚠️ WebSocket连接中断 type={msg.type.name}，5s后重连")
+                                break
+
+                # 正常退出 async for → 服务器关闭了连接
+                if not self._stop:
+                    logger.warning("⚠️ WebSocket连接已被服务器关闭，5s后重连")
+                    await asyncio.sleep(5)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                if not self._stop:
+                    logger.warning(f"⚠️ WebSocket异常({type(e).__name__}: {e!r})，5s后重连")
+                    await asyncio.sleep(5)
+
+
 
     @staticmethod
     def _update_bar_cache(cache: list, bar: dict, max_size: int = 600):
@@ -319,8 +504,14 @@ class ETHTrendShortStrategy:
     async def _refresh_slow_bars(self):
         """新2H bar出现时，通过REST刷新4H和1D K线缓存"""
         try:
-            self._bars_4h = await self.client.get_klines(self.symbol, "4h", limit=500)
-            self._bars_1d = await self.client.get_klines(self.symbol, "1d", limit=200)
+            if self.exchange == "binance":
+                raw_4h = await self.client.get_klines(self.symbol, "4h", limit=500)
+                raw_1d = await self.client.get_klines(self.symbol, "1d", limit=200)
+                self._bars_4h = [self._norm_bar(b) for b in raw_4h]
+                self._bars_1d = [self._norm_bar(b) for b in raw_1d]
+            else:
+                self._bars_4h = await self.client.get_klines(self.symbol, "4h", limit=500)
+                self._bars_1d = await self.client.get_klines(self.symbol, "1d", limit=200)
         except Exception as e:
             logger.warning(f"刷新4H/1D K线失败: {e}")
 
@@ -367,7 +558,7 @@ class ETHTrendShortStrategy:
             await asyncio.sleep(30)
 
     async def _check_risk(self):
-        price = await self.client.get_price(self.symbol)
+        price = await self._get_price()
         if price <= 0 or self.entry_price is None:
             return
 
@@ -415,8 +606,8 @@ class ETHTrendShortStrategy:
             logger.info("⚠️ 已有空头仓位，跳过")
             return
         try:
-            price = await self.client.get_price(self.symbol)
-            self.balance_cache = await self.client.get_balance()
+            price = await self._get_price()
+            self.balance_cache = await self._get_balance_float()
             qty = round((self.margin_amount * self.leverage) / price, 4)
             if qty <= 0:
                 logger.warning("❌ 仓位计算失败")
@@ -424,7 +615,7 @@ class ETHTrendShortStrategy:
 
             logger.info(f"🚀 开空 {self.symbol}: 价格={price:.4f} 数量={qty:.4f} "
                         f"保证金={self.margin_amount}×{self.leverage}x")
-            ok = await self.client.open_short_position(qty)
+            ok = await self._open_short_order(qty)
             if ok:
                 self.position    = "SHORT"
                 self.entry_price = price
@@ -451,9 +642,9 @@ class ETHTrendShortStrategy:
 
     async def _close_position(self, reason: str):
         try:
-            price = await self.client.get_price(self.symbol)
+            price = await self._get_price()
             logger.info(f"🟢 平空 [{reason}]: 当前价={price:.4f} 入场={self.entry_price:.4f}")
-            ok = await self.client.close_position(self.symbol)
+            ok = await self._close_short_order()
             if ok:
                 if self.entry_price:
                     pnl_pct = (self.entry_price - price) / self.entry_price * 100
@@ -466,7 +657,7 @@ class ETHTrendShortStrategy:
                 self.lockin_on   = False
                 self.be_on       = False
                 self.position_size = 0.0
-                self.balance_cache = await self.client.get_balance()
+                self.balance_cache = await self._get_balance_float()
             else:
                 logger.warning("   ❌ 平仓失败（API返回非OK）")
         except Exception as e:
@@ -482,14 +673,16 @@ class ETHTrendShortStrategy:
                 self.position      = "SHORT" if side == "SHORT" else ("LONG" if side == "LONG" else None)
                 self.position_size = abs(float(pos.get("size", 0) or 0))
                 if self.position and not self.entry_price:
-                    self.entry_price = float(pos.get("entry_price", 0) or 0)
+                    # Binance 用 entryPrice，Hyperliquid 用 entry_price
+                    ep = float(pos.get("entryPrice") or pos.get("entry_price") or 0)
+                    self.entry_price = ep
                     if self.entry_price:
                         self.sl_price = round(self.entry_price * (1 + self.stop_loss_pct), 6)
                         self.tp_price = round(self.entry_price * (1 - self.take_profit_pct), 6)
             else:
                 self.position = None
                 self.position_size = 0.0
-            self.balance_cache = await self.client.get_balance()
+            self.balance_cache = await self._get_balance_float()
             logger.info(f"📌 同步持仓: {self.position or '无持仓'}  余额: {self.balance_cache:.2f}")
         except Exception as e:
             logger.error(f"同步持仓失败: {e}")

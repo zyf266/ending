@@ -98,3 +98,22 @@ export function getNas100TrendTrades(cacheBust = false) {
   const fn = () => request.get('/strategy/nas100-2h/trades')
   return cacheBust ? bust(key, fn) : cached(key, fn)
 }
+
+// ---------- CRCL 美股动量轮动 ----------
+export function getCrclOverview(cacheBust = false) {
+  const key = 'crcl-overview'
+  const fn = () => request.get('/strategy/crcl-1h/overview')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getCrclKlines(cacheBust = false) {
+  const key = 'crcl-klines'
+  const fn = () => request.get('/strategy/crcl-1h/klines')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getCrclTrades(cacheBust = false) {
+  const key = 'crcl-trades'
+  const fn = () => request.get('/strategy/crcl-1h/trades')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}

@@ -96,13 +96,6 @@ const Login = () => {
             >
               登录
             </button>
-            <button
-              type="button"
-              className={`tab-item${activeTab === 'register' ? ' active' : ''}`}
-              onClick={() => setActiveTab('register')}
-            >
-              注册
-            </button>
           </div>
 
           <div className="tab-body">

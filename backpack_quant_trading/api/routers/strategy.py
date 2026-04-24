@@ -2,6 +2,11 @@ from datetime import datetime, timezone, date as _date
 from pathlib import Path
 from typing import List, Optional
 from decimal import Decimal as PyDecimal
+import time as _time
+import logging as _logging
+import requests as _requests
+
+_hl_logger = _logging.getLogger(__name__)
 
 # 每天只同步一次 ETH K 线，避免每次请求都连币安
 _eth_kline_last_sync_date: _date = None
@@ -20,6 +25,139 @@ from backpack_quant_trading.core.binance_monitor import (
 )
 
 router = APIRouter()
+
+# ──────────────────────────────────────────────────────────
+# Hyperliquid K 线工具函数
+# ──────────────────────────────────────────────────────────
+_HL_INFO_URL = "https://api.hyperliquid.xyz/info"
+
+
+def fetch_hl_klines_sync(coin: str, interval: str, start_ms: int, end_ms: int = None) -> list:
+    """同步从 Hyperliquid candleSnapshot 拉取 K 线。
+    返回格式: [{"t": ms, "o", "h", "l", "c", "v"}, ...] 按时间升序。
+    """
+    if end_ms is None:
+        end_ms = int(_time.time() * 1000)
+    payload = {
+        "type": "candleSnapshot",
+        "req": {"coin": coin, "interval": interval, "startTime": start_ms, "endTime": end_ms},
+    }
+    try:
+        resp = _requests.post(_HL_INFO_URL, json=payload, timeout=30, proxies={"http": None, "https": None})
+        resp.raise_for_status()
+        data = resp.json()
+        result = []
+        for item in (data or []):
+            try:
+                result.append({"t": item["t"], "o": float(item["o"]), "h": float(item["h"]),
+                               "l": float(item["l"]), "c": float(item["c"]), "v": float(item["v"])})
+            except (KeyError, TypeError, ValueError):
+                continue
+        result.sort(key=lambda x: x["t"])
+        return result
+    except Exception as e:
+        _hl_logger.warning(f"[HL K线] 拉取失败 coin={coin} interval={interval}: {e}")
+        return []
+
+
+def _bulk_insert_klines_dicts(rows_data: list) -> None:
+    """用 SQLAlchemy Core engine.connect() 批量写入 K 线。
+    直接走引擎连接，完全绕过 ORM Session，确保 MySQL autoincrement 正常赋 id。
+    """
+    if not rows_data:
+        return
+    # 补上 created_at（ORM default 在 Core insert 里不生效）
+    now = datetime.now()
+    for row in rows_data:
+        row.setdefault("created_at", now)
+    with db_manager.engine.connect() as conn:
+        conn.execute(StrategyKline.__table__.insert(), rows_data)
+        conn.commit()
+
+
+def sync_hype_klines_hl() -> dict:
+    """从 Hyperliquid 增量同步 HYPE 4H K 线到数据库。"""
+    session = db_manager.get_session()
+    try:
+        last = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=STRATEGY_NAME, symbol=SYMBOL, timeframe=TIMEFRAME)
+            .order_by(StrategyKline.timestamp.desc())
+            .first()
+        )
+        last_ts = last.timestamp if (last and last.timestamp) else None
+    finally:
+        session.close()
+
+    now_ms = int(_time.time() * 1000)
+    if last_ts is None:
+        start_ms = int(datetime(2024, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    else:
+        start_ms = int(last_ts.replace(tzinfo=timezone.utc).timestamp() * 1000) + 1
+
+    bars = fetch_hl_klines_sync("HYPE", "4h", start_ms, now_ms)
+    if not bars:
+        return {"inserted": 0, "source": "hyperliquid"}
+
+    rows = []
+    for bar in bars:
+        ts = datetime.fromtimestamp(bar["t"] / 1000)
+        if last_ts and ts <= last_ts:
+            continue
+        rows.append({
+            "strategy_name": STRATEGY_NAME, "symbol": SYMBOL, "timeframe": TIMEFRAME,
+            "timestamp": ts,
+            "open": PyDecimal(str(bar["o"])), "high": PyDecimal(str(bar["h"])),
+            "low": PyDecimal(str(bar["l"])),  "close": PyDecimal(str(bar["c"])),
+            "volume": PyDecimal(str(bar["v"])), "source": "hyperliquid",
+        })
+
+    _bulk_insert_klines_dicts(rows)
+    _hl_logger.info(f"[HL K线] HYPE 4H 写入 {len(rows)} 条")
+    return {"inserted": len(rows), "source": "hyperliquid"}
+
+
+def sync_eth_klines_hl() -> dict:
+    """从 Hyperliquid 增量同步 ETH 2H K 线到数据库。"""
+    session = db_manager.get_session()
+    try:
+        last = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=ETH_ONLY_STRATEGY_NAME, symbol=ETH_ONLY_SYMBOL, timeframe=ETH_ONLY_TIMEFRAME)
+            .order_by(StrategyKline.timestamp.desc())
+            .first()
+        )
+        last_ts = last.timestamp if (last and last.timestamp) else None
+    finally:
+        session.close()
+
+    now_ms = int(_time.time() * 1000)
+    if last_ts is None:
+        start_ms = int(datetime(2024, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    else:
+        start_ms = int(last_ts.replace(tzinfo=timezone.utc).timestamp() * 1000) + 1
+
+    bars = fetch_hl_klines_sync("ETH", "2h", start_ms, now_ms)
+    if not bars:
+        return {"inserted": 0, "source": "hyperliquid"}
+
+    rows = []
+    for bar in bars:
+        ts = datetime.fromtimestamp(bar["t"] / 1000)
+        if last_ts and ts <= last_ts:
+            continue
+        rows.append({
+            "strategy_name": ETH_ONLY_STRATEGY_NAME, "symbol": ETH_ONLY_SYMBOL, "timeframe": ETH_ONLY_TIMEFRAME,
+            "timestamp": ts,
+            "open": PyDecimal(str(bar["o"])), "high": PyDecimal(str(bar["h"])),
+            "low": PyDecimal(str(bar["l"])),  "close": PyDecimal(str(bar["c"])),
+            "volume": PyDecimal(str(bar["v"])), "source": "hyperliquid",
+        })
+
+    _bulk_insert_klines_dicts(rows)
+    _hl_logger.info(f"[HL K线] ETH 2H 写入 {len(rows)} 条")
+    return {"inserted": len(rows), "source": "hyperliquid"}
+
 
 STRATEGY_NAME = "HYPE_2H_TREND"
 SYMBOL = "HYPEUSDT"
@@ -42,6 +180,13 @@ NAS100_SYMBOL = "NAS100USD"
 NAS100_TIMEFRAME = "2H"
 NAS100_KLINE_CSV = PROJECT_ROOT / "FX_NAS100, 120_0946a.csv"
 NAS100_TRADES_CSV = PROJECT_ROOT / "CME 纳指交易数据.csv"
+
+# 美股动量轮动策略 CRCL_1H
+CRCL_STRATEGY_NAME = "CRCL_1H"
+CRCL_SYMBOL = "CRCL"
+CRCL_TIMEFRAME = "1H"
+CRCL_KLINE_CSV = PROJECT_ROOT / "BATS_CRCL, 60_e7fd9.csv"
+CRCL_TRADES_CSV = PROJECT_ROOT / "自适应做多_NYSE_CRCL_2026-04-10_a915d.csv"
 
 
 Base = declarative_base()
@@ -249,80 +394,11 @@ def import_eth_2h_trades():
     return import_eth_2h_csv()
 
 
-@router.post("/eth-2h/sync-klines", summary="同步 HYPE 2H K 线到 MySQL")
+@router.post("/eth-2h/sync-klines", summary="从 Hyperliquid 增量同步 HYPE 4H K 线")
 def sync_eth_2h_klines():
-    session = db_manager.get_session()
-    try:
-        last = (
-            session.query(StrategyKline)
-            .filter_by(strategy_name=STRATEGY_NAME, symbol=SYMBOL, timeframe=TIMEFRAME)
-            .order_by(StrategyKline.timestamp.desc())
-            .first()
-        )
-        last_ts = last.timestamp if last else None
-    finally:
-        session.close()
-
-    rows = []
-
-    if last_ts is None:
-        start_ms = int(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp() * 1000)
-        end_ms = int(datetime(2026, 3, 18, 23, 59, 59, tzinfo=timezone.utc).timestamp() * 1000)
-        data = fetch_binance_klines_from_start(SYMBOL, TIMEFRAME, start_ms, batch_size=1000, end_time_ms=end_ms)
-        if not data:
-            raise HTTPException(500, "从币安获取历史 K 线失败")
-        for bar in data:
-            rows.append(
-                StrategyKline(
-                    strategy_name=STRATEGY_NAME,
-                    symbol=SYMBOL,
-                    timeframe=TIMEFRAME,
-                    timestamp=datetime.fromtimestamp(bar["time"] / 1000),
-                    open=PyDecimal(str(bar["open"])),
-                    high=PyDecimal(str(bar["high"])),
-                    low=PyDecimal(str(bar["low"])),
-                    close=PyDecimal(str(bar["close"])),
-                    volume=PyDecimal(str(bar["volume"])),
-                    source="binance_futures",
-                )
-            )
-    else:
-        # 从最后一根 K 线时间开始续拉到当前
-        last_ms = int(last_ts.replace(tzinfo=timezone.utc).timestamp() * 1000) + 1
-        data = fetch_binance_klines_from_start(SYMBOL, TIMEFRAME, last_ms, batch_size=1000)
-        if not data:
-            return {"inserted": 0}
-        for bar in data:
-            ts = datetime.fromtimestamp(bar["time"] / 1000)
-            if ts <= last_ts:
-                continue
-            rows.append(
-                StrategyKline(
-                    strategy_name=STRATEGY_NAME,
-                    symbol=SYMBOL,
-                    timeframe=TIMEFRAME,
-                    timestamp=ts,
-                    open=PyDecimal(str(bar["open"])),
-                    high=PyDecimal(str(bar["high"])),
-                    low=PyDecimal(str(bar["low"])),
-                    close=PyDecimal(str(bar["close"])),
-                    volume=PyDecimal(str(bar["volume"])),
-                    source="binance_futures",
-                )
-            )
-
-    if not rows:
-        return {"inserted": 0}
-
-    session = db_manager.get_session()
-    try:
-        for r in rows:
-            session.add(r)
-        session.commit()
-    finally:
-        session.close()
-
-    return {"inserted": len(rows)}
+    """从 Hyperliquid 增量同步 HYPE 4H K 线到数据库。"""
+    result = sync_hype_klines_hl()
+    return result
 
 
 @router.get("/eth-2h/klines", response_model=List[KlinePoint], summary="获取 ETH 2H K 线")
@@ -594,61 +670,11 @@ def get_eth_only_2h_klines():
         session.close()
 
 
-@router.post("/eth-only-2h/sync-klines", summary="同步 ETH 2H K 线到数据库")
+@router.post("/eth-only-2h/sync-klines", summary="从 Hyperliquid 增量同步 ETH 2H K 线")
 def sync_eth_only_2h_klines():
-    session = db_manager.get_session()
-    try:
-        last = (
-            session.query(StrategyKline)
-            .filter_by(strategy_name=ETH_ONLY_STRATEGY_NAME, symbol=ETH_ONLY_SYMBOL, timeframe=ETH_ONLY_TIMEFRAME)
-            .order_by(StrategyKline.timestamp.desc())
-            .first()
-        )
-        last_ts = last.timestamp if last else None
-    finally:
-        session.close()
-
-    rows = []
-    if last_ts is None:
-        start_ms = int(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp() * 1000)
-        data = fetch_binance_klines_from_start(ETH_ONLY_SYMBOL, ETH_ONLY_TIMEFRAME, start_ms, batch_size=1000)
-        if not data:
-            raise HTTPException(500, "从币安获取 ETH K 线失败")
-        for bar in data:
-            rows.append(StrategyKline(
-                strategy_name=ETH_ONLY_STRATEGY_NAME, symbol=ETH_ONLY_SYMBOL, timeframe=ETH_ONLY_TIMEFRAME,
-                timestamp=datetime.fromtimestamp(bar["time"] / 1000),
-                open=PyDecimal(str(bar["open"])), high=PyDecimal(str(bar["high"])),
-                low=PyDecimal(str(bar["low"])), close=PyDecimal(str(bar["close"])),
-                volume=PyDecimal(str(bar["volume"])), source="binance_futures",
-            ))
-    else:
-        last_ms = int(last_ts.replace(tzinfo=timezone.utc).timestamp() * 1000) + 1
-        data = fetch_binance_klines_from_start(ETH_ONLY_SYMBOL, ETH_ONLY_TIMEFRAME, last_ms, batch_size=1000)
-        if not data:
-            return {"inserted": 0}
-        for bar in data:
-            ts = datetime.fromtimestamp(bar["time"] / 1000)
-            if ts <= last_ts:
-                continue
-            rows.append(StrategyKline(
-                strategy_name=ETH_ONLY_STRATEGY_NAME, symbol=ETH_ONLY_SYMBOL, timeframe=ETH_ONLY_TIMEFRAME,
-                timestamp=ts,
-                open=PyDecimal(str(bar["open"])), high=PyDecimal(str(bar["high"])),
-                low=PyDecimal(str(bar["low"])), close=PyDecimal(str(bar["close"])),
-                volume=PyDecimal(str(bar["volume"])), source="binance_futures",
-            ))
-
-    if not rows:
-        return {"inserted": 0}
-    session = db_manager.get_session()
-    try:
-        for r in rows:
-            session.add(r)
-        session.commit()
-    finally:
-        session.close()
-    return {"inserted": len(rows)}
+    """从 Hyperliquid 增量同步 ETH 2H K 线到数据库。"""
+    result = sync_eth_klines_hl()
+    return result
 
 
 @router.get("/eth-only-2h/overview", response_model=StrategyOverview, summary="ETH 独立策略总览")
@@ -1297,3 +1323,297 @@ def get_nas100_2h_overview():
     )
     ov.profit_factor = 0.71
     return ov
+
+
+# ---------- 美股动量轮动策略 CRCL_1H ----------
+
+
+def _ensure_crcl_klines_loaded_from_csv() -> None:
+    """若尚无 CRCL K 线数据，则自动从 CSV 导入一次。"""
+    session = db_manager.get_session()
+    try:
+        exists = (
+            session.query(StrategyKline.id)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .first()
+        )
+    finally:
+        session.close()
+    if exists:
+        return
+    import_crcl_klines_csv()
+
+
+def _ensure_crcl_trades_loaded_from_csv() -> None:
+    """若尚无 CRCL 回测数据，则自动从 CSV 导入一次。"""
+    session = db_manager.get_session()
+    try:
+        exists = (
+            session.query(StrategyBacktestTrade.id)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .first()
+        )
+    finally:
+        session.close()
+    if exists:
+        return
+    import_crcl_trades_csv()
+
+
+@router.post("/crcl-1h/import-klines", summary="导入 CRCL 1H K 线 CSV 到数据库")
+def import_crcl_klines_csv():
+    """从 BATS_CRCL, 60_e7fd9.csv 导入 K 线。"""
+    if not CRCL_KLINE_CSV.exists():
+        raise HTTPException(404, f"K 线 CSV 不存在: {CRCL_KLINE_CSV}")
+
+    df = pd.read_csv(CRCL_KLINE_CSV, encoding="utf-8")
+    records = []
+    for _, row in df.iterrows():
+        ts_str = str(row["time"]).strip()
+        if not ts_str or ts_str == "nan":
+            continue
+        try:
+            if "T" in ts_str:
+                dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            else:
+                dt = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
+            if dt.tzinfo:
+                dt = dt.replace(tzinfo=None)
+        except Exception:
+            continue
+        vol = row.get("Volume")
+        if pd.isna(vol) or vol == "" or vol is None:
+            vol = 0.0
+        else:
+            vol = float(vol)
+        records.append(
+            StrategyKline(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+                timestamp=dt,
+                open=PyDecimal(str(row["open"])),
+                high=PyDecimal(str(row["high"])),
+                low=PyDecimal(str(row["low"])),
+                close=PyDecimal(str(row["close"])),
+                volume=PyDecimal(str(vol)),
+                source="bats_crcl",
+            )
+        )
+
+    session = db_manager.get_session()
+    try:
+        session.query(StrategyKline).filter_by(
+            strategy_name=CRCL_STRATEGY_NAME,
+            symbol=CRCL_SYMBOL,
+            timeframe=CRCL_TIMEFRAME,
+        ).delete(synchronize_session=False)
+        for r in records:
+            session.add(r)
+        session.commit()
+    finally:
+        session.close()
+    return {"rows": len(records)}
+
+
+@router.post("/crcl-1h/import-trades", summary="导入美股动量轮动策略回测交易 CSV 到数据库")
+def import_crcl_trades_csv():
+    """从自适应做多_NYSE_CRCL CSV 导入交易。"""
+    if not CRCL_TRADES_CSV.exists():
+        raise HTTPException(404, f"交易 CSV 不存在: {CRCL_TRADES_CSV}")
+
+    df = pd.read_csv(CRCL_TRADES_CSV, encoding="utf-8")
+    df = df.rename(
+        columns={
+            "交易 #": "trade_no",
+            "类型": "trade_type",
+            "日期和时间": "trade_time",
+            "信号": "signal",
+            "价格 USD": "price",
+            "Size (qty)": "position_qty",
+            "Size (value)": "position_value",
+            "净损益 USD": "pnl",
+            "净损益 %": "pnl_pct",
+            "有利波动 USD": "runup",
+            "有利波动 %": "runup_pct",
+            "不利波动 USD": "drawdown",
+            "不利波动 %": "drawdown_pct",
+            "累计P&L USD": "cum_pnl",
+            "累计P&L %": "cum_pnl_pct",
+        }
+    )
+
+    records = []
+    for _, row in df.iterrows():
+        tt = str(row["trade_time"]).strip()
+        if not tt or tt == "nan":
+            continue
+        try:
+            trade_time = datetime.strptime(tt[:16], "%Y-%m-%d %H:%M")
+        except Exception:
+            continue
+        records.append(
+            {
+                "strategy_name": CRCL_STRATEGY_NAME,
+                "symbol": CRCL_SYMBOL,
+                "timeframe": CRCL_TIMEFRAME,
+                "trade_no": int(row["trade_no"]),
+                "trade_type": str(row["trade_type"]),
+                "signal": str(row.get("signal") or "").strip(),
+                "trade_time": trade_time,
+                "price": float(row["price"]),
+                "position_qty": float(row["position_qty"]),
+                "position_value": float(row["position_value"]),
+                "pnl": float(row["pnl"]),
+                "pnl_pct": float(row["pnl_pct"]),
+                "runup": float(row["runup"]) if pd.notna(row.get("runup")) else 0.0,
+                "runup_pct": float(row["runup_pct"]) if pd.notna(row.get("runup_pct")) else 0.0,
+                "drawdown": float(row["drawdown"]) if pd.notna(row.get("drawdown")) else 0.0,
+                "drawdown_pct": float(row["drawdown_pct"]) if pd.notna(row.get("drawdown_pct")) else 0.0,
+                "cum_pnl": float(row["cum_pnl"]),
+                "cum_pnl_pct": float(row["cum_pnl_pct"]),
+            }
+        )
+
+    session = db_manager.get_session()
+    try:
+        session.query(StrategyBacktestTrade).filter_by(
+            strategy_name=CRCL_STRATEGY_NAME,
+            symbol=CRCL_SYMBOL,
+            timeframe=CRCL_TIMEFRAME,
+        ).delete(synchronize_session=False)
+        for t in records:
+            session.add(StrategyBacktestTrade(**t))
+        session.commit()
+    finally:
+        session.close()
+    return {"rows": len(records)}
+
+
+@router.get("/crcl-1h/klines", response_model=List[KlinePoint], summary="获取 CRCL 1H K 线")
+def get_crcl_1h_klines():
+    _ensure_crcl_klines_loaded_from_csv()
+    session = db_manager.get_session()
+    try:
+        q = (
+            session.query(StrategyKline)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .order_by(StrategyKline.timestamp.asc())
+        )
+        return [
+            KlinePoint(
+                timestamp=r.timestamp,
+                open=float(r.open),
+                high=float(r.high),
+                low=float(r.low),
+                close=float(r.close),
+                volume=float(r.volume),
+            )
+            for r in q.all()
+            if r is not None and r.timestamp is not None
+        ]
+    finally:
+        session.close()
+
+
+@router.get("/crcl-1h/trades", response_model=List[BacktestTradeOut], summary="CRCL 1H 回测交易明细")
+def get_crcl_1h_trades():
+    _ensure_crcl_trades_loaded_from_csv()
+    session = db_manager.get_session()
+    try:
+        q = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+        )
+        rows = q.all()
+    finally:
+        session.close()
+
+    return [
+        BacktestTradeOut(
+            trade_no=r.trade_no,
+            trade_type=r.trade_type,
+            signal=r.signal,
+            trade_time=r.trade_time,
+            price=float(r.price),
+            position_qty=float(r.position_qty),
+            position_value=float(r.position_value),
+            pnl=float(r.pnl),
+            pnl_pct=float(r.pnl_pct),
+            runup=float(r.runup) if r.runup is not None else None,
+            runup_pct=float(r.runup_pct) if r.runup_pct is not None else None,
+            drawdown=float(r.drawdown) if r.drawdown is not None else None,
+            drawdown_pct=float(r.drawdown_pct) if r.drawdown_pct is not None else None,
+            cum_pnl=float(r.cum_pnl or 0),
+            cum_pnl_pct=float(r.cum_pnl_pct or 0),
+        )
+        for r in rows
+    ]
+
+
+@router.get("/crcl-1h/overview", response_model=StrategyOverview, summary="CRCL 1H 策略总体表现")
+def get_crcl_1h_overview():
+    _ensure_crcl_klines_loaded_from_csv()
+    _ensure_crcl_trades_loaded_from_csv()
+    session = db_manager.get_session()
+    try:
+        trades = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+            .all()
+        )
+        kls = (
+            session.query(StrategyKline)
+            .filter_by(
+                strategy_name=CRCL_STRATEGY_NAME,
+                symbol=CRCL_SYMBOL,
+                timeframe=CRCL_TIMEFRAME,
+            )
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    if not trades:
+        raise HTTPException(404, "尚未导入 CRCL 回测数据，请先调用 POST /api/strategy/crcl-1h/import-trades 与 import-klines")
+    ov = _compute_overview_from_trades_klines(trades, kls, 1_000_000, "美股动量轮动·CRCL")
+    if ov is None:
+        raise HTTPException(404, "CRCL 回测数据存在但计算失败，请尝试重新导入 POST /api/strategy/crcl-1h/import-trades")
+    return ov
+
+
+# ──────────────────────────────────────────────────────────
+# 手动触发全量 K 线同步（HYPE 4H + ETH 2H）
+# ──────────────────────────────────────────────────────────
+
+@router.post("/sync-all-klines", summary="手动触发 HYPE+ETH K 线同步")
+def sync_all_klines():
+    """从 Hyperliquid 增量同步 HYPE 4H 和 ETH 2H K 线，返回各自写入条数。"""
+    hype_result = sync_hype_klines_hl()
+    eth_result = sync_eth_klines_hl()
+    return {
+        "hype_4h": hype_result,
+        "eth_2h": eth_result,
+    }

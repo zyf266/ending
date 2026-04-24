@@ -89,6 +89,17 @@ class WebhookConfig:
 
 
 @dataclass
+class BinanceConfig:
+    """币安 USD-M 合约配置"""
+    API_BASE_URL: str = "https://fapi.binance.com"  # USD-M 合约接口
+    API_KEY: str = os.getenv("BINANCE_API_KEY", "")
+    SECRET_KEY: str = os.getenv("BINANCE_SECRET_KEY", "") or os.getenv("BINANCE_API_SECRET", "")
+    RECV_WINDOW: int = 5000
+    LEVERAGE: int = int(os.getenv("BINANCE_LEVERAGE", 10))
+    MARGIN_TYPE: str = os.getenv("BINANCE_MARGIN_TYPE", "ISOLATED")  # ISOLATED / CROSSED
+
+
+@dataclass
 class DeepcoinConfig:
     """Deepcoin Exchange 配置"""
     API_BASE_URL: str = os.getenv("DEEPCOIN_API_BASE_URL", "https://api.deepcoin.com")
@@ -110,6 +121,7 @@ class Config:
         self.trading=TradingConfig()
         self.ostium = OstiumConfig()
         self.deepcoin = DeepcoinConfig()
+        self.binance = BinanceConfig()
         self.webhook = WebhookConfig()
         
         # 统一项目根目录，确保日志和数据目录位置一致

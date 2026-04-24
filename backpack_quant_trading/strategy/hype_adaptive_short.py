@@ -601,13 +601,24 @@ class HYPEAdaptiveShortStrategy:
         """
         await self.initialize()
 
+        # 启动时主动获取余额并记录
+        try:
+            self.balance_cache = await self.client.get_balance()
+        except Exception as _e:
+            logger.warning(f"⚠️ 启动时获取余额失败: {_e}")
+            self.balance_cache = None
+        bal_str = f"{self.balance_cache:,.2f} USDC" if self.balance_cache is not None else "获取失败"
+
+        logger.info("=" * 60)
         logger.info(f"🚀 HYPE做空策略运行中: {self.symbol}")
+        logger.info(f"💰 账户余额: {bal_str}")
         logger.info(
             f"📊 风控参数: 止损 +{self.stop_loss_pct*100:.0f}% | "
             f"止盈 -{self.take_profit_pct*100:.0f}% | "
             f"保本触发 -{self.break_even_pct*100:.0f}%"
         )
         logger.info("⏳ 等待 TradingView Webhook 信号 (sell=开空, buy=平空)...")
+        logger.info("=" * 60)
 
         while not self._stop:
             try:

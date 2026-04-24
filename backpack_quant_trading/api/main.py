@@ -53,6 +53,46 @@ def health():
     return {"status": "ok", "service": "backpack-quant-api"}
 
 
+# ──────────────────────────────────────────────────────────
+# 每日凌晨2点 自动同步 HYPE 4H / ETH 2H K 线
+# ──────────────────────────────────────────────────────────
+import asyncio as _asyncio
+import logging as _sched_logging
+from datetime import datetime as _dt, timedelta as _td
+
+_sched_logger = _sched_logging.getLogger("kline_scheduler")
+
+
+@app.on_event("startup")
+async def start_kline_scheduler():
+    _asyncio.create_task(_daily_kline_sync_loop())
+
+
+async def _daily_kline_sync_loop():
+    """每天凌晨2:00 自动从 Hyperliquid 同步 HYPE 4H 和 ETH 2H K 线。"""
+    from backpack_quant_trading.api.routers.strategy import sync_hype_klines_hl, sync_eth_klines_hl
+    while True:
+        now = _dt.now()
+        target = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        if target <= now:
+            target += _td(days=1)
+        wait_secs = (target - now).total_seconds()
+        _sched_logger.info(f"[K线定时] 下次同步于 {target.strftime('%Y-%m-%d %H:%M:%S')}，等待 {wait_secs/3600:.1f}h")
+        await _asyncio.sleep(wait_secs)
+        # 同步 HYPE
+        try:
+            r1 = await _asyncio.to_thread(sync_hype_klines_hl)
+            _sched_logger.info(f"[K线定时] HYPE 4H 同步完成: {r1}")
+        except Exception as exc:
+            _sched_logger.error(f"[K线定时] HYPE 4H 同步失败: {exc}")
+        # 同步 ETH
+        try:
+            r2 = await _asyncio.to_thread(sync_eth_klines_hl)
+            _sched_logger.info(f"[K线定时] ETH 2H 同步完成: {r2}")
+        except Exception as exc:
+            _sched_logger.error(f"[K线定时] ETH 2H 同步失败: {exc}")
+
+
 # ── HYPE 策略 Webhook 快捷入口（无需 /api/trading 前缀，供 TradingView 直接调用）──
 from fastapi import Request as _Request
 from fastapi.responses import JSONResponse as _JSONResponse

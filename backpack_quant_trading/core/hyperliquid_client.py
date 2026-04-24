@@ -50,6 +50,8 @@ class HyperliquidAPIClient:
         self.session: Optional[aiohttp.ClientSession] = None
         # 缓存 meta 数据以获取资产 ID
         self._meta = None
+        self._dex_meta: Dict[str, Dict] = {}   # HIP-3 DEX meta 缓存
+        self._xyz_offset: Optional[int] = None  # XYZ DEX asset_id 偏移量
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self.session is None or self.session.closed:
@@ -72,18 +74,86 @@ class HyperliquidAPIClient:
                 logger.error(f"Hyperliquid Info 响应解析失败 ({resp.status}): {text}")
                 return {}
 
-    async def get_meta(self) -> Dict:
-        """获取交易所元数据（包含资产映射）"""
-        if not self._meta:
-            self._meta = await self.post_info({"type": "meta"})
-        return self._meta
+    async def get_meta(self, dex: str = "") -> Dict:
+        """获取交易所元数据（支持 Perps 和 HIP-3 DEX）
+        dex: "" = Perps主宇宙; "xyz" = XYZ HIP-3 DEX
+        """
+        if dex == "":
+            if not self._meta:
+                self._meta = await self.post_info({"type": "meta", "dex": ""})
+            return self._meta
+        else:
+            if dex not in self._dex_meta:
+                self._dex_meta[dex] = await self.post_info({"type": "meta", "dex": dex})
+            return self._dex_meta[dex]
 
-    async def get_price(self, symbol: str) -> float:
-        """获取实时价格"""
-        # Hyperliquid 的 symbol 通常直接是 'ETH' 或 'BTC'
-        asset = symbol.replace("-USD", "").replace("-USDT", "").split("_")[0]
-        all_mids = await self.post_info({"type": "allMids"})
-        return float(all_mids.get(asset, 0.0))
+    async def get_perp_dexs(self) -> list:
+        """获取所有可用的 Perp DEX 列表（含 HIP-3 DEXes）"""
+        return await self.post_info({"type": "perpDexs"})
+
+    async def _get_xyz_offset(self) -> int:
+        """获取 XYZ DEX 的 asset_id 起始偏移量（HIP-3 builder-deployed DEXes 从 110000 开始）"""
+        if self._xyz_offset is not None:
+            return self._xyz_offset
+        try:
+            dexs = await self.get_perp_dexs()
+            # perp_dexs 返回列表，第一个是主 Perps DEX，后续是 builder-deployed
+            for i, dex in enumerate(dexs[1:]):
+                if dex.get('name', '').lower() == 'xyz':
+                    self._xyz_offset = 110000 + i * 10000
+                    logger.info(f"✅ XYZ DEX offset = {self._xyz_offset}")
+                    return self._xyz_offset
+            # 找不到名为 xyz 时，默认用第一个 builder-deployed DEX
+            if len(dexs) > 1:
+                self._xyz_offset = 110000
+                logger.warning(f"未找到名为 'xyz' 的 DEX，使用默认 offset=110000")
+                return self._xyz_offset
+        except Exception as e:
+            logger.warning(f"获取 XYZ offset 失败: {e}，使用默认 110000")
+        self._xyz_offset = 110000
+        return self._xyz_offset
+
+    async def find_asset_dex(self, symbol: str):
+        """自动查找资产所属 DEX，返回 (dex_name, asset_id, asset_info, sz_decimals)
+        - Perps 资产: dex_name="", asset_id = 宇宙中的索引
+        - XYZ 资产:  dex_name="xyz", asset_id = 110000 + 索引
+        """
+        asset = symbol.replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0].upper()
+        # 先查 Perps
+        perps_meta = await self.get_meta("")
+        for i, c in enumerate(perps_meta.get('universe', [])):
+            if c['name'].upper() == asset:
+                return ("", i, c, c.get('szDecimals', 4))
+        # 再查 XYZ
+        try:
+            xyz_meta = await self.get_meta("xyz")
+            xyz_universe = xyz_meta.get('universe', [])
+            logger.info(f"🔍 XYZ meta 共 {len(xyz_universe)} 个资产, 查找: {asset}")
+            offset = await self._get_xyz_offset()
+            for i, c in enumerate(xyz_universe):
+                coin_name = c['name'].upper()
+                # XYZ 资产名格式: "xyz:CRCL"，需去掉前缀再比较
+                coin_base = coin_name.split(":")[-1]
+                if coin_base == asset or coin_base.startswith(asset + "-") or coin_base.startswith(asset + "_"):
+                    logger.info(f"✅ XYZ 找到: {c['name']} (asset_id={offset + i})")
+                    return ("xyz", offset + i, c, c.get('szDecimals', 4))
+        except Exception as e:
+            logger.warning(f"查询 XYZ meta 失败: {e}")
+        raise ValueError(f"资产 {asset} 在 Perps 和 XYZ 宇宙中均未找到")
+
+    async def get_price(self, symbol: str, dex: str = "") -> float:
+        """获取实时价格（支持 Perps 和 XYZ）"""
+        asset = symbol.replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0]
+        all_mids = await self.post_info({"type": "allMids", "dex": dex})
+        # XYZ 资产的 allMids 键格式为 "xyz:CRCL"，Perps 为 "CRCL"
+        price = all_mids.get(asset) or all_mids.get(f"{dex}:{asset}") if dex else all_mids.get(asset)
+        if price is None:
+            # 兜底：遍历 key 做前缀匹配
+            for k, v in all_mids.items():
+                if k.split(":")[-1].upper() == asset.upper():
+                    price = v
+                    break
+        return float(price) if price else 0.0
 
     async def get_klines(self, symbol: str, interval: str, limit: int = 500) -> List[Dict]:
         """
@@ -141,26 +211,46 @@ class HyperliquidAPIClient:
             logger.error(f"检查用户存在性失败: {e}")
             return False
 
-    async def get_balance(self) -> float:
-        """获取可用余额 (USDC)"""
+    async def get_balance(self, dex: str = "") -> float:
+        """获取可用余额 (USDC)
+        dex: "" = Perps主账户余额; "xyz" = XYZ HIP-3 DEX 余额
+        同一个钱包地址，通过 dex 参数区分不同的清算所。
+        """
         if not self.address:
             return 0.0
-        user_state = await self.post_info({"type": "clearinghouseState", "user": self.address})
+        user_state = await self.post_info({
+            "type": "clearinghouseState",
+            "user": self.address,
+            "dex": dex
+        })
         return float(user_state.get('withdrawable', 0.0))
 
-    async def get_positions(self, symbol: Optional[str] = None) -> List[Dict]:
-        """获取当前持仓。symbol 可选，如 ETH 或 ETH-USD，用于过滤。"""
+    async def get_asset_dex(self, symbol: str) -> str:
+        """获取资产所在的 DEX 名称
+        返回: "" = Perps, "xyz" = XYZ HIP-3 DEX
+        """
+        try:
+            dex_name, _, _, _ = await self.find_asset_dex(symbol)
+            return dex_name
+        except Exception:
+            return ""  # 查询失败时默认当作 Perps
+
+    async def get_positions(self, symbol: Optional[str] = None, dex: str = "") -> List[Dict]:
+        """获取当前持仓。
+        dex="" = Perps主账户； dex="xyz" = XYZ HIP-3 DEX
+        symbol 可选，用于过滤特定资产。
+        """
         if not self.address:
             return []
-        user_state = await self.post_info({"type": "clearinghouseState", "user": self.address})
+        user_state = await self.post_info({"type": "clearinghouseState", "user": self.address, "dex": dex})
         if user_state is None or not isinstance(user_state, dict):
-            logger.debug("get_positions: clearinghouseState 返回空或非 dict，视为无持仓")
+            logger.debug(f"get_positions(dex='{dex}'): clearinghouseState 返回空或非 dict，视为无持仓")
             return []
         positions = []
         coin_filter = None
         if symbol:
             # 提取资产名（如 ETH-USDT-SWAP -> ETH），与 API 返回的 coin 一致
-            coin_filter = (symbol or "").split("-")[0].split("_")[0].upper()
+            coin_filter = (symbol or "").replace("-USDC", "").split("-")[0].split("_")[0].upper()
         asset_positions = user_state.get('assetPositions') or []
         for p in asset_positions:
             if p is None:
@@ -171,7 +261,9 @@ class HyperliquidAPIClient:
             s_size = float(pos_data.get('szi') or 0)
             if s_size != 0:
                 coin = pos_data.get('coin')
-                if coin_filter and coin != coin_filter:
+                # XYZ 资产 coin 字段可能带 "xyz:" 前缀，取基础名比较
+                coin_base = coin.split(":")[-1].upper() if coin else ""
+                if coin_filter and coin_base != coin_filter:
                     continue
                 lev = pos_data.get('leverage')
                 leverage_val = float((lev.get('value', 1) if isinstance(lev, dict) else lev) or 1)
@@ -199,37 +291,31 @@ class HyperliquidAPIClient:
                 return c.get('szDecimals', 4)
         return 4
 
-    async def place_order(self, symbol: str, side: str, quantity: float, order_type: str = 'MARKET', 
+    async def place_order(self, symbol: str, side: str, quantity: float, order_type: str = 'MARKET',
                     price: Optional[float] = None, leverage: int = 5, reduce_only: bool = False) -> Dict[str, Any]:
-        """下单 (包含 EIP-712 签名逻辑)"""
+        """下单 (自动识别 Perps/XYZ DEX，包含 EIP-712 签名逻辑)
+        自动通过 find_asset_dex() 判断资产所在 DEX，无需手动指定 vault_address。
+        """
         if not self.account:
             raise ValueError("未配置私钥，无法下单")
-        
-        # 【优化】移除 check_user_exists 预检。
-        # 理由：该预检依赖 clearinghouseState，在账户无余额或 API 延迟时会返回 null 导致误报“账户不存在”。
-        # 真正的存在性检查应由交易所执行下单请求时返回。
-        
-        # 1. 准备资产 ID 和精度
+    
+        # 1. 自动查找资产所在 DEX 和 asset_id
         asset = symbol.replace("-USD", "").replace("-USDT", "").split("_")[0]
-        meta = await self.get_meta()
-        asset_info = next((c for c in meta['universe'] if c['name'] == asset), None)
-        if asset_info is None:
-            raise ValueError(f"不支持的资产: {asset}")
-        
-        asset_id = meta['universe'].index(asset_info)
-        sz_decimals = asset_info.get('szDecimals', 4)
-
+        dex_name, asset_id, asset_info, sz_decimals = await self.find_asset_dex(asset)
+        dex_label = f"XYZ HIP-3 DEX" if dex_name else "Perps"
+        logger.info(f"📍 资产路由: {asset} → {dex_label} (asset_id={asset_id})")        
+    
         # 2. 如果是市价单，获取当前价并加滑点；限价单必须传入 price，否则用当前价
         if order_type.upper() == 'MARKET':
-            current_price = await self.get_price(asset)
+            current_price = await self.get_price(asset, dex=dex_name)
             # 买入加 1%，卖出减 1% 确保成交
             price = current_price * 1.01 if side.upper() == 'BUY' else current_price * 0.99
         elif price is None or price <= 0:
-            price = await self.get_price(asset)
+            price = await self.get_price(asset, dex=dex_name)
             logger.warning(f"Hyperliquid 限价单未传 price，使用当前价 {price}")
         if reduce_only and order_type.upper() == 'LIMIT':
             logger.info(f"📊 Hyperliquid 限价平仓: {side} @ {price} (reduce_only)")
-        
+    
         # 3. 设置杠杆 (仅开仓时需要；平仓 reduce_only 时可选，保留以兼容)
         if not reduce_only:
             await self._set_leverage(asset_id, leverage)
@@ -277,7 +363,8 @@ class HyperliquidAPIClient:
 
         # 5. 签名并发送
         try:
-            signature = self._sign_action(action, timestamp)
+            # HIP-3 XYZ 资产无需 vaultAddress，asset_id（含 offset）本身即路由到正确 DEX
+            signature = self._sign_action(action, timestamp, None)
             payload = {
                 "action": action,
                 "nonce": timestamp,
@@ -463,16 +550,96 @@ class HyperliquidAPIClient:
             reduce_only=True,
         )
 
+    async def place_tpsl_order(
+        self,
+        symbol: str,
+        side: str,           # "BUY" or "SELL"
+        quantity: float,     # position size in coins
+        trigger_price: float,
+        tpsl: str,           # "tp" or "sl"
+    ) -> Dict[str, Any]:
+        """
+        在 Hyperliquid 交易所挂止盈/止损触发单 (reduce_only=True)。
+        自动识别 Perps/XYZ HIP-3 DEX，触发时以市价成交（isMarket=True）。
+        """
+        if not self.account:
+            raise ValueError("未配置私钥，无法下单")
+    
+        asset = symbol.replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0].upper()
+        # 自动路由：支持 Perps 和 XYZ HIP-3 DEX
+        dex_name, asset_id, asset_info, sz_decimals = await self.find_asset_dex(asset)
+        if asset_info is None:
+            raise ValueError(f"不支持的资产: {asset}")
+        formatted_sz = f"{float(f'{quantity:.{sz_decimals}f}'):g}"
+
+        is_buy = side.upper() == "BUY"
+        # isMarket=True 时 p 为最差可接受价格：卖单取触发价的 90%，买单取触发价的 110%
+        limit_price = trigger_price * 0.90 if not is_buy else trigger_price * 1.10
+
+        order = OrderedDict([
+            ("a", asset_id),
+            ("b", is_buy),
+            ("p", self._format_price(limit_price)),
+            ("s", formatted_sz),
+            ("r", True),  # reduce_only
+            ("t", {
+                "trigger": OrderedDict([
+                    ("isMarket", True),
+                    ("triggerPx", self._format_price(trigger_price)),
+                    ("tpsl", tpsl),
+                ])
+            }),
+        ])
+        action = OrderedDict([
+            ("type", "order"),
+            ("orders", [order]),
+            ("grouping", "na"),
+        ])
+
+        timestamp = int(time.time() * 1000)
+        try:
+            signature = self._sign_action(action, timestamp)
+            payload = {"action": action, "nonce": timestamp, "signature": signature}
+            session = await self._get_session()
+            async with session.post(
+                self.exchange_url, json=payload,
+                headers={"Content-Type": "application/json"}
+            ) as resp:
+                text = await resp.text()
+                if resp.status != 200:
+                    logger.error(f"Hyperliquid {tpsl.upper()} 挂单失败 ({resp.status}): {text}")
+                    return {"status": "FAILED", "error": f"HTTP {resp.status}: {text}"}
+                result = json.loads(text)
+                if result.get("status") == "ok":
+                    resp_data = (result.get("response") or {}).get("data") or {}
+                    statuses = resp_data.get("statuses", [{}]) if isinstance(resp_data, dict) else [{}]
+                    data = statuses[0] if statuses else {}
+                    if isinstance(data, dict) and data.get("error"):
+                        logger.error(f"❌ {tpsl.upper()} 挂单被拒: {data['error']}")
+                        return {"status": "FAILED", "error": data["error"]}
+                    oid = (data.get("resting") or {}).get("oid") or (data.get("filled") or {}).get("oid")
+                    logger.info(
+                        f"✅ [{tpsl.upper()}] 触发单挂单成功: "
+                        f"{side} @ triggerPx={trigger_price:.4f}  oid={oid}"
+                    )
+                    return {"status": "OK", "orderId": str(oid) if oid is not None else None}
+                else:
+                    raise Exception(f"Hyperliquid {tpsl.upper()} 挂单失败: {result}")
+        except Exception as e:
+            logger.error(f"place_tpsl_order({tpsl}) 异常: {e}")
+            return {"status": "FAILED", "error": str(e)}
+
     async def cancel_order_async(self, symbol: str, order_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
-        """撤销订单（网格用）。order_id 为 oid。"""
         if not self.account or not order_id:
             return {'status': 'FAILED', 'error': 'no account or order_id'}
-        asset = (symbol or "").replace("-USD", "").replace("-USDT", "").split("_")[0]
-        meta = await self.get_meta()
-        asset_info = next((c for c in meta['universe'] if c['name'] == asset), None)
+        asset = (symbol or "").replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0].upper()
+        # 自动路由：支持 Perps 和 XYZ HIP-3 DEX
+        try:
+            _, asset_id, asset_info, _ = await self.find_asset_dex(asset)
+        except Exception:
+            asset_info = None
         if asset_info is None:
             return {'status': 'FAILED', 'error': f'unknown asset: {asset}'}
-        asset_id = meta['universe'].index(asset_info)
         try:
             oid = int(order_id)
         except (ValueError, TypeError):
@@ -524,23 +691,29 @@ class HyperliquidAPIClient:
             except:
                 logger.error(f"❌ 杠杆设置响应解析失败: {text}")
 
-    def _sign_action(self, action: Union[Dict, OrderedDict], nonce: int) -> Dict:
-        """生成 EIP-712 签名 (Hyperliquid 规范)"""
+    def _sign_action(self, action: Union[Dict, OrderedDict], nonce: int, vault_address: Optional[str] = None) -> Dict:
+        """生成 EIP-712 签名 (Hyperliquid 规范)
+        vault_address: 子账户地址(XYZ)，为None时使用主账户(Perps)
+        """
         if not self.account:
-            raise ValueError("未配置私钥，无法进行签名")
-            
+            raise ValueError("未配置私鑰，无法进行签名")
+                
         try:
-            # 1. connectionId = keccak(msgpack(action) + nonce(8) + vault_flag(1))，与官方 SDK 完全一致
-            # 无 vault 时必须在 nonce 后追加 b"\x00"，否则恢复出的地址会错误
+            # 1. connectionId = keccak(msgpack(action) + nonce(8) + vault_flag)
+            # 无 vault_address 时用 b"\x00"(主账户)，有 vault_address 时用 b"\x01"+addr_bytes(子账户)
             data_bytes = msgpack.packb(action, use_bin_type=False)
             data_bytes += nonce.to_bytes(8, "big")
-            data_bytes += b"\x00"
+            if vault_address is None:
+                data_bytes += b"\x00"
+            else:
+                addr = vault_address.lower().strip().lstrip('0x')
+                data_bytes += b"\x01" + bytes.fromhex(addr)
             msg_hash_bytes = Web3.keccak(data_bytes)
             connection_id = "0x" + msg_hash_bytes.hex()
 
             logger.info(f"✍️ 正在签名动作: {action['type']} | 地址: {self.address} | Nonce: {nonce}")
 
-            # 2. source 主网必须为 "a"、测试网为 "b"，不能用 "Main"
+            # 2. source: "a" 主网 / "b" 测试网（Hyperliquid 协议规范，主钱包和 Agent 均用此格式）
             is_mainnet = "testnet" not in (self.base_url or "").lower()
             domain = {
                 "name": "Exchange",

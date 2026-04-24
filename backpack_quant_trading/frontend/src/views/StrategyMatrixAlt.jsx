@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { BarChart3, Activity, TrendingUp, Wallet, Search, Filter, Plus, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { StrategyCardMatrix } from '../components/StrategyCardMatrix'
-import { getEthTrendOverview, getEthOnlyOverview, getPaxgTrendOverview, getNas100TrendOverview } from '../api/strategy'
+import { getEthTrendOverview, getEthOnlyOverview, getPaxgTrendOverview, getNas100TrendOverview, getCrclOverview } from '../api/strategy'
 
 const strategies = [
   {
@@ -29,8 +29,21 @@ const strategies = [
     statusColor: 'bg-green-500 text-white',
     progress: 98,
     progressColor: '#10b981',
-    riskIndex: '低风险',
-    isRiskWarning: false,
+    riskIndex: '中风险',
+    isRiskWarning: true,
+  },
+  {
+    to: '/strategies/us-momentum-crcl',
+    icon: '🇺🇸',
+    title: '美股动量轮动策略·CRCL',
+    code: 'ML-USM',
+    description: '专注 CRCL 等高波动资产，通过多周期协同过滤震荡噪音，精准捕捉由趋势扩张驱动的中长期波段，利用量化计算严控风险回撤，追求稳健的风险调整后收益。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '中风险',
+    isRiskWarning: true,
   },
   {
     to: '/strategies/paxg-trend',
@@ -38,10 +51,10 @@ const strategies = [
     title: '黄金波动率周期捕捉策略',
     code: 'ML-GVCS',
     description: '专注 XAU/USD 波动率周期，结合宏观趋势与关键支撑区间布局，坚持「低位等待、确定性介入」原则，利用波动率扩张捕捉中期行情。',
-    status: '运行中',
-    statusColor: 'bg-green-500 text-white',
+    status: '已平仓',
+    statusColor: 'bg-gray-400 text-white',
     progress: 80,
-    progressColor: '#10b981',
+    progressColor: '#9ca3af',
     riskIndex: '低风险',
     isRiskWarning: false,
   },
@@ -51,8 +64,8 @@ const strategies = [
     title: '纳指波动率增强策略',
     code: 'ML-NAS',
     description: '聚焦纳斯达克指数的中长期趋势行情，结合趋势强度与回撤过滤，围绕关键趋势段进行分批建仓与风控，强调顺势持有与风险控制。',
-    status: '运行中',
-    statusColor: 'bg-green-500 text-white',
+    status: '已平仓',
+    statusColor: 'bg-gray-400 text-white',
     progress: 60,
     progressColor: '#3b82f6',
     riskIndex: '低风险',
@@ -71,19 +84,6 @@ const strategies = [
     riskIndex: '低风险',
     isRiskWarning: false,
   },
-  {
-    to: '/strategies/nas100-trend',
-    icon: '🇺🇸',
-    title: '美股动量轮动策略',
-    code: 'ML-USM',
-    description: '聚焦美股核心指数与强势板块，结合趋势强度、回撤过滤与风险预算，进行中短期动量轮动配置。',
-    status: '测试中',
-    statusColor: 'bg-blue-500 text-white',
-    progress: 68,
-    progressColor: '#3b82f6',
-    riskIndex: '低风险',
-    isRiskWarning: false,
-  },
 ]
 
 export default function StrategyMatrixAlt() {
@@ -96,6 +96,7 @@ export default function StrategyMatrixAlt() {
       { key: 'hype', fn: getEthTrendOverview },
       { key: 'paxg', fn: getPaxgTrendOverview },
       { key: 'nas100', fn: getNas100TrendOverview },
+      { key: 'crcl', fn: getCrclOverview },
     ]
 
     Promise.allSettled(reqs.map((r) => r.fn())).then((results) => {
@@ -150,23 +151,32 @@ export default function StrategyMatrixAlt() {
     },
   ]
 
-  const strategyKeys = ['eth', 'hype', 'paxg', 'nas100', null, null]
+  const strategyKeys = ['eth', 'hype', 'crcl', 'paxg', 'nas100', null]
   const enrichedStrategies = strategies.map((s, i) => {
     const ov = overviews[strategyKeys[i]]
     // 固定展示值：最大回撤和盈亏比
-    const fixedDrawdown = ['-3.48%', '-6.47%', '-1.44%', '-4%', '--', '--']
-    const fixedProfitFactor = ['2.58', '2.84', '2.25', '0.71', '--', '--']
-    if (!ov) return { ...s, annualReturn: '--', drawdown: fixedDrawdown[i], profitFactor: fixedProfitFactor[i] }
+    const fixedDrawdown = ['-3.48%', '-6.47%', '-10.89%', '-1.44%', '-4%', '--']
+    const fixedProfitFactor = ['2.58', '2.84', '4.21', '2.25', '0.71', '--']
+    if (!ov) return { ...s, annualReturn: '--', annualReturnLabel: '平均年化', drawdown: fixedDrawdown[i], profitFactor: fixedProfitFactor[i] }
     let annualReturn = '--'
+    let annualReturnLabel = '平均年化'
     if (ov.total_return_pct != null && ov.start_date && ov.end_date) {
       const days = Math.max(1, (new Date(ov.end_date) - new Date(ov.start_date)) / 86400000)
       const years = days / 365
-      const ann = ((1 + ov.total_return_pct / 100) ** (1 / years) - 1) * 100
-      annualReturn = `${ann > 0 ? '+' : ''}${ann.toFixed(2)}%`
+      if (years >= 0.75) {
+        // 数据超过9个月才做年化
+        const ann = ((1 + ov.total_return_pct / 100) ** (1 / years) - 1) * 100
+        annualReturn = `${ann > 0 ? '+' : ''}${ann.toFixed(2)}%`
+      } else {
+        // 数据太短，显示区间总收益
+        annualReturnLabel = '区间收益'
+        annualReturn = `${ov.total_return_pct > 0 ? '+' : ''}${ov.total_return_pct.toFixed(2)}%`
+      }
     }
     return {
       ...s,
       annualReturn,
+      annualReturnLabel,
       drawdown: fixedDrawdown[i],
       profitFactor: fixedProfitFactor[i],
     }
@@ -253,6 +263,7 @@ export default function StrategyMatrixAlt() {
               progress={s.progress}
               progressColor={s.progressColor}
               annualReturn={s.annualReturn}
+                annualReturnLabel={s.annualReturnLabel}
               drawdown={s.drawdown}
               profitFactor={s.profitFactor}
               riskIndex={s.riskIndex}

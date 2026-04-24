@@ -21,6 +21,7 @@ from .utils.logger import setup_logger, get_logger
 from .core.api_client import BackpackAPIClient, ExchangeClient
 from .core.deepcoin_client import DeepcoinAPIClient
 from .core.hyperliquid_client import HyperliquidAPIClient
+from .core.binance_client import BinanceAPIClient
 
 # 初始化日志系统
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,12 +47,13 @@ STRATEGY_DISPLAY_NAMES = {
     "hype_adaptive_short": "HYPE做空策略(Webhook版)",
 }
 
-# 交易所注册表：目前支持 backpack, deepcoin, ostium
+# 交易所注册表：目前支持 backpack, deepcoin, ostium, hyperliquid, binance
 EXCHANGE_REGISTRY: dict[str, Any] = {
     "backpack": BackpackAPIClient,
     "deepcoin": DeepcoinAPIClient,
     "ostium": "Ostium",
     "hyperliquid": HyperliquidAPIClient,
+    "binance": BinanceAPIClient,
 }
 
 

@@ -1,5 +1,11 @@
 import request from './request'
 
+/** 保证 POST JSON 里始终是合法数字，避免 undefined 被序列化丢弃后后端用默认值 */
+const finitePositive = (v, fallback) => {
+  const n = Number(v)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
 export const getStrategies = () => request.get('/trading/strategies')
 export const getInstances = () => request.get('/trading/instances')
 export const launchStrategy = (data) => request.post('/trading/launch', data)
@@ -33,7 +39,7 @@ export const startEthTrendShort = (params = {}) =>
     take_profit_pct: params.take_profit_pct || 0.10,
     lockin_trig_pct: params.lockin_trig_pct || 0.04,
     lockin_prot_pct: params.lockin_prot_pct || 0.02,
-    breakeven_pct:   params.breakeven_pct   || 0.05,
+    breakeven_pct:   params.breakeven_pct   || 0.03,
     price_filter_min: params.price_filter_min || 2000.0,
   })
 export const stopEthTrendShort     = () => request.post('/trading/eth-trend-short/stop')
@@ -42,12 +48,21 @@ export const getEthTrendShortStatus = () => request.get('/trading/eth-trend-shor
 // 自适应做多策略 (Webhook信号版)
 export const startAdaptiveLong = (params = {}) =>
   request.post('/trading/adaptive-long/start', {
-    private_key:     params.private_key     || undefined,
-    margin_amount:   params.margin_amount   || 20,
-    leverage:        params.leverage        || 50,
-    stop_loss_pct:   params.stop_loss_pct   || 0.03,
-    take_profit_pct: params.take_profit_pct || 0.06,
-    break_even_pct:  params.break_even_pct  || 0.03,
+    coin:               params.coin               || '',
+    exchange:           params.exchange           || 'hyperliquid',
+    private_key:        params.private_key        || undefined,
+    api_key:            params.api_key            || undefined,
+    api_secret:         params.api_secret         || undefined,
+    account_index:      params.account_index      ?? 0,
+    api_key_index:      params.api_key_index      ?? 2,
+    timeframe_filter:   params.timeframe_filter   || undefined,
+    margin_amount:      finitePositive(params.margin_amount, 20),
+    leverage:           Math.round(finitePositive(params.leverage, 50)),
+    stop_loss_pct:      params.stop_loss_pct      || 0.03,
+    take_profit_pct:    params.take_profit_pct    || 0.06,
+    break_even_pct:     params.break_even_pct     || 0.03,
+    lock_profit_pct:    params.lock_profit_pct    ?? 0,
+    lock_profit_sl_pct: params.lock_profit_sl_pct ?? 0,
   })
 export const stopAdaptiveLong      = () => request.post('/trading/adaptive-long/stop')
 export const getAdaptiveLongStatus = () => request.get('/trading/adaptive-long/status')

@@ -14,6 +14,7 @@ import PaxgTrendStrategy from './views/PaxgTrendStrategy'
 import Nas100TrendStrategy from './views/Nas100TrendStrategy'
 import EthOnlyStrategy from './views/EthOnlyStrategy'
 import OkxConsole from './views/OkxConsole'
+import UsMomentumCrclStrategy from './views/UsMomentumCrclStrategy'
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -64,6 +65,7 @@ function App() {
           <Route path="strategies/eth-only" element={<EthOnlyStrategy />} />
           <Route path="strategies/paxg-trend" element={<PaxgTrendStrategy />} />
           <Route path="strategies/nas100-trend" element={<Nas100TrendStrategy />} />
+          <Route path="strategies/us-momentum-crcl" element={<UsMomentumCrclStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />
         </Route>
       </Routes>
