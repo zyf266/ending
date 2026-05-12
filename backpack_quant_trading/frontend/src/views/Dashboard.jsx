@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as echarts from 'echarts'
 import { getDashboard } from '../api/dashboard'
 import { getInstances } from '../api/trading'
+import { getBubbleHistory } from '../api/usWeeklyReport'
 import './Dashboard.css'
 
 function formatTime(s) {
@@ -13,6 +14,7 @@ function formatTime(s) {
 
 const Dashboard = () => {
   const chartRef = useRef(null)
+  const bubbleChartRef = useRef(null)
   const [summary, setSummary] = useState({})
   const [chartData, setChartData] = useState([])
   const [positions, setPositions] = useState([])
@@ -21,6 +23,7 @@ const Dashboard = () => {
   const [risks, setRisks] = useState([])
   const [exchange, setExchange] = useState('backpack')
   const [now, setNow] = useState('')
+  const [bubbleHistory, setBubbleHistory] = useState([])
 
   const pnlClass = (summary.daily_pnl || 0) > 0 ? 'profit' : (summary.daily_pnl || 0) < 0 ? 'loss' : ''
   const pnlPrefix = (summary.daily_pnl || 0) > 0 ? '+' : (summary.daily_pnl || 0) < 0 ? '-' : ''
@@ -61,8 +64,56 @@ const Dashboard = () => {
     renderChart()
   }, [chartData])
 
+  const loadBubble = async () => {
+    try {
+      const res = await getBubbleHistory(80)
+      setBubbleHistory(res?.items || [])
+    } catch (_) {}
+  }
+
   useEffect(() => {
-    let t1
+    if (!bubbleChartRef.current) return
+    const items = (bubbleHistory || []).filter((x) => x.bubble_total_score != null)
+    const ch = echarts.init(bubbleChartRef.current)
+    if (!items.length) {
+      ch.setOption({
+        title: {
+          text: '暂无数据，前往「美股泡沫阶段监测」生成第一份评分',
+          left: 'center',
+          top: 'middle',
+          textStyle: { fontSize: 13, color: '#94a3b8', fontWeight: 'normal' },
+        },
+      })
+    } else {
+      ch.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 50, right: 20, top: 20, bottom: 30 },
+        xAxis: { type: 'category', data: items.map((x) => (x.generated_at_utc || '').slice(0, 10)) },
+        yAxis: { type: 'value', min: 0, max: 70 },
+        series: [
+          {
+            type: 'line',
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 8,
+            data: items.map((x) => x.bubble_total_score),
+            lineStyle: { color: '#ef4444', width: 3 },
+            itemStyle: { color: '#ef4444' },
+            areaStyle: { color: 'rgba(239, 68, 68, 0.18)' },
+          },
+        ],
+      })
+    }
+    const onResize = () => ch.resize()
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      ch.dispose()
+    }
+  }, [bubbleHistory])
+
+  useEffect(() => {
+    let t1, t3
     const init = async () => {
       try {
         const res = await getInstances()
@@ -70,15 +121,23 @@ const Dashboard = () => {
         if (insts.length) setExchange(insts[0].platform || 'backpack')
       } catch (_) {}
       await refresh()
+      await loadBubble()
       t1 = setInterval(refresh, 10000)
+      t3 = setInterval(loadBubble, 5 * 60 * 1000)
     }
     init()
     const t2 = setInterval(() => setNow(new Date().toISOString().slice(0, 19).replace('T', ' ')), 1000)
     return () => {
       if (t1) clearInterval(t1)
+      if (t3) clearInterval(t3)
       clearInterval(t2)
     }
   }, [])
+
+  const latestBubble = (() => {
+    const items = (bubbleHistory || []).filter((x) => x.bubble_total_score != null)
+    return items.length ? items[items.length - 1] : null
+  })()
 
   return (
     <div className="page dashboard-page">
@@ -136,6 +195,32 @@ const Dashboard = () => {
           </div>
         </div>
         <div ref={chartRef} className="chart-area" />
+      </div>
+
+      <div className="chart-card card-block">
+        <div className="chart-header">
+          <div className="chart-title">
+            <span className="chart-icon">🫧</span>
+            <span>AI 泡沫总分曲线（0-55）</span>
+          </div>
+          <div className="chart-tags">
+            {latestBubble ? (
+              <>
+                <span className="tag tag-info">
+                  最新 {latestBubble.bubble_total_score}/{latestBubble.bubble_total_max || 70}
+                </span>
+                <span className="tag tag-success">{latestBubble.stage || '阶段未知'}</span>
+                <span className="tag tag-warn">下周：{latestBubble.next_week_bias || '—'}</span>
+              </>
+            ) : (
+              <span className="tag tag-info">每周六 10:00 自动评分</span>
+            )}
+            <Link to="/us-weekly-report" className="tag tag-success" style={{ textDecoration: 'none' }}>
+              查看详情
+            </Link>
+          </div>
+        </div>
+        <div ref={bubbleChartRef} className="chart-area" />
       </div>
 
       <div className="tables-row">

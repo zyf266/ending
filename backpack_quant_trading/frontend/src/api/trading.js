@@ -9,7 +9,11 @@ const finitePositive = (v, fallback) => {
 export const getStrategies = () => request.get('/trading/strategies')
 export const getInstances = () => request.get('/trading/instances')
 export const launchStrategy = (data) => request.post('/trading/launch', data)
-export const stopInstance = (id) => request.delete(`/trading/instances/${id}`)
+// 注意：DELETE 语义为“删除实例（停止+移除卡片）”；仅停止请用 stopInstance
+export const deleteInstance = (id) => request.delete(`/trading/instances/${id}`)
+export const stopInstance = (id) => request.post(`/trading/instances/${id}/stop`)
+export const startInstance = (id) => request.post(`/trading/instances/${id}/start`)
+export const updateInstance = (id, data) => request.put(`/trading/instances/${id}`, data)
 export const getLogs = () => request.get('/trading/logs')
 
 // HYPE 自适应做空策略 (Webhook信号版)
@@ -66,4 +70,41 @@ export const startAdaptiveLong = (params = {}) =>
   })
 export const stopAdaptiveLong      = () => request.post('/trading/adaptive-long/stop')
 export const getAdaptiveLongStatus = () => request.get('/trading/adaptive-long/status')
+
+// 自适应做空策略 (Webhook信号版)
+export const startAdaptiveShort = (params = {}) =>
+  request.post('/trading/adaptive-short/start', {
+    coin:               params.coin               || '',
+    exchange:           params.exchange           || 'hyperliquid',
+    private_key:        params.private_key        || undefined,
+    api_key:            params.api_key            || undefined,
+    api_secret:         params.api_secret         || undefined,
+    account_index:      params.account_index      ?? 0,
+    api_key_index:      params.api_key_index      ?? 2,
+    timeframe_filter:   params.timeframe_filter   || undefined,
+    margin_amount:      finitePositive(params.margin_amount, 20),
+    leverage:           Math.round(finitePositive(params.leverage, 50)),
+    stop_loss_pct:      params.stop_loss_pct      || 0.03,
+    take_profit_pct:    params.take_profit_pct    || 0.06,
+    break_even_pct:     params.break_even_pct     || 0.03,
+    lock_profit_pct:    params.lock_profit_pct    ?? 0,
+    lock_profit_sl_pct: params.lock_profit_sl_pct ?? 0,
+  })
+export const stopAdaptiveShort      = () => request.post('/trading/adaptive-short/stop')
+export const getAdaptiveShortStatus = () => request.get('/trading/adaptive-short/status')
+
+// 自动平仓策略 (Webhook信号版)
+export const startAutoClose = (params = {}) =>
+  request.post('/trading/auto-close/start', {
+    coin:        params.coin        || '',
+    exchange:    params.exchange    || 'hyperliquid',
+    wallet_memo: params.wallet_memo || '',
+    private_key: params.private_key || undefined,
+    api_key:     params.api_key     || undefined,
+    api_secret:  params.api_secret  || undefined,
+    account_index: params.account_index ?? 0,
+    api_key_index: params.api_key_index ?? 2,
+  })
+export const stopAutoClose = () => request.post('/trading/auto-close/stop')
+export const getAutoCloseStatus = () => request.get('/trading/auto-close/status')
 

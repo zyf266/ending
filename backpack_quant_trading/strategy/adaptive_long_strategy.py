@@ -21,6 +21,7 @@
 import asyncio
 import logging
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -161,16 +162,36 @@ class AdaptiveLongStrategy:
         logger.info("=" * 60)
 
         risk_task = asyncio.create_task(self._risk_loop())
+        def _on_done(t: asyncio.Task):
+            try:
+                if t.cancelled():
+                    logger.warning(f"⚠️ risk_task 被取消: instance={self.instance_id} _stop={self._stop}")
+                else:
+                    exc = t.exception()
+                    if exc:
+                        logger.error(f"⚠️ risk_task 异常结束: instance={self.instance_id} _stop={self._stop} err={repr(exc)}")
+                    else:
+                        logger.warning(f"⚠️ risk_task 正常结束: instance={self.instance_id} _stop={self._stop}")
+            except Exception:
+                pass
+        risk_task.add_done_callback(_on_done)
         try:
             await risk_task
         except asyncio.CancelledError:
             pass
+        except Exception as e:
+            logger.error(f"⚠️ run() await risk_task 异常: instance={self.instance_id} _stop={self._stop} err={repr(e)}")
         finally:
             await self.client.close()
             logger.info(f"✅ 策略已停止: {self.instance_id}")
 
     def stop(self):
         """外部调用停止策略"""
+        try:
+            stack = "".join(traceback.format_stack(limit=8))
+            logger.info(f"🧯 stop() 被调用，调用栈(末8帧):\n{stack}")
+        except Exception:
+            pass
         self._stop = True
         self.is_enabled = False
 
@@ -356,7 +377,22 @@ class AdaptiveLongStrategy:
                     dex_label = "Lighter DEX"
                 else:
                     dex_label = "Perps"
-            balance = await self._get_balance_float(dex=dex_name)
+            # Lighter 偶发 503/网络抖动时 get_balance 可能短暂返回 0，这里做重试避免误判“余额不足”
+            balance = 0.0
+            if self.exchange == "lighter":
+                last_exc = None
+                for attempt in range(5):
+                    try:
+                        balance = await self._get_balance_float(dex=dex_name)
+                        if balance > 0:
+                            break
+                    except Exception as e:
+                        last_exc = e
+                    await asyncio.sleep(0.5 * (2 ** attempt))
+                if balance <= 0 and last_exc:
+                    logger.warning(f"[Lighter] 余额查询多次失败，可能为临时 503/代理抖动: {last_exc}")
+            else:
+                balance = await self._get_balance_float(dex=dex_name)
             self.balance_cache = balance
             bal_unit = "USDT" if self.exchange == "binance" else "USDC"
             logger.info(f"📊 交易所: {dex_label}  余额: {balance:.2f} {bal_unit}")
@@ -439,8 +475,9 @@ class AdaptiveLongStrategy:
             logger.info(f"   保本触发:   {be_trigger:.4f}  (盈利达 {self.break_even_pct*100:.1f}% 时SL移至成本价)")
             logger.info("=" * 60)
 
-            # Hyperliquid: 开仓后立即在交易所挂好 SL/TP 触发单
-            await self._place_exchange_tpsl()
+            # Hyperliquid / Lighter：开仓后立即在交易所挂好 SL/TP 触发单（若失败会降级为软件御控）
+            if self.exchange in ("hyperliquid", "lighter"):
+                await self._place_exchange_tpsl()
 
         except Exception as e:
             logger.error(f"开多异常: {e}")

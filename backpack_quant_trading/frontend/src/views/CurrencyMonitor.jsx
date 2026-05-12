@@ -68,7 +68,7 @@ const MultiSelectDropdown = ({ options, value, onChange, placeholder }) => {
             autoFocus
           />
           <div className="msd-list">
-            {filtered.slice(0, 100).map((item) => (
+            {filtered.map((item) => (
               <label key={item} className="msd-option">
                 <input
                   type="checkbox"
@@ -276,7 +276,7 @@ const CurrencyMonitor = () => {
             <div className="mon-field-group">
               <label className="mon-label">选择币种</label>
               <MultiSelectDropdown
-                options={symbolList.slice(0, 200)}
+                options={symbolList}
                 value={selectedSymbols}
                 onChange={setSelectedSymbols}
                 placeholder="搜索并选择币种..."
@@ -331,7 +331,7 @@ const CurrencyMonitor = () => {
             <div className="mon-field-group">
               <label className="mon-label">监控币种</label>
               <MultiSelectDropdown
-                options={symbolList.slice(0, 200)}
+                options={symbolList}
                 value={minuteForm.symbols}
                 onChange={(vals) => setMinuteForm((prev) => ({ ...prev, symbols: vals }))}
                 placeholder="搜索并选择币种..."

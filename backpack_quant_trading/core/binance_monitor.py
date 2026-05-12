@@ -10,12 +10,16 @@ import hmac
 import hashlib
 import base64
 import urllib.parse
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Set, Tuple
 ALERT_RED_DURATION_SEC = 600  # 异动变红持续 10 分钟
 import requests
 import math
+import os
+import aiohttp
+import subprocess
 
 from backpack_quant_trading.config.settings import config
 
@@ -28,6 +32,116 @@ MINUTE_ALERT_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=3bedcc
 # 【修复】改用合约 API，获取更多币种（包括 1000SHIB、PEPE 等）
 BINANCE_API_BASE = "https://fapi.binance.com"  # 合约 API
 # BINANCE_API_BASE = "https://api.binance.com"  # 现货 API（已弃用）
+
+
+def _requests_proxies() -> Optional[Dict[str, str]]:
+    """显式给 requests 注入代理，避免某些运行方式下环境变量不生效。"""
+    https = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    http = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy") or https
+    allp = os.environ.get("ALL_PROXY") or os.environ.get("all_proxy")
+    # 兜底：只配置了 ALL_PROXY 的情况（常见于 socks5）
+    if not (http or https) and allp:
+        http = allp
+        https = allp
+    if not (http or https):
+        return None
+    p: Dict[str, str] = {}
+    if http:
+        p["http"] = http
+    if https:
+        p["https"] = https
+    return p or None
+
+
+def _http_get_json_sync(url: str, params: Dict, timeout_sec: int) -> object:
+    """
+    用 aiohttp 拉取 JSON（支持 proxy + ssl=False），避免 requests 在部分机房/代理链路下出现 SSLEOFError。
+    这是同步包装：运行在 FastAPI 的线程池线程内（无 event loop）是安全的。
+    """
+    # aiohttp 的 proxy 仅支持 http(s) 代理；这里优先使用 HTTP(S)_PROXY（你本机 mihomo mixed-port 即 http 代理）
+    proxy = (
+        os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or None
+    )
+    # 兜底：若仅设置了 ALL_PROXY（且是 http 代理），也尝试使用
+    if not proxy:
+        ap = os.environ.get("ALL_PROXY") or os.environ.get("all_proxy") or ""
+        if ap.startswith("http://") or ap.startswith("https://"):
+            proxy = ap
+
+    def _curl_get_json_sync() -> object:
+        """
+        兜底方案：直接调用系统 curl（支持 -x 代理），再 json 解析。
+        你已验证 curl -x 127.0.0.1:7891 可以稳定访问币安，这条路最抗网络栈/SSL 异常。
+        """
+        proxy = (
+            os.environ.get("HTTPS_PROXY")
+            or os.environ.get("https_proxy")
+            or os.environ.get("HTTP_PROXY")
+            or os.environ.get("http_proxy")
+            or ""
+        )
+        # 拼接 query
+        from urllib.parse import urlencode
+        full_url = url
+        if params:
+            full_url = f"{url}?{urlencode(params)}"
+        cmd = [
+            "curl",
+            "-fsSL",
+            "--max-time",
+            str(timeout_sec),
+            "-A",
+            "Mozilla/5.0",
+        ]
+        if proxy:
+            cmd += ["-x", proxy]
+        cmd.append(full_url)
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        import json as _json
+        return _json.loads(out.decode("utf-8", errors="ignore"))
+
+    async def _run_aiohttp():
+        t = aiohttp.ClientTimeout(total=timeout_sec)
+        async with aiohttp.ClientSession(timeout=t) as session:
+            async with session.get(
+                url,
+                params=params,
+                proxy=proxy,
+                ssl=False,
+                headers={"User-Agent": "Mozilla/5.0"},
+            ) as resp:
+                resp.raise_for_status()
+                return await resp.json(content_type=None)
+
+    try:
+        # 你的环境里 curl -x 代理是最稳定的；只要配置了 proxy，就优先走 curl，避免 requests/urllib3 的 SSLEOF
+        if proxy:
+            return _curl_get_json_sync()
+        return asyncio.run(_run_aiohttp())
+    except Exception:
+        # 兜底顺序：curl → aiohttp → requests，并把错误尽量保留在日志里
+        try:
+            return _curl_get_json_sync()
+        except Exception as e1:
+            logger.warning(f"币安行情 curl 兜底失败: {e1}")
+        try:
+            return asyncio.run(_run_aiohttp())
+        except Exception as e2:
+            logger.warning(f"币安行情 aiohttp 兜底失败: {e2}")
+        resp = requests.get(
+            url,
+            params=params,
+            timeout=timeout_sec,
+            proxies=_requests_proxies(),
+            verify=False,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 # K线级别映射：页面选项 -> 币安 interval
 TIMEFRAME_MAP = {
@@ -83,10 +197,11 @@ def fetch_binance_klines_from_start(
             "startTime": current_start,
         }
         try:
-            resp = requests.get(url, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _http_get_json_sync(url, params=params, timeout_sec=30)
             if not data:
+                break
+            if not isinstance(data, list):
+                logger.error(f"币安 K 线返回异常（非数组） {symbol} {interval}: {data}")
                 break
             batch = []
             for bar in data:
@@ -137,11 +252,12 @@ def fetch_binance_klines_batch(
         if end_time is not None:
             params["endTime"] = end_time
         try:
-            resp = requests.get(url, params=params, timeout=20)
-            resp.raise_for_status()
-            data = resp.json()
+            data = _http_get_json_sync(url, params=params, timeout_sec=20)
             if not data:
                 break
+            if not isinstance(data, list):
+                logger.error(f"币安 K 线返回异常（非数组） {symbol} {interval}: {data}")
+                return result if result else None
             batch = []
             for bar in data:
                 batch.append({
@@ -176,9 +292,10 @@ def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Option
         # 【修复】使用合约 API 的 klines endpoint
         url = f"{BINANCE_API_BASE}/fapi/v1/klines"
         params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
-        resp = requests.get(url, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
+        data = _http_get_json_sync(url, params=params, timeout_sec=15)
+        if not isinstance(data, list):
+            logger.error(f"获取币安K线返回异常（非数组） {symbol} {interval}: {data}")
+            return None
         result = []
         for bar in data:
             result.append({
@@ -203,9 +320,7 @@ def fetch_binance_depth(symbol: str, limit: int = 50) -> Optional[Dict]:
     try:
         url = f"{BINANCE_API_BASE}/fapi/v1/depth"
         params = {"symbol": symbol.upper(), "limit": int(limit)}
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
+        data = _http_get_json_sync(url, params=params, timeout_sec=10)
         if not isinstance(data, dict):
             return None
         return data

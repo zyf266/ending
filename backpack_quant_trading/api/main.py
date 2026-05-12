@@ -33,19 +33,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 注册路由
-from backpack_quant_trading.api.routers import auth, trading, grid, currency_monitor, dashboard, ai_lab, stock_ai, strategy, okx_agent, okx_console
+# 注册路由（显式导入 router，避免模块对象缺少 router 属性导致启动失败）
+from backpack_quant_trading.api.routers.auth import router as auth_router
+from backpack_quant_trading.api.routers.trading import router as trading_router
+from backpack_quant_trading.api.routers.grid import router as grid_router
+from backpack_quant_trading.api.routers.currency_monitor import router as currency_monitor_router
+from backpack_quant_trading.api.routers.dashboard import router as dashboard_router
+from backpack_quant_trading.api.routers.ai_lab import router as ai_lab_router
+from backpack_quant_trading.api.routers.stock_ai import router as stock_ai_router
+from backpack_quant_trading.api.routers.strategy import router as strategy_router
+from backpack_quant_trading.api.routers.okx_agent import router as okx_agent_router
+from backpack_quant_trading.api.routers.okx_console import router as okx_console_router
+from backpack_quant_trading.api.routers.us_weekly_report import router as us_weekly_report_router
 
-app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
-app.include_router(trading.router, prefix="/api/trading", tags=["实盘交易"])
-app.include_router(grid.router, prefix="/api/grid", tags=["网格交易"])
-app.include_router(currency_monitor.router, prefix="/api/currency-monitor", tags=["币种监视"])
-app.include_router(dashboard.router, prefix="/api/dashboard", tags=["数据大屏"])
-app.include_router(ai_lab.router, prefix="/api/ai-lab", tags=["AI实验室"])
-app.include_router(stock_ai.router, prefix="/api/stock-ai", tags=["A股AI选股"])
-app.include_router(strategy.router, prefix="/api/strategy", tags=["量化策略"])
-app.include_router(okx_agent.router, prefix="/api/okx-agent", tags=["OKX AI 交易"])
-app.include_router(okx_console.router, prefix="/api/okx-console", tags=["OKX 控制台"])
+app.include_router(auth_router, prefix="/api/auth", tags=["认证"])
+app.include_router(trading_router, prefix="/api/trading", tags=["实盘交易"])
+app.include_router(grid_router, prefix="/api/grid", tags=["网格交易"])
+app.include_router(currency_monitor_router, prefix="/api/currency-monitor", tags=["币种监视"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["数据大屏"])
+app.include_router(ai_lab_router, prefix="/api/ai-lab", tags=["AI实验室"])
+app.include_router(stock_ai_router, prefix="/api/stock-ai", tags=["A股AI选股"])
+app.include_router(strategy_router, prefix="/api/strategy", tags=["量化策略"])
+app.include_router(okx_agent_router, prefix="/api/okx-agent", tags=["OKX AI 交易"])
+app.include_router(okx_console_router, prefix="/api/okx-console", tags=["OKX 控制台"])
+app.include_router(us_weekly_report_router, prefix="/api/us-weekly-report", tags=["美股周报"])
 
 
 @app.get("/api/health")
@@ -66,6 +77,31 @@ _sched_logger = _sched_logging.getLogger("kline_scheduler")
 @app.on_event("startup")
 async def start_kline_scheduler():
     _asyncio.create_task(_daily_kline_sync_loop())
+    _asyncio.create_task(_weekly_bubble_analyze_loop())
+
+
+async def _weekly_bubble_analyze_loop():
+    """每周六 10:00（中国时间）自动调用 DeepSeek 生成美股泡沫阶段分析。"""
+    from backpack_quant_trading.api.routers.us_weekly_report import run_weekly_analyze_task
+    # 服务进程用本机时间作为「中国时间」近似（你的服务器若已是 Asia/Shanghai 即可）
+    while True:
+        now = _dt.now()
+        # 计算下一个周六 10:00：weekday() 周一=0、周六=5
+        days_ahead = (5 - now.weekday()) % 7
+        target = now.replace(hour=10, minute=0, second=0, microsecond=0) + _td(days=days_ahead)
+        if target <= now:
+            target += _td(days=7)
+        wait_secs = (target - now).total_seconds()
+        _sched_logger.info(
+            f"[泡沫监测] 下次自动分析：{target.strftime('%Y-%m-%d %H:%M:%S')}（{wait_secs/3600:.1f}h 后）"
+        )
+        await _asyncio.sleep(wait_secs)
+        try:
+            res = await _asyncio.to_thread(run_weekly_analyze_task)
+            ok = res.get("ok") if isinstance(res, dict) else False
+            _sched_logger.info(f"[泡沫监测] 周六自动分析完成: ok={ok}")
+        except Exception as exc:
+            _sched_logger.error(f"[泡沫监测] 周六自动分析失败: {exc}")
 
 
 async def _daily_kline_sync_loop():
@@ -216,5 +252,14 @@ for base in (_pkg_dir, _cwd_dir, _cwd_dir / "backpack_quant_trading"):
             return FileResponse(frontend_dist / "index.html")
         @app.get("/okx-console")
         def _okx_console():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/us-weekly-report")
+        def _us_weekly_report():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/ai-stock")
+        def _ai_stock():
+            return FileResponse(frontend_dist / "index.html")
+        @app.get("/ai-stock/{full_path:path}")
+        def _ai_stock_nested(full_path: str):
             return FileResponse(frontend_dist / "index.html")
         break

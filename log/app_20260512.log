@@ -1,0 +1,12 @@
+2026-05-12 14:41:21 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-05-12 14:41:21 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-05-12 14:41:21 | DEBUG    | matplotlib:1560 | interactive is False
+2026-05-12 14:41:21 | DEBUG    | matplotlib:1561 | platform is win32
+2026-05-12 14:41:21 | INFO     | kline_scheduler:116 | [K线定时] 下次同步于 2026-05-13 02:00:00，等待 11.3h
+2026-05-12 14:41:21 | INFO     | kline_scheduler:95 | [泡沫监测] 下次自动分析：2026-05-16 10:00:00（91.3h 后）
+2026-05-12 16:08:35 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-05-12 16:08:35 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-05-12 16:08:35 | DEBUG    | matplotlib:1560 | interactive is False
+2026-05-12 16:08:35 | DEBUG    | matplotlib:1561 | platform is win32
+2026-05-12 16:08:35 | INFO     | kline_scheduler:116 | [K线定时] 下次同步于 2026-05-13 02:00:00，等待 9.9h
+2026-05-12 16:08:35 | INFO     | kline_scheduler:95 | [泡沫监测] 下次自动分析：2026-05-16 10:00:00（89.9h 后）

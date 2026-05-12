@@ -54,10 +54,8 @@ class MinuteAlertStartRequest(BaseModel):
 
 
 @router.get("/status")
-def get_status(user: dict = Depends(get_current_user)):
+def get_status(user: dict = Depends(require_user)):
     """监视器状态（全局共享）。用户主动停止后不再从 DB 恢复，避免缓存导致继续监控。"""
-    if not user:
-        return {"running": False, "pairs": []}
     if get_currency_monitor_user_stopped():
         return {"running": False, "pairs": [], "alerted": []}
     inst = get_monitor_instance()
@@ -156,9 +154,7 @@ def remove_pair(req: RemovePairRequest, user: dict = Depends(require_user)):
 
 # ===== 1分钟预警（波动/量能/订单簿墙）=====
 @router.get("/minute-alert/status")
-def minute_alert_status(user: dict = Depends(get_current_user)):
-    if not user:
-        return {"running": False, "symbols": []}
+def minute_alert_status(user: dict = Depends(require_user)):
     inst = get_minute_alert_instance()
     if not inst or not getattr(inst, "_running", False):
         cfg = DatabaseManager().get_minute_alert_config()

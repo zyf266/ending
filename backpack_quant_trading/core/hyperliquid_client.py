@@ -55,7 +55,8 @@ class HyperliquidAPIClient:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            # Hyperliquid 直连，不读取 HTTP(S)_PROXY（与 Lighter 补丁隔离，避免误走本机代理）
+            self.session = aiohttp.ClientSession(trust_env=False)
         return self.session
 
     async def close(self):
@@ -118,7 +119,16 @@ class HyperliquidAPIClient:
         - Perps 资产: dex_name="", asset_id = 宇宙中的索引
         - XYZ 资产:  dex_name="xyz", asset_id = 110000 + 索引
         """
-        asset = symbol.replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0].upper()
+        # 统一规范化输入：支持 "xyz:NVDA" / "XYZ:NVDA" / "NVDA-USD" / "NVDAUSDT.P" 等
+        raw = (symbol or "").strip()
+        raw = raw.split(":")[-1]  # 去掉 TradingView/DEX 前缀，如 XYZ:NVDA、xyz:NVDA
+        if raw.upper().endswith(".P"):
+            raw = raw[:-2]
+        for suffix in ["USDT.P", "USDC.P", "USDT", "USDC", "USD", "PERP", "/USDT", "/USD"]:
+            if raw.upper().endswith(suffix.upper()):
+                raw = raw[: -len(suffix)]
+                break
+        asset = raw.replace("-USD", "").replace("-USDT", "").replace("-USDC", "").split("_")[0].upper()
         # 先查 Perps
         perps_meta = await self.get_meta("")
         for i, c in enumerate(perps_meta.get('universe', [])):
@@ -534,8 +544,16 @@ class HyperliquidAPIClient:
             return None
 
     async def close_position(self, symbol: str, **kwargs) -> Dict[str, Any]:
-        """按交易对平仓（网格/实盘用）。无 pair_id/trade_index，按 symbol 查持仓后 reduce_only 下单。"""
-        positions = await self.get_positions(symbol=symbol)
+        """按交易对平仓（网格/实盘用）。无 pair_id/trade_index，按 symbol 查持仓后 reduce_only 下单。
+
+        注意：Hyperliquid 可能同时存在 Perps 与 XYZ HIP-3 DEX 两套清算所。
+        这里会先自动识别资产所属 dex（"" 或 "xyz"），再到对应 dex 查询持仓并平仓。
+        """
+        try:
+            dex_name, _, _, _ = await self.find_asset_dex(symbol)
+        except Exception:
+            dex_name = ""
+        positions = await self.get_positions(symbol=symbol, dex=dex_name)
         target = next((p for p in positions if p.get('symbol')), None)
         if not target:
             logger.info(f"Hyperliquid 无 {symbol} 持仓，无需平仓")

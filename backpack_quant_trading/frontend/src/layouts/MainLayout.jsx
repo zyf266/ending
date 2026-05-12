@@ -34,10 +34,12 @@ const navItems = [
     children: [
       { to: '/ai-lab', label: '加密AI分析' },
       { to: '/stock-ai', label: 'A股 AI 选股' },
+      { to: '/ai-stock', label: 'AI选股（卡片版）' },
       { to: '/okx-console', label: 'OKX 操作台' },
     ],
   },
   { type: 'item', to: '/currency-monitor', icon: Bell, label: '币种监视' },
+  { type: 'item', to: '/us-weekly-report', icon: BarChart2, label: '美股泡沫阶段监测' },
 ]
 
 const pageTitles = {
@@ -47,15 +49,23 @@ const pageTitles = {
   '/grid-trading': '网格交易',
   '/currency-monitor': '币种监视',
   '/stock-ai': 'A股 AI 选股',
+  '/ai-stock': 'AI选股',
   '/strategies': 'AI量化实盘',
   '/okx-console': 'OKX 操作台',
+  '/us-weekly-report': '美股泡沫阶段监测',
 }
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/strategies')) return 'AI量化实盘'
   if (pathname === '/trading') return '策略交易'
   // AI 实验室父菜单下的三个子页面，统一父标题
-  if (pathname === '/ai-lab' || pathname === '/stock-ai' || pathname === '/okx-console') return 'AI 实验室'
+  if (
+    pathname === '/ai-lab'
+    || pathname === '/stock-ai'
+    || pathname === '/ai-stock'
+    || pathname.startsWith('/ai-stock/')
+    || pathname === '/okx-console'
+  ) return 'AI 实验室'
   return pageTitles[pathname] || '沐龙量化'
 }
 

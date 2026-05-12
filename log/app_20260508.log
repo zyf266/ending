@@ -1,0 +1,14 @@
+2026-05-08 15:48:09 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-05-08 15:48:09 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-05-08 15:48:09 | DEBUG    | matplotlib:1560 | interactive is False
+2026-05-08 15:48:09 | DEBUG    | matplotlib:1561 | platform is win32
+2026-05-08 15:48:09 | INFO     | kline_scheduler:89 | [K线定时] 下次同步于 2026-05-09 02:00:00，等待 10.2h
+2026-05-09 09:41:36 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.hyperliquid.xyz:443
+2026-05-09 09:41:54 | DEBUG    | urllib3.connectionpool:475 | https://api.hyperliquid.xyz:443 "POST /info HTTP/1.1" 200 682
+2026-05-09 09:41:55 | INFO     | backpack_quant_trading.api.routers.strategy:116 | [HL K线] HYPE 4H 写入 5 条
+2026-05-09 09:41:55 | INFO     | kline_scheduler:94 | [K线定时] HYPE 4H 同步完成: {'inserted': 5, 'source': 'hyperliquid'}
+2026-05-09 09:41:55 | DEBUG    | urllib3.connectionpool:1022 | Starting new HTTPS connection (1): api.hyperliquid.xyz:443
+2026-05-09 09:42:03 | DEBUG    | urllib3.connectionpool:475 | https://api.hyperliquid.xyz:443 "POST /info HTTP/1.1" 200 1218
+2026-05-09 09:42:03 | INFO     | backpack_quant_trading.api.routers.strategy:158 | [HL K线] ETH 2H 写入 9 条
+2026-05-09 09:42:03 | INFO     | kline_scheduler:100 | [K线定时] ETH 2H 同步完成: {'inserted': 9, 'source': 'hyperliquid'}
+2026-05-09 09:42:03 | INFO     | kline_scheduler:89 | [K线定时] 下次同步于 2026-05-10 02:00:00，等待 16.3h

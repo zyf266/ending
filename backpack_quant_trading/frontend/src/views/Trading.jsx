@@ -4,12 +4,17 @@ import {
   getInstances,
   launchStrategy,
   stopInstance,
+  deleteInstance,
+  startInstance,
+  updateInstance,
   getLogs,
   getHypeStatus,
   toggleHypeStrategy,
   startHypeStrategy,
   startEthTrendShort,
   startAdaptiveLong,
+  startAdaptiveShort,
+  startAutoClose,
 } from '../api/trading'
 import './Trading.css'
 
@@ -23,7 +28,10 @@ const PLATFORMS = [
 ]
 
 const Trading = () => {
+  const ADAPTIVE_KEYS = ['adaptive_long', 'adaptive_short']
   const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [showKeyEditor, setShowKeyEditor] = useState(false)
   const [instances, setInstances] = useState([])
   const [logs, setLogs] = useState('等待日志输出...')
   const [strategies, setStrategies] = useState([])
@@ -36,6 +44,7 @@ const Trading = () => {
     platform: 'backpack',
     strategy: 'mean_reversion',
     symbol: 'ETH/USDC',
+    wallet_memo: '',
     size: 20,
     leverage: 50,
     take_profit: 2.0,
@@ -59,6 +68,17 @@ const Trading = () => {
     adaptive_long_timeframe: '',     // K线级别过滤
     adaptive_long_lock_profit: 0,    // 锁利触发盈利%，0=不启用
     adaptive_long_lock_profit_sl: 0, // 锁利后 SL 锁定盈利%
+    adaptive_short_coin: '',    // 自适应做空：交易对币种
+    adaptive_short_account_index: 0,
+    adaptive_short_api_key_index: 2,
+    adaptive_short_margin: 20,
+    adaptive_short_leverage: 50,
+    adaptive_short_timeframe: '',
+    adaptive_short_lock_profit: 0,
+    adaptive_short_lock_profit_sl: 0,
+    auto_close_coin: '',        // 自动平仓：交易对币种
+    auto_close_account_index: 0, // 自动平仓：Lighter 账户索引
+    auto_close_api_key_index: 2, // 自动平仓：Lighter API key index
   })
 
   const isDualFreq = form.strategy === 'dual_freq_trend'
@@ -88,6 +108,27 @@ const Trading = () => {
         // 从当前全局保证金/杠杆带入专用字段，保证界面与请求一致
         adaptive_long_margin: prev.size,
         adaptive_long_leverage: prev.leverage,
+      }))
+    }
+    if (name === 'strategy' && value === 'adaptive_short') {
+      setForm((prev) => ({
+        ...prev,
+        platform: 'hyperliquid',
+        adaptive_short_timeframe: '',
+        adaptive_short_margin: prev.size,
+        adaptive_short_leverage: prev.leverage,
+      }))
+    }
+    if (name === 'strategy' && value === 'auto_close') {
+      setForm((prev) => ({
+        ...prev,
+        // 自动平仓：仅需私钥+币种（支持 hyperliquid / lighter）
+        platform: (prev.platform === 'lighter' ? 'lighter' : 'hyperliquid'),
+        api_key: '',
+        api_secret: '',
+        passphrase: '',
+        auto_close_account_index: prev.auto_close_account_index ?? 0,
+        auto_close_api_key_index: prev.auto_close_api_key_index ?? 2,
       }))
     }
   }
@@ -138,6 +179,50 @@ const Trading = () => {
   const CEX_PLATFORMS = ['backpack', 'deepcoin', 'binance']
   
   const handleLaunch = async () => {
+    // 编辑实例：保存参数（必要时后端会自动重启）
+    if (editingId) {
+      setLaunching(true)
+      try {
+        const isLong = form.strategy === 'adaptive_long'
+        const isBinance = form.platform === 'binance'
+        const isLighter = form.platform === 'lighter'
+        const coin = (isLong ? form.adaptive_long_coin : form.adaptive_short_coin).toUpperCase().trim()
+        if (!coin) { alert('请填写交易对（如 BTC、ETH、HYPE）'); return }
+        const payload = {
+          wallet_memo: form.wallet_memo || '',
+          exchange: form.platform,
+          coin,
+          timeframe_filter: isLong ? (form.adaptive_long_timeframe || undefined) : (form.adaptive_short_timeframe || undefined),
+          margin_amount: isLong ? form.adaptive_long_margin : form.adaptive_short_margin,
+          leverage: isLong ? form.adaptive_long_leverage : form.adaptive_short_leverage,
+          stop_loss_pct: form.hype_stop_loss / 100,
+          take_profit_pct: form.hype_take_profit / 100,
+          break_even_pct: form.hype_break_even / 100,
+          lock_profit_pct: isLong
+            ? (form.adaptive_long_lock_profit > 0 ? form.adaptive_long_lock_profit / 100 : 0)
+            : (form.adaptive_short_lock_profit > 0 ? form.adaptive_short_lock_profit / 100 : 0),
+          lock_profit_sl_pct: isLong
+            ? (form.adaptive_long_lock_profit > 0 ? form.adaptive_long_lock_profit_sl / 100 : 0)
+            : (form.adaptive_short_lock_profit > 0 ? form.adaptive_short_lock_profit_sl / 100 : 0),
+          private_key: (!isBinance) ? (form.private_key || undefined) : undefined,
+          api_key: isBinance ? (form.api_key || undefined) : undefined,
+          api_secret: isBinance ? (form.api_secret || undefined) : undefined,
+          account_index: isLighter ? (isLong ? form.adaptive_long_account_index : form.adaptive_short_account_index) : undefined,
+          api_key_index: isLighter ? (isLong ? form.adaptive_long_api_key_index : form.adaptive_short_api_key_index) : undefined,
+        }
+        const res = await updateInstance(editingId, payload)
+        alert(res?.message || '已保存')
+        setShowModal(false)
+        setEditingId(null)
+        await refresh()
+      } catch (e) {
+        alert(e?.response?.data?.detail || '保存失败')
+      } finally {
+        setLaunching(false)
+      }
+      return
+    }
+
     // 【HYPE自适应做空策略】—— CEX 平台走通用流程，面向链平台才走独立端点
     if (form.strategy === 'hype_adaptive_short') {
       if (CEX_PLATFORMS.includes(form.platform)) {
@@ -175,6 +260,7 @@ const Trading = () => {
         const res = await startAdaptiveLong({
           coin,
           exchange:          form.platform,
+          wallet_memo:       form.wallet_memo || '',
           private_key:       (!isBinance) ? (form.private_key || undefined) : undefined,
           api_key:           isBinance ? form.api_key : undefined,
           api_secret:        isBinance ? form.api_secret : undefined,
@@ -195,7 +281,73 @@ const Trading = () => {
       finally { setLaunching(false) }
       return
     }
+
+    // 【自适应做空策略】Webhook驱动，支持 Hyperliquid / Binance / Lighter
+    if (form.strategy === 'adaptive_short') {
+      const coin = form.adaptive_short_coin.toUpperCase().trim()
+      if (!coin) { alert('请填写交易对（如 BTC、ETH、HYPE）'); return }
+      setLaunching(true)
+      try {
+        const isBinance = form.platform === 'binance'
+        const isLighter = form.platform === 'lighter'
+        const res = await startAdaptiveShort({
+          coin,
+          exchange:          form.platform,
+          wallet_memo:       form.wallet_memo || '',
+          private_key:       (!isBinance) ? (form.private_key || undefined) : undefined,
+          api_key:           isBinance ? form.api_key : undefined,
+          api_secret:        isBinance ? form.api_secret : undefined,
+          account_index:     isLighter ? form.adaptive_short_account_index : undefined,
+          api_key_index:     isLighter ? form.adaptive_short_api_key_index : undefined,
+          timeframe_filter:  form.adaptive_short_timeframe || undefined,
+          lock_profit_pct:   form.adaptive_short_lock_profit > 0 ? form.adaptive_short_lock_profit / 100 : undefined,
+          lock_profit_sl_pct: form.adaptive_short_lock_profit > 0 ? form.adaptive_short_lock_profit_sl / 100 : undefined,
+          margin_amount:     form.adaptive_short_margin,
+          leverage:          form.adaptive_short_leverage,
+          stop_loss_pct:     form.hype_stop_loss / 100,
+          take_profit_pct:   form.hype_take_profit / 100,
+          break_even_pct:    form.hype_break_even / 100,
+        })
+        alert(res.message || `${coin}做空策略启动成功`)
+        setShowModal(false); await refresh()
+      } catch (e) { alert(e?.response?.data?.detail || '启动失败') }
+      finally { setLaunching(false) }
+      return
+    }
   
+    // 【自动平仓策略】Webhook驱动：只处理 sell → 平仓；buy 忽略
+    if (form.strategy === 'auto_close') {
+      const coin = form.auto_close_coin.toUpperCase().trim()
+      if (!coin) { alert('请填写交易对（如 BTC、ETH、HYPE）'); return }
+      if (!['hyperliquid', 'lighter'].includes(form.platform)) {
+        alert('自动平仓策略目前仅支持 Hyperliquid / Lighter')
+        return
+      }
+      if (!form.private_key) { alert('请输入私鑰'); return }
+      if (form.platform === 'lighter') {
+        const idx = Number(form.auto_close_account_index)
+        if (!Number.isFinite(idx) || idx <= 0) {
+          alert('Lighter 需要填写正确的 Account Index（如 /explorer/accounts/723233 → 723233）')
+          return
+        }
+      }
+      setLaunching(true)
+      try {
+        const res = await startAutoClose({
+          coin,
+          exchange: form.platform,
+          wallet_memo: form.wallet_memo || '',
+          private_key: form.private_key || undefined,
+          account_index: form.platform === 'lighter' ? Number(form.auto_close_account_index) : undefined,
+          api_key_index: form.platform === 'lighter' ? Number(form.auto_close_api_key_index ?? 2) : undefined,
+        })
+        alert(res.message || `${coin}自动平仓策略启动成功`)
+        setShowModal(false); await refresh()
+      } catch (e) { alert(e?.response?.data?.detail || '启动失败') }
+      finally { setLaunching(false) }
+      return
+    }
+
     // 【ETH趋势做空策略】—— 始终走专用端点，CEX 平台传 exchange+api_key，链平台传 private_key
     if (form.strategy === 'eth_trend_short') {
       if (CEX_PLATFORMS.includes(form.platform)) {
@@ -245,10 +397,10 @@ const Trading = () => {
         symbol:      form.symbol,
         size:        form.size,
         leverage:    form.leverage,
-        take_profit: form.strategy === 'hype_adaptive_short' || form.strategy === 'eth_trend_short' || ADAPTIVE_LONG_KEYS.includes(form.strategy)
+        take_profit: form.strategy === 'hype_adaptive_short' || form.strategy === 'eth_trend_short' || ADAPTIVE_KEYS.includes(form.strategy)
           ? form.hype_take_profit
           : form.take_profit,
-        stop_loss:   form.strategy === 'hype_adaptive_short' || form.strategy === 'eth_trend_short' || ADAPTIVE_LONG_KEYS.includes(form.strategy)
+        stop_loss:   form.strategy === 'hype_adaptive_short' || form.strategy === 'eth_trend_short' || ADAPTIVE_KEYS.includes(form.strategy)
           ? form.hype_stop_loss
           : form.stop_loss,
         api_key:     form.api_key || undefined,
@@ -274,6 +426,66 @@ const Trading = () => {
     } catch (e) {
       alert(e?.response?.data?.detail || '停止失败')
     }
+  }
+
+  const startOne = async (id) => {
+    try {
+      const res = await startInstance(id)
+      alert(res?.message || '已启动')
+      await refresh()
+    } catch (e) {
+      alert(e?.response?.data?.detail || '启动失败')
+    }
+  }
+
+  const deleteOne = async (id) => {
+    if (!window.confirm('确定删除该实例卡片吗？删除会同时停止实例。')) return
+    try {
+      await deleteInstance(id)
+      alert('已删除')
+      await refresh()
+    } catch (e) {
+      alert(e?.response?.data?.detail || '删除失败')
+    }
+  }
+
+  const editOne = (inst) => {
+    const cfg = inst?.config || {}
+    const strategy = cfg.strategy || (String(inst.strategy_name || '').includes('做多') ? 'adaptive_long' : 'adaptive_short')
+    const exchange = (cfg.exchange || inst.platform || 'hyperliquid')
+    const coin = (cfg.coin || inst.symbol || '').toString().replace(/[^A-Z0-9]/g, '').toUpperCase()
+    setForm((prev) => ({
+      ...prev,
+      platform: exchange,
+      strategy,
+      wallet_memo: cfg.wallet_memo || '',
+      // 安全：不回显私钥。留空代表“不修改”，后端会沿用已保存的密文密钥。
+      private_key: '',
+      api_key: cfg.api_key || prev.api_key,
+      api_secret: '',
+      hype_stop_loss: Number(cfg.stop_loss_pct ?? (prev.hype_stop_loss / 100)) * 100,
+      hype_take_profit: Number(cfg.take_profit_pct ?? (prev.hype_take_profit / 100)) * 100,
+      hype_break_even: Number(cfg.break_even_pct ?? (prev.hype_break_even / 100)) * 100,
+      adaptive_long_coin: coin,
+      adaptive_short_coin: coin,
+      adaptive_long_timeframe: cfg.timeframe_filter || '',
+      adaptive_short_timeframe: cfg.timeframe_filter || '',
+      adaptive_long_margin: cfg.margin_amount ?? prev.adaptive_long_margin,
+      adaptive_short_margin: cfg.margin_amount ?? prev.adaptive_short_margin,
+      adaptive_long_leverage: cfg.leverage ?? prev.adaptive_long_leverage,
+      adaptive_short_leverage: cfg.leverage ?? prev.adaptive_short_leverage,
+      adaptive_long_account_index: cfg.account_index ?? prev.adaptive_long_account_index,
+      adaptive_short_account_index: cfg.account_index ?? prev.adaptive_short_account_index,
+      adaptive_long_api_key_index: cfg.api_key_index ?? prev.adaptive_long_api_key_index,
+      adaptive_short_api_key_index: cfg.api_key_index ?? prev.adaptive_short_api_key_index,
+      adaptive_long_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
+      adaptive_long_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
+      adaptive_short_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
+      adaptive_short_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
+    }))
+    setEditingId(inst.id)
+    setShowKeyEditor(false)
+    setShowModal(true)
   }
 
   const getHypeEnabled = (instanceId) => {
@@ -340,9 +552,9 @@ const Trading = () => {
                     <span className={`tag ${inst.platform === 'ostium' ? 'tag-warning' : ''}`}>
                       {(inst.platform || '').toUpperCase()}
                     </span>
-                    <span className={inst.status === 'registering' ? 'status reg' : 'status run'}>
+                    <span className={inst.status === 'stopped' ? 'status stop' : (inst.status === 'registering' ? 'status reg' : 'status run')}>
                       <span className="status-dot" />
-                      {inst.status === 'registering' ? 'REGISTERING' : 'RUNNING'}
+                      {inst.status === 'stopped' ? 'STOPPED' : (inst.status === 'registering' ? 'REGISTERING' : 'RUNNING')}
                     </span>
                   </div>
                   <div className="inst-balance">
@@ -376,8 +588,27 @@ const Trading = () => {
                       {getHypeEnabled(inst.id) ? '⏸ 暂停策略' : '▶ 启用策略'}
                     </button>
                   )}
-                  <button type="button" className="inst-btn inst-btn-danger" onClick={() => stopOne(inst.id)}>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn-primary"
+                    disabled={inst.status !== 'stopped'}
+                    onClick={() => startOne(inst.id)}
+                  >
+                    ▶ 启动
+                  </button>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn-danger"
+                    disabled={inst.status === 'stopped'}
+                    onClick={() => stopOne(inst.id)}
+                  >
                     ⏹ 停止
+                  </button>
+                  <button type="button" className="inst-btn inst-btn-warning" onClick={() => editOne(inst)}>
+                    ✏ 修改
+                  </button>
+                  <button type="button" className="inst-btn inst-btn-ghost" onClick={() => deleteOne(inst.id)}>
+                    🗑 删除
                   </button>
                 </div>
               </div>
@@ -410,9 +641,9 @@ const Trading = () => {
 
       {/* 配置弹窗 */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingId(null); setShowKeyEditor(false) }}>
           <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">配置并启动实盘策略</div>
+            <div className="modal-title">{editingId ? '修改策略参数（保存后自动生效）' : '配置并启动实盘策略'}</div>
             <div className="modal-body">
               {/* 第一行：平台 + 策略 */}
               <div className="modal-row-2">
@@ -489,15 +720,46 @@ const Trading = () => {
                     <span>私钥配置</span>
                     <small>该平台使用链上钱包，请输入私钥</small>
                   </div>
-                  <div className="form-item">
-                    <label>Private Key</label>
-                    <input
-                      type="password"
-                      value={form.private_key}
-                      onChange={(e) => setField('private_key', e.target.value)}
-                      placeholder="输入 0x 开头的私钥"
-                    />
-                  </div>
+                  {form.strategy !== 'auto_close' && (
+                    <div className="form-item">
+                      <label>钱包备注（可选）</label>
+                      <input
+                        type="text"
+                        value={form.wallet_memo}
+                        onChange={(e) => setField('wallet_memo', e.target.value)}
+                        placeholder="例如：主钱包/测试钱包/服务器A"
+                      />
+                    </div>
+                  )}
+                  {!editingId ? (
+                    <div className="form-item">
+                      <label>Private Key</label>
+                      <input
+                        type="password"
+                        value={form.private_key}
+                        onChange={(e) => setField('private_key', e.target.value)}
+                        placeholder="输入 0x 开头的私钥"
+                      />
+                    </div>
+                  ) : (
+                    <div className="form-item">
+                      {!showKeyEditor ? (
+                        <button type="button" className="btn-secondary" onClick={() => setShowKeyEditor(true)}>
+                          修改私钥
+                        </button>
+                      ) : (
+                        <>
+                          <label>Private Key</label>
+                          <input
+                            type="password"
+                            value={form.private_key}
+                            onChange={(e) => setField('private_key', e.target.value)}
+                            placeholder="输入 0x 开头的私钥"
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -649,6 +911,157 @@ const Trading = () => {
                 </div>
               )}
 
+              {/* 自动平仓策略专用参数 */}
+              {form.strategy === 'auto_close' && (
+                <div className="modal-section modal-section-blue">
+                  <div className="modal-section-title"><span>策略参数配置</span></div>
+                  <div className="form-item">
+                    <label>交易对</label>
+                    <input
+                      type="text"
+                      value={form.auto_close_coin}
+                      onChange={(e) => setField('auto_close_coin', e.target.value.toUpperCase())}
+                      placeholder="如: BTC / ETH / HYPE"
+                    />
+                    <small style={{color:'#888',fontSize:'12px'}}>只在收到 sell 信号时对该币种执行平仓；buy 信号会被忽略</small>
+                  </div>
+                  {form.platform === 'lighter' && (
+                    <>
+                      <div className="form-item" style={{marginTop:'12px'}}>
+                        <label>Account Index</label>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={form.auto_close_account_index}
+                          onChange={(e) => setField('auto_close_account_index', Number(e.target.value))}
+                          placeholder="如 723233"
+                        />
+                        <small style={{color:'#888',fontSize:'12px'}}>
+                          打开 `https://app.lighter.xyz`，进入账户页面，URL 里的数字就是 account_index（如 /explorer/accounts/723233）
+                        </small>
+                      </div>
+                      <div className="form-item" style={{marginTop:'12px'}}>
+                        <label>API Key Index <small style={{color:'#aaa'}}>可选</small></label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={form.auto_close_api_key_index}
+                          onChange={(e) => setField('auto_close_api_key_index', Number(e.target.value))}
+                        />
+                        <small style={{color:'#888',fontSize:'12px'}}>默认 2；与 Lighter API Key 的索引一致</small>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* 自适应做空策略专用参数 */}
+              {form.strategy === 'adaptive_short' && (
+                <div className="modal-section modal-section-blue">
+                  <div className="modal-section-title"><span>策略参数配置</span></div>
+                  <div className="form-item">
+                    <label>交易对</label>
+                    <input
+                      type="text"
+                      value={form.adaptive_short_coin}
+                      onChange={(e) => setField('adaptive_short_coin', e.target.value.toUpperCase())}
+                      placeholder="如: BTC / ETH / HYPE"
+                    />
+                    <small style={{color:'#888',fontSize:'12px'}}>只响应该币种的 Webhook 信号</small>
+                  </div>
+                  <div className="form-item" style={{marginTop:'12px'}}>
+                    <label>K线级别过滤</label>
+                    <select value={form.adaptive_short_timeframe} onChange={(e) => setField('adaptive_short_timeframe', e.target.value)}>
+                      <option value="">不限制（响应所有周期信号）</option>
+                      <option value="1M">1分钟</option>
+                      <option value="3M">3分钟</option>
+                      <option value="5M">5分钟</option>
+                      <option value="15M">15分钟</option>
+                      <option value="30M">30分钟</option>
+                      <option value="1H">1小时</option>
+                      <option value="2H">2小时</option>
+                      <option value="4H">4小时</option>
+                      <option value="1D">1日</option>
+                    </select>
+                    <small style={{color:'#888',fontSize:'12px'}}>只开指定周期的 Webhook 信号才进行开单，TradingView 信号需带 K线级别字段</small>
+                  </div>
+                  {form.platform === 'binance' ? (
+                    <>
+                      <div className="form-item" style={{marginTop:'12px'}}>
+                        <label>Binance API Key</label>
+                        <input type="text" value={form.api_key} onChange={(e) => setField('api_key', e.target.value)} placeholder="输入 Binance API Key" />
+                      </div>
+                      <div className="form-item" style={{marginTop:'8px'}}>
+                        <label>Binance API Secret</label>
+                        <input type="password" value={form.api_secret} onChange={(e) => setField('api_secret', e.target.value)} placeholder="输入 Binance API Secret" />
+                      </div>
+                    </>
+                  ) : form.platform === 'lighter' ? (
+                    <>
+                      <div className="form-item" style={{marginTop:'12px'}}>
+                        <label>Lighter 私鑰</label>
+                        <input type="password" value={form.private_key} onChange={(e) => setField('private_key', e.target.value)} placeholder="输入 0x 开头的私鑰" />
+                        <small style={{color:'#888',fontSize:'12px'}}>链上签名验证，对应 Lighter 钱包私鑰</small>
+                      </div>
+                      <div className="form-item" style={{marginTop:'8px'}}>
+                        <label>Account Index  <small style={{color:'#aaa'}}>可选，默认自动识别</small></label>
+                        <input type="number" min={0} step={1} value={form.adaptive_short_account_index} onChange={(e) => setField('adaptive_short_account_index', Number(e.target.value))} />
+                        <small style={{color:'#888',fontSize:'12px'}}>若余额为 0，请到 Lighter 平台确认你的 Account Index 填入</small>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-item" style={{marginTop:'12px'}}>
+                      <label>XYZ HIP-3 DEX</label>
+                      <input type="text" value="自动识别" disabled style={{color:'#888',background:'#f5f5f5'}} />
+                      <small style={{color:'#27ae60',fontSize:'12px'}}>系统自动识别资产所属 DEX：加密资产→Perps，CRCL等美股→XYZ HIP-3 DEX</small>
+                    </div>
+                  )}
+                  <div className="modal-row-2" style={{marginTop: '12px'}}>
+                    <div className="form-item">
+                      <label>保证金 (USD)</label>
+                      <input type="number" min={0.1} step={0.1} value={form.adaptive_short_margin} onChange={(e) => setField('adaptive_short_margin', Number(e.target.value))} />
+                      <small style={{color:'#888',fontSize:'12px'}}>开仓保证金金额（仅本策略启动请求使用）</small>
+                    </div>
+                    <div className="form-item">
+                      <label>杠杆倍数</label>
+                      <input type="number" min={1} max={100} step={1} value={form.adaptive_short_leverage} onChange={(e) => setField('adaptive_short_leverage', Number(e.target.value))} />
+                      <small style={{color:'#888',fontSize:'12px'}}>实际仓位 = 保证金 × 杠杆</small>
+                    </div>
+                  </div>
+                  <div className="modal-row-2" style={{marginTop: '12px'}}>
+                    <div className="form-item">
+                      <label>止损比例 (%)</label>
+                      <input type="number" min={0.1} max={50} step={0.1} value={form.hype_stop_loss} onChange={(e) => setField('hype_stop_loss', Number(e.target.value))} />
+                      <small style={{color:'#888',fontSize:'12px'}}>价格涨超入场价此比例时止损（做空）</small>
+                    </div>
+                    <div className="form-item">
+                      <label>止盈比例 (%)</label>
+                      <input type="number" min={0.1} max={50} step={0.1} value={form.hype_take_profit} onChange={(e) => setField('hype_take_profit', Number(e.target.value))} />
+                      <small style={{color:'#888',fontSize:'12px'}}>价格跌超入场价此比例时止盈（做空）</small>
+                    </div>
+                  </div>
+                  <div className="form-item" style={{marginTop: '12px'}}>
+                    <label>保本触发比例 (%)</label>
+                    <input type="number" min={0.1} max={50} step={0.1} value={form.hype_break_even} onChange={(e) => setField('hype_break_even', Number(e.target.value))} />
+                    <small style={{color:'#888',fontSize:'12px'}}>盈利达到此比例时，止损下移至入场价（保本）</small>
+                  </div>
+                  <div className="form-item" style={{marginTop: '12px'}}>
+                    <label>锁利触发比例 (%)  <small style={{color:'#aaa'}}>可选</small></label>
+                    <input type="number" min={0} max={50} step={0.1} value={form.adaptive_short_lock_profit} onChange={(e) => setField('adaptive_short_lock_profit', Number(e.target.value))} placeholder="0=不启用" />
+                    <small style={{color:'#888',fontSize:'12px'}}>盈利达到此比例后，将 SL 下移锁住部分利润；0 表示不启用</small>
+                  </div>
+                  {form.adaptive_short_lock_profit > 0 && (
+                    <div className="form-item" style={{marginTop: '12px'}}>
+                      <label>锁利 SL 比例 (%)</label>
+                      <input type="number" min={0} max={50} step={0.1} value={form.adaptive_short_lock_profit_sl} onChange={(e) => setField('adaptive_short_lock_profit_sl', Number(e.target.value))} />
+                      <small style={{color:'#888',fontSize:'12px'}}>锁利触发后，SL = 入场价 × (1 - 此比例)，如 1.5 即入场价的 -1.5%</small>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ETH趋势做空策略专用参数 */}
               {form.strategy === 'eth_trend_short' && (
                 <div className="modal-section modal-section-blue">
@@ -689,8 +1102,8 @@ const Trading = () => {
                 </div>
               )}
 
-              {/* 交易参数配置 - HYPE/多币种做多/ETH趋势做空策略不显示此区域 */}
-              {!['hype_adaptive_short', 'adaptive_long', 'eth_trend_short'].includes(form.strategy) && (
+              {/* 交易参数配置 - HYPE/多币种做多/ETH趋势做空/自动平仓策略不显示此区域 */}
+              {!['hype_adaptive_short', 'adaptive_long', 'adaptive_short', 'eth_trend_short', 'auto_close'].includes(form.strategy) && (
                 <div className="modal-section modal-section-blue">
                 <div className="modal-section-title">
                   <span>交易参数配置</span>
@@ -754,11 +1167,11 @@ const Trading = () => {
             </div>
 
             <div className="dialog-footer">
-              <button type="button" className="btn-danger" onClick={() => setShowModal(false)}>
+              <button type="button" className="btn-danger" onClick={() => { setShowModal(false); setEditingId(null); setShowKeyEditor(false) }}>
                 取消
               </button>
               <button type="button" className="btn-primary" disabled={launching} onClick={handleLaunch}>
-                {launching ? '启动中...' : '确认启动实盘进程'}
+                {launching ? (editingId ? '保存中...' : '启动中...') : (editingId ? '保存并应用' : '确认启动实盘进程')}
               </button>
             </div>
           </div>

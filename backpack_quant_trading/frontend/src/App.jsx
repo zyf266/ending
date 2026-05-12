@@ -8,6 +8,9 @@ import AiLab from './views/AiLab'
 import GridTrading from './views/GridTrading'
 import CurrencyMonitor from './views/CurrencyMonitor'
 import StockAi from './views/StockAi'
+import AiStock from './views/AiStock'
+import AiStockDetail from './views/AiStockDetail'
+import AiStockSignals from './views/AiStockSignals'
 import StrategyMatrixAlt from './views/StrategyMatrixAlt'
 import EthTrendStrategy from './views/EthTrendStrategy'
 import PaxgTrendStrategy from './views/PaxgTrendStrategy'
@@ -15,6 +18,7 @@ import Nas100TrendStrategy from './views/Nas100TrendStrategy'
 import EthOnlyStrategy from './views/EthOnlyStrategy'
 import OkxConsole from './views/OkxConsole'
 import UsMomentumCrclStrategy from './views/UsMomentumCrclStrategy'
+import UsWeeklyReport from './views/UsWeeklyReport'
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -60,6 +64,9 @@ function App() {
           <Route path="grid-trading" element={<GridTrading />} />
           <Route path="currency-monitor" element={<CurrencyMonitor />} />
           <Route path="stock-ai" element={<StockAi />} />
+          <Route path="ai-stock" element={<AiStock />} />
+          <Route path="ai-stock/:code" element={<AiStockDetail />} />
+          <Route path="ai-stock/:code/signals" element={<AiStockSignals />} />
           <Route path="strategies" element={<StrategyMatrixAlt />} />
           <Route path="strategies/eth-trend" element={<EthTrendStrategy />} />
           <Route path="strategies/eth-only" element={<EthOnlyStrategy />} />
@@ -67,6 +74,7 @@ function App() {
           <Route path="strategies/nas100-trend" element={<Nas100TrendStrategy />} />
           <Route path="strategies/us-momentum-crcl" element={<UsMomentumCrclStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />
+          <Route path="us-weekly-report" element={<UsWeeklyReport />} />
         </Route>
       </Routes>
     </>
