@@ -1,0 +1,502 @@
+{
+  "code": "CRCL",
+  "name": "Circle",
+  "tagline": "连接传统金融与区块链的稳定币基石",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：稳健增长，盈利能力改善",
+      "subtitle": "最新季度：Q1 2026（截至2026年3月31日）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收及储备收入",
+              "value": "$694M",
+              "lines": [
+                "YoY +20%"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "Adjusted EPS",
+              "value": "$0.47",
+              "lines": [
+                "大幅 beat 预期"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Adjusted EBITDA",
+              "value": "$151M",
+              "lines": [
+                "YoY +24%",
+                "margin 53%"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "USDC 流通量",
+              "value": "$770亿",
+              "lines": [
+                "YoY +28%"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "flow",
+              "title": "链上交易量",
+              "text": "$21.5万亿（YoY +263%），反映 USDC 在支付与 DeFi 中的核心媒介地位。"
+            },
+            {
+              "icon": "network",
+              "title": "新增长点",
+              "text": "Arc 区块链网络及相关产品，为长期收入多元化与生态卡位提供增量。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：财务健康，处于扩张早期",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "储备雄厚",
+              "text": "USDC 储备主要为现金及短期美债，安全性极高，资产结构稳健。"
+            },
+            {
+              "icon": "chart",
+              "title": "财务健康",
+              "text": "负债率维持低位，自由现金流健康，具备充足运营资金与发展潜力。"
+            },
+            {
+              "icon": "trend",
+              "title": "盈利能力",
+              "text": "ROE/ROIC 持续改善，业务盈利效率与资本回报稳步提升。"
+            },
+            {
+              "icon": "calendar",
+              "title": "IPO 后波动",
+              "text": "2025 年 6 月上市后经历较高波动，需区分一次性因素与基本面趋势。"
+            },
+            {
+              "icon": "rocket",
+              "title": "稳健复苏",
+              "text": "2026 年 USDC 采用率提升及 Arc 生态推进，营收实现稳健增长。"
+            },
+            {
+              "icon": "stack",
+              "title": "早期阶段",
+              "text": "仍处规模扩张与收入多元化早期，长期增长空间广阔，战略清晰。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：多场景驱动需求强劲",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务需求",
+              "items": [
+                {
+                  "icon": "cash",
+                  "title": "USDC 稳定币",
+                  "text": "跨境支付、B2B 结算、DeFi 及 Agentic AI 的核心媒介。"
+                },
+                {
+                  "icon": "network",
+                  "title": "Arc 区块链网络",
+                  "text": "高性能合规基础设施，降低企业上链门槛。"
+                },
+                {
+                  "icon": "globe",
+                  "title": "支付网络与企业应用",
+                  "text": "连接传统企业与链上生态，推动实体与数字金融融合。"
+                }
+              ]
+            },
+            {
+              "title": "供给 vs. 需求",
+              "items": [
+                {
+                  "icon": "stack",
+                  "title": "Tokenized 基金 (USYC)",
+                  "text": "传统基金份额代币化，提升流动性与交易效率。"
+                },
+                {
+                  "icon": "target",
+                  "title": "合规决定供给",
+                  "text": "监管合规与储备透明度是市场准入核心门槛。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "需求匹配度高",
+                  "text": "产品矩阵与全球机构及零售真实需求高度匹配。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求端与增长驱动：长期催化剂与市场地位",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "Arc L1 网络",
+              "text": "合规高性能底层，支撑生态高效运转与创新落地。"
+            },
+            {
+              "icon": "robot",
+              "title": "Agentic AI 基础设施",
+              "text": "为 AI 智能体经济活动构建标准化价值交换协议。"
+            },
+            {
+              "icon": "globe",
+              "title": "传统金融渗透",
+              "text": "稳定币在机构资产配置中的渗透率持续提升。"
+            },
+            {
+              "icon": "flow",
+              "title": "跨境支付替代",
+              "text": "低成本秒级全球资金流转，替代昂贵缓慢的跨境通道。"
+            },
+            {
+              "icon": "trophy",
+              "title": "全球第二大稳定币",
+              "text": "USDC 在交易、DeFi 等场景占据核心流通媒介地位。"
+            },
+            {
+              "icon": "target",
+              "title": "合规优势显著",
+              "text": "与多地监管沟通紧密，审计机制完善，为机构首选合规稳定币。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "需求端与增长驱动：竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Tether (USDT)",
+              "text": "规模最大，但透明度与全球合规性存在短板，长期面临监管质疑。"
+            },
+            {
+              "icon": "globe",
+              "title": "传统支付巨头",
+              "text": "Visa、PayPal 等布局稳定币，Circle 在链上原生基础设施与网络效应领先。"
+            },
+            {
+              "icon": "layers",
+              "title": "其他稳定币",
+              "text": "PYUSD 等规模较小，短期内难以撼动 USDC 份额。"
+            },
+            {
+              "icon": "stack",
+              "title": "护城河强度",
+              "text": "合规、透明度、全栈基础设施多维度叠加，壁垒较为坚固。"
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "监管牌照与合规",
+              "text": "持有多国合规牌照，在监管框架内运营，行业标准领先。"
+            },
+            {
+              "icon": "cash",
+              "title": "储备透明度",
+              "text": "储备资产定期第三方审计，资金流向清晰，透明度极高。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量：全球市场与监管风险",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "rocket",
+              "title": "新兴市场驱动",
+              "text": "跨境支付需求是业务增长重要引擎，采用率较高。"
+            },
+            {
+              "icon": "globe",
+              "title": "中国大陆现状",
+              "text": "受当地监管限制，需在合规框架下探索潜在机会。"
+            },
+            {
+              "icon": "chart",
+              "title": "核心贡献地区",
+              "text": "美国及欧洲为主要营收来源，新兴市场具长期潜力。"
+            },
+            {
+              "icon": "line",
+              "title": "系统性风险",
+              "text": "稳定币面临波动、挤兑等潜在系统性挑战，需持续监控。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03b",
+      "title": "区域/地缘与风险变量：监管是最大变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "target",
+              "title": "政策不确定性",
+              "text": "全球稳定币监管框架仍在形成，政策变化或致业务模式重构。"
+            },
+            {
+              "icon": "factory",
+              "title": "合规成本攀升",
+              "text": "本地化合规投入持续增加，可能压缩利润空间。"
+            },
+            {
+              "icon": "globe",
+              "title": "储备资产安全",
+              "text": "地缘紧张或影响美债储备流动性，需建立风险对冲机制。"
+            },
+            {
+              "icon": "chart",
+              "title": "监管风险",
+              "text": "美国及全球加密监管变化是最大风险源，直接影响业务合规性。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率防守：利率与规模双驱动",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Adjusted EBITDA Margin",
+              "value": "53%",
+              "lines": [
+                "储备利息 + 平台服务费"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "核心驱动",
+              "value": "利率 + 规模",
+              "lines": [
+                "美债收益率",
+                "USDC 流通扩张",
+                "Arc 增长"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "盈利质量",
+              "value": "运营杠杆",
+              "lines": [
+                "收入多元化",
+                "边际成本摊薄"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与语气分析：乐观且具战略性",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "最新指引",
+              "text": "维持 2026 全年指引；强调 Arc 等新业务收入尚未完全计入报表。"
+            },
+            {
+              "icon": "rocket",
+              "title": "管理层语气",
+              "text": "CEO 基调乐观，突出 Agentic AI、Arc 生态与企业客户采用加速。"
+            },
+            {
+              "icon": "trophy",
+              "title": "历史准确性",
+              "text": "IPO 后指引准确性逐步改善，Q1 符合预期，增强市场信任。"
+            },
+            {
+              "icon": "chart",
+              "title": "预期前置",
+              "text": "高增长预期已部分反映在股价，监管或利率变化或引发短期波动。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值与三档目标价模型（12–18 个月）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "当前股价",
+              "value": "~$111",
+              "lines": [
+                "2026-05-20"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Forward PE",
+              "value": "较高区间",
+              "lines": [
+                "高成长金融科技溢价"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "Fintech 溢价",
+              "value": "显著",
+              "lines": [
+                "技术壁垒与生态卡位获认可"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~35%",
+              "subtitle": "上行驱动",
+              "range_low": 180,
+              "range_high": 240,
+              "note": "USDC 超预期、Arc 大规模采用、Agentic AI 落地、利率友好"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "中性预期",
+              "range_low": 120,
+              "range_high": 160,
+              "note": "USDC 稳健增长、多元化收入兑现、正常监管环境"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~20%",
+              "subtitle": "下行风险",
+              "range_low": 60,
+              "range_high": 90,
+              "note": "监管收紧、加密熊市、利率下行压制储备收益"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前价位风险收益比较为平衡，上行高度依赖合规框架下的执行力与全球监管演变；建议关注 USDC 流通量、Arc 进展等催化剂。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "操作建议与风险管理",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "回调加仓",
+              "text": "$95–$105 区域可分批加仓，摊薄持仓成本。"
+            },
+            {
+              "icon": "target",
+              "title": "谨慎获利",
+              "text": "$130+ 可考虑部分获利，锁定收益、降低波动风险。"
+            },
+            {
+              "icon": "layers",
+              "title": "核心仓位",
+              "text": "建议组合占比 4–8%，成长型基础设施仓位。"
+            },
+            {
+              "icon": "line",
+              "title": "止盈止损",
+              "text": "止损 $85–$90；$160+ 分批减仓；可用期权对冲监管与系统性风险。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业叠加与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "利率环境直接影响储备收入；稳定币在波动市场中具支付工具韧性。区块链与稳定币处快速发展周期，机构采用率提升，但监管不确定性仍是最大变量。短期看财报与 Arc 进展，长期看稳定币成为互联网金融基础设施。最终建议：择机买入/持有（信心 62/100）；适合看好合规稳定币与区块链金融基础设施、并能严格仓位管理的投资者。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Circle 受益于 USDC 合规领先与储备收益模型，Arc 打开第二增长曲线；核心风险为监管政策与利率环境。建议持有为主、回调加仓，严格跟踪 USDC 流通量、储备透明度与全球监管动态。"
+}

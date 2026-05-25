@@ -1,0 +1,303 @@
+{
+  "code": "NVDA",
+  "name": "英伟达",
+  "tagline": "AI时代的绝对霸主",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：营收创历史新高",
+      "subtitle": "最新季度：FY2026 Q4（截至2026年1月25日）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$681亿",
+              "lines": ["环比增长: +20%", "同比增长: +73%"]
+            },
+            {
+              "icon": "server",
+              "title": "数据中心业务",
+              "value": "$623亿",
+              "lines": ["业务占比: 91%", "同比增长: +75%"]
+            },
+            {
+              "icon": "layers",
+              "title": "FY2026 全年",
+              "value": "$2159亿",
+              "lines": ["同比增长: +65%", "创历史新高记录"]
+            },
+            {
+              "icon": "calendar",
+              "title": "Q1 FY2027指引",
+              "value": "$780亿",
+              "lines": ["误差范围: ±2%"]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "绝对主导业务",
+              "text": "数据中心业务（Blackwell + Networking）占比超90%，已成为公司业绩绝对核心。"
+            },
+            {
+              "icon": "chip",
+              "title": "辅助增长业务",
+              "text": "游戏（Gaming）、汽车（Auto）、专业可视化（Pro Viz）等多元化业务提供稳健现金流支撑。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：资产负债表与历史趋势",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "现金极其充裕",
+              "text": "净现金头寸强劲，负债率极低，资本结构极为健康，为未来研发投入与战略并购提供充足弹药。"
+            },
+            {
+              "icon": "trend",
+              "title": "盈利能力卓越",
+              "text": "ROE、ROIC 维持历史高位，产品高毛利反映了公司在 AI 算力市场的定价权与运营效率。"
+            },
+            {
+              "icon": "flow",
+              "title": "现金流创纪录",
+              "text": "自由现金流（FCF）强劲，为分红、股票回购及持续研发投入提供坚实的财务基础。"
+            },
+            {
+              "icon": "rocket",
+              "title": "爆炸式增长 (2023-2026)",
+              "text": "营收复合年增长率（CAGR）超过60%，展现出远超行业平均的增长速度和市场统治力。"
+            },
+            {
+              "icon": "stack",
+              "title": "战略重心转型",
+              "text": "Data Center 业务已取代游戏业务成为核心，公司估值逻辑的转型成为驱动公司价值的第一引擎。"
+            },
+            {
+              "icon": "trophy",
+              "title": "AI基础设施王者",
+              "text": "在全球 AI 算力需求爆发中确立了不可替代的统治地位，GPU 架构成为 AI 训练与推理的行业标准。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：核心产品需求爆发",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务需求",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "Blackwell平台核心驱动",
+                  "text": "B200/GB200 在训练与推理能效上领先，巩固 AI 硬件龙头地位，引领行业硬件升级。"
+                },
+                {
+                  "icon": "network",
+                  "title": "全栈生态系统构建",
+                  "text": "NVLink、Networking 与 CUDA 软硬件一体化，提升集群效率与系统稳定性。"
+                },
+                {
+                  "icon": "server",
+                  "title": "超大规模集群建设",
+                  "text": "Hyperscalers 加速部署十万卡级 AI 集群，驱动模型训练与应用落地。"
+                }
+              ]
+            },
+            {
+              "title": "供给 vs. 需求",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "先进封装产能瓶颈",
+                  "text": "台积电 CoWoS 先进封装产能受限，是当前硬件供给的主要瓶颈。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "严重供不应求状态",
+                  "text": "Blackwell 仍处供不应求，客户排队等待，订单积压严重。"
+                },
+                {
+                  "icon": "line",
+                  "title": "长期超级增长周期",
+                  "text": "AI 应用 ROI 逐步验证，预计支撑多年资本开支周期，行业能见度较高。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与市场份额",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            { "icon": "chip", "title": "Agentic AI", "text": "智能体工作流推动模型能力与服务架构升级。" },
+            { "icon": "globe", "title": "Sovereign AI", "text": "各国寻求自主可控 AI 基础设施，带来增量需求。" },
+            { "icon": "robot", "title": "物理世界 AI", "text": "机器人、自动驾驶等边缘场景拓展算力边界。" },
+            { "icon": "rocket", "title": "下一代 Rubin 平台", "text": "继 Blackwell 后的又一性能跃迁，巩固技术领先。" },
+            { "icon": "trophy", "title": "市场份额 80–85%", "text": "2026 年 AI GPU/加速市场份额预期，CUDA 与 Blackwell 构筑行业标准。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            { "icon": "chart", "title": "AMD 竞争", "text": "MI350 等性价比产品份额约 5–10%，CUDA 生态差距仍显著。" },
+            { "icon": "server", "title": "云厂商 ASIC", "text": "TPU、Trainium 等在特定场景优化，但缺乏通用全栈平台。" },
+            { "icon": "network", "title": "CUDA 生态", "text": "全球开发者与模型生态绑定，迁移成本高、用户粘性强。" },
+            { "icon": "stack", "title": "技术壁垒", "text": "架构与系统软件持续迭代，形成难以复制的技术与生态壁垒。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "地缘/供应链风险：中国市场与供应",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            { "icon": "globe", "title": "中国市场承压", "text": "中国收入占比受长期管制影响下行，2026 年或进一步承压，但非结构性致命。" },
+            { "icon": "chip", "title": "政策与供应链", "text": "中国仍是重要 AI 应用市场，政策与供应链动态需持续关注。" },
+            { "icon": "factory", "title": "出口管制风险", "text": "H100/B100 等受限，依赖台积电先进制程，地缘风险不可忽视。" },
+            { "icon": "trend", "title": "新兴市场增长", "text": "欧洲、中东等新兴市场 Hyperscaler 资本开支为重要增长来源。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            { "icon": "chart", "title": "数据中心毛利率", "value": "75–78%", "lines": [] },
+            { "icon": "layers", "title": "Non-GAAP 毛利率", "value": "~75%", "lines": [] },
+            { "icon": "trend", "title": "驱动因素", "value": "规模效应", "lines": ["高端产品组合", "软件收入占比提升"] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            { "icon": "calendar", "title": "Q1 FY2027 指引", "text": "营收指引 $780 亿（±2%），展现对 Blackwell 出货与需求的信心。" },
+            { "icon": "rocket", "title": "AI 新工业革命", "text": "管理层强调长期数据中心需求，对行业前景表态积极。" },
+            { "icon": "trophy", "title": "指引准确度高", "text": "历史超预期频率高，强化市场对执行力的信任。" },
+            { "icon": "chart", "title": "估值预期风险", "text": "股价已反映较高预期，指引若不及预期可能引发短期波动。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18 个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~40%",
+              "subtitle": "上行驱动",
+              "range_low": 320,
+              "range_high": 380,
+              "note": "Blackwell/Rubin 超预期、AI 资本开支、份额维持 80%+"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "中性预期",
+              "range_low": 240,
+              "range_high": 290,
+              "note": "需求稳健、战略执行正常、毛利略回落"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~15%",
+              "subtitle": "下行风险",
+              "range_low": 140,
+              "range_high": 180,
+              "note": "AI ROI 证伪、竞争加剧、宏观衰退"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前价位偏乐观区间上沿，上行仍有空间但需警惕估值与预期透支风险，建议结合仓位与止损纪律。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            { "icon": "chart", "title": "分批建仓", "text": "避免单次追高；财报与指引窗口加大波动。" },
+            { "icon": "target", "title": "止盈节奏", "text": "结合 240–290 基准区间与 320+ 乐观区间设定止盈/加仓节奏。" },
+            { "icon": "line", "title": "严格止损", "text": "跌破关键支撑位需严格止损，高位注意回撤风险。" },
+            { "icon": "layers", "title": "对冲与分散", "text": "可搭配期权或波动策略做对冲，控制单一标的集中度。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "NVDA 与全球 AI 资本开支、利率预期、半导体周期及地缘政策高度联动。建议同步关注存储（MU/SNDK）、代工链及大盘流动性，将个股交易置于行业 Beta 与宏观流动性框架内综合判断。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "英伟达仍是 AI 基础设施核心受益者，短期供给紧张与强劲指引支撑股价，但估值已计入较高增长预期。建议持有为主、回调加仓，严格风控，密切跟踪 Blackwell 出货、毛利率及中国/地缘政策变化。"
+}

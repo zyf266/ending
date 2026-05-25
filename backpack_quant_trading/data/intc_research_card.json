@@ -1,0 +1,18 @@
+{
+  "code": "INTC",
+  "name": "英特尔",
+  "tagline": "AI时代战争转折与复苏",
+  "report_date": "2026-05-20",
+  "quote_symbol": "INTC",
+  "scenarios": [
+    { "key": "bull", "label": "乐观情景", "probability": "~35%", "subtitle": "制造复苏", "range_low": 48, "range_high": 58, "note": "代工回暖、AI PC 渗透、毛利率修复" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 38, "range_high": 46, "note": "复苏节奏温和、竞争格局仍激烈" },
+    { "key": "bear", "label": "悲观情景", "probability": "~20%", "subtitle": "下行", "range_low": 28, "range_high": 34, "note": "份额流失、CapEx 不及预期、宏观拖累" }
+  ],
+  "highlights": [
+    "IDM 2.0 与代工业务复苏是核心叙事，关注产能利用率回升",
+    "AI PC 与数据中心 CPU 路线图决定中期增长斜率",
+    "毛利率修复与资本回报（分红/回购）改善股东回报"
+  ],
+  "pdf_path": "INTC (Intel Corporation) 美股分析报告.pdf"
+}

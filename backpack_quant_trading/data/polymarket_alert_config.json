@@ -1,0 +1,16 @@
+{
+  "running": false,
+  "poll_interval_sec": 60,
+  "dingtalk_webhook": "https://oapi.dingtalk.com/robot/send?access_token=b9505860132b3e8d09aa9a6975566974d0bc6152e5af1c425e2fb251c142d16a",
+  "alert_cooldown_minutes": 30,
+  "rules": [
+    {
+      "id": "MSFT_450",
+      "symbol": "MSFT",
+      "target_price": 450.0,
+      "threshold_pct": 30.0,
+      "label": "MSFT 触及 $450",
+      "event_id": "415404"
+    }
+  ]
+}

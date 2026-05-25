@@ -1,0 +1,9 @@
+{
+  "rule_alerts": {
+    "MSFT_450": {
+      "last_yes_prob": 0.16,
+      "last_quote_at": "2026-05-20 15:31:21",
+      "last_yes_pct": 16.0
+    }
+  }
+}

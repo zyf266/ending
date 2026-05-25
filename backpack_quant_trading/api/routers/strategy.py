@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, date as _date
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from decimal import Decimal as PyDecimal
 import time as _time
 import logging as _logging
@@ -29,35 +29,7 @@ router = APIRouter()
 # ──────────────────────────────────────────────────────────
 # Hyperliquid K 线工具函数
 # ──────────────────────────────────────────────────────────
-_HL_INFO_URL = "https://api.hyperliquid.xyz/info"
-
-
-def fetch_hl_klines_sync(coin: str, interval: str, start_ms: int, end_ms: int = None) -> list:
-    """同步从 Hyperliquid candleSnapshot 拉取 K 线。
-    返回格式: [{"t": ms, "o", "h", "l", "c", "v"}, ...] 按时间升序。
-    """
-    if end_ms is None:
-        end_ms = int(_time.time() * 1000)
-    payload = {
-        "type": "candleSnapshot",
-        "req": {"coin": coin, "interval": interval, "startTime": start_ms, "endTime": end_ms},
-    }
-    try:
-        resp = _requests.post(_HL_INFO_URL, json=payload, timeout=30, proxies={"http": None, "https": None})
-        resp.raise_for_status()
-        data = resp.json()
-        result = []
-        for item in (data or []):
-            try:
-                result.append({"t": item["t"], "o": float(item["o"]), "h": float(item["h"]),
-                               "l": float(item["l"]), "c": float(item["c"]), "v": float(item["v"])})
-            except (KeyError, TypeError, ValueError):
-                continue
-        result.sort(key=lambda x: x["t"])
-        return result
-    except Exception as e:
-        _hl_logger.warning(f"[HL K线] 拉取失败 coin={coin} interval={interval}: {e}")
-        return []
+from backpack_quant_trading.core.hyperliquid_klines import fetch_hl_klines_sync
 
 
 def _bulk_insert_klines_dicts(rows_data: list) -> None:
@@ -187,6 +159,20 @@ CRCL_SYMBOL = "CRCL"
 CRCL_TIMEFRAME = "1H"
 CRCL_KLINE_CSV = PROJECT_ROOT / "BATS_CRCL, 60_e7fd9.csv"
 CRCL_TRADES_CSV = PROJECT_ROOT / "自适应做多_NYSE_CRCL_2026-04-10_a915d.csv"
+
+# 美股动量轮动策略 INTC（K 线 CSV 是 60 分钟，但数据库回测 trades 命名为 INTC_2H_TREND / INTCUSDT / 2h）
+# - K 线用自己的命名加载到 strategy_klines 表（INTC_KLINE / INTCUSDT / 1H）
+# - Trades 通过 symbol=INTCUSDT 兜底查询
+INTC_STRATEGY_NAME = "INTC_KLINE"
+INTC_SYMBOL = "INTCUSDT"
+INTC_TIMEFRAME = "1H"
+INTC_KLINE_CSV = PROJECT_ROOT / "BATS_INTC, 60_7e925.csv"
+
+# 美股动量轮动策略 NVDA（K 线 CSV 是 120 分钟，但数据库回测 trades 命名为 NVDA_1H_TREND / NVDAUSDT / 1h）
+NVDA_STRATEGY_NAME = "NVDA_KLINE"
+NVDA_SYMBOL = "NVDAUSDT"
+NVDA_TIMEFRAME = "2H"
+NVDA_KLINE_CSV = PROJECT_ROOT / "BATS_NVDA, 120_7e649.csv"
 
 
 Base = declarative_base()
@@ -945,17 +931,19 @@ def get_paxg_2h_trades():
     ]
 
 
-def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_label, trading_capital=None, exit_rule=None):
+def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_label, trading_capital=None, exit_rule=None, pnl_scale: float = 1.0):
     """
     通用概览计算。initial_capital 为展示用本金；若 trading_capital 有值（两倍本金策略），
     权益曲线按 trading_capital + cum_pnl 算，收益百分比按 initial_capital 算。
     exit_rule: None=按类型+信号判断出场；"signal_close"=仅用信号含 close 判出场（纳指 long close）。
+    pnl_scale: 数据库里的 trades.pnl/cum_pnl 是按"回测下单本金"计算的，若要按更小的展示本金等比缩放，可传 0~1 的系数。
     """
     trades = [r for r in (trades or []) if r is not None]
     if not trades:
         return None
+    s = float(pnl_scale or 1.0)
     base = (trading_capital if trading_capital is not None else initial_capital)
-    equity = [base + float((r.cum_pnl or 0)) for r in trades]
+    equity = [base + float((r.cum_pnl or 0)) * s for r in trades]
     final_equity = equity[-1]
     strategy_profit = final_equity - base
     total_return_pct = (strategy_profit / initial_capital) * 100
@@ -990,7 +978,7 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
         # trade_no 为 None 才用索引兜底，trade_no 为有效整数（含0）都是合法 key
         if key is None:
             key = f"idx_{idx}"
-        trade_pnls[key] = float(r.pnl)
+        trade_pnls[key] = float(r.pnl) * s
     profits = list(trade_pnls.values())
     win = [p for p in profits if p > 0]
     loss = [p for p in profits if p < 0]
@@ -1029,6 +1017,222 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
         start_date=trades[0].trade_time,
         end_date=trades[-1].trade_time,
     )
+
+
+def _compute_calendar_year_return(
+    trades: List,
+    year: int,
+    initial_capital: float,
+    *,
+    trading_capital: Optional[float] = None,
+    pnl_scale: float = 1.0,
+) -> Optional[Dict[str, Any]]:
+    """按自然年切片：年初权益 → 年末权益，收益按展示本金计算百分比。"""
+    if not trades:
+        return None
+    ic = float(initial_capital)
+    if ic <= 0:
+        return None
+    s = float(pnl_scale or 1.0)
+    base = float(trading_capital if trading_capital is not None else initial_capital)
+
+    year_start = datetime(year, 1, 1)
+    year_end = datetime(year, 12, 31, 23, 59, 59)
+    if year >= datetime.now().year:
+        year_end = min(year_end, datetime.now())
+
+    equity_start = base
+    for t in trades:
+        tt = getattr(t, "trade_time", None)
+        if tt is None:
+            continue
+        if tt < year_start:
+            equity_start = base + float(getattr(t, "cum_pnl", 0) or 0) * s
+        else:
+            break
+
+    in_year = [
+        t for t in trades
+        if getattr(t, "trade_time", None) and year_start <= t.trade_time <= year_end
+    ]
+    if not in_year:
+        return None
+
+    equity_end = base + float(getattr(in_year[-1], "cum_pnl", 0) or 0) * s
+    profit = equity_end - equity_start
+    return_pct = profit / ic * 100.0
+
+    period_start = in_year[0].trade_time
+    period_end = in_year[-1].trade_time
+    days = max(1, (period_end.date() - period_start.date()).days)
+    cal_days = max(1, (min(period_end, year_end).date() - year_start.date()).days + 1)
+
+    if cal_days >= 360:
+        annualized_pct = return_pct
+    else:
+        annualized_pct = ((1.0 + return_pct / 100.0) ** (365.0 / days) - 1.0) * 100.0
+
+    return {
+        "return_pct": round(return_pct, 2),
+        "annualized_pct": round(annualized_pct, 2),
+        "profit": round(profit, 2),
+        "days": days,
+        "period_start": period_start.isoformat(sep=" ", timespec="seconds"),
+        "period_end": period_end.isoformat(sep=" ", timespec="seconds"),
+    }
+
+
+def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], float]]:
+    """AI 量化实盘矩阵：key, 拉取 trades 函数, 展示本金, 交易本金(可选), pnl 缩放。"""
+
+    def _eth_only_trades():
+        _ensure_eth_only_trades_loaded()
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyBacktestTrade)
+                .filter_by(
+                    strategy_name=ETH_ONLY_STRATEGY_NAME,
+                    symbol=ETH_ONLY_SYMBOL,
+                    timeframe=ETH_ONLY_TIMEFRAME,
+                )
+                .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def _hype_trades():
+        _ensure_trades_loaded_from_csv()
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyBacktestTrade)
+                .filter_by(strategy_name=STRATEGY_NAME, symbol=SYMBOL, timeframe=TIMEFRAME)
+                .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def _paxg_trades():
+        _ensure_paxg_trades_loaded_from_csv()
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyBacktestTrade)
+                .filter_by(
+                    strategy_name=PAXG_STRATEGY_NAME,
+                    symbol=PAXG_SYMBOL,
+                    timeframe=PAXG_TIMEFRAME,
+                )
+                .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def _nas100_trades():
+        _ensure_nas100_trades_loaded_from_csv()
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyBacktestTrade)
+                .filter_by(
+                    strategy_name=NAS100_STRATEGY_NAME,
+                    symbol=NAS100_SYMBOL,
+                    timeframe=NAS100_TIMEFRAME,
+                )
+                .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    def _crcl_trades():
+        _ensure_crcl_trades_loaded_from_csv()
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyBacktestTrade)
+                .filter_by(
+                    strategy_name=CRCL_STRATEGY_NAME,
+                    symbol=CRCL_SYMBOL,
+                    timeframe=CRCL_TIMEFRAME,
+                )
+                .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+                .all()
+            )
+        finally:
+            session.close()
+
+    return [
+        ("eth", _eth_only_trades, 30_000_000, None, 1.0),
+        ("hype", _hype_trades, 1_000_000, None, 1.0),
+        ("paxg", _paxg_trades, 2_000_000, 4_000_000, 1.0),
+        ("nas100", _nas100_trades, 2_000_000, 4_000_000, 1.0),
+        ("crcl", _crcl_trades, 1_000_000, None, 1.0),
+        ("intc", lambda: _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME), 500_000, None, 1.0),
+        ("nvda", lambda: _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME), 1_000_000, None, 1.0),
+    ]
+
+
+def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -> Dict[str, Any]:
+    """组合口径：各策略同年利润加总 / 展示本金加总；返回分年收益与年化。"""
+    years = years or [2024, 2025, 2026]
+    out: Dict[str, Any] = {}
+    specs = _matrix_strategy_specs()
+
+    for year in years:
+        total_profit = 0.0
+        total_initial = 0.0
+        by_strategy: List[Dict[str, Any]] = []
+        for key, loader, initial, trading_cap, scale in specs:
+            try:
+                trades = loader()
+            except Exception:
+                continue
+            if not trades:
+                continue
+            row = _compute_calendar_year_return(
+                trades, year, initial, trading_capital=trading_cap, pnl_scale=scale
+            )
+            if not row:
+                continue
+            total_profit += row["profit"]
+            total_initial += initial
+            by_strategy.append({"key": key, **row})
+
+        if total_initial <= 0:
+            out[str(year)] = None
+            continue
+
+        return_pct = total_profit / total_initial * 100.0
+        year_start = datetime(year, 1, 1)
+        year_end = datetime(year, 12, 31, 23, 59, 59)
+        if year >= datetime.now().year:
+            year_end = min(year_end, datetime.now())
+        cal_days = max(1, (year_end.date() - year_start.date()).days + 1)
+        if cal_days >= 360:
+            annualized_pct = return_pct
+        else:
+            annualized_pct = ((1.0 + return_pct / 100.0) ** (365.0 / cal_days) - 1.0) * 100.0
+
+        out[str(year)] = {
+            "year": year,
+            "return_pct": round(return_pct, 2),
+            "annualized_pct": round(annualized_pct, 2),
+            "profit": round(total_profit, 2),
+            "strategy_count": len(by_strategy),
+            "by_strategy": by_strategy,
+        }
+
+    return {"years": out, "note": "组合分年：各策略当年利润/展示本金汇总；满自然年区间收益即年化，未满一年按日历天数复利折算。"}
+
+
+@router.get("/matrix-yearly-returns", summary="AI量化实盘矩阵：2024/2025/2026 分年收益与年化")
+def get_matrix_yearly_returns():
+    return compute_matrix_portfolio_yearly_returns()
 
 
 @router.get("/paxg-2h/overview", response_model=StrategyOverview, summary="大宗 2H 策略总体表现")
@@ -1601,6 +1805,241 @@ def get_crcl_1h_overview():
     ov = _compute_overview_from_trades_klines(trades, kls, 1_000_000, "美股动量轮动·CRCL")
     if ov is None:
         raise HTTPException(404, "CRCL 回测数据存在但计算失败，请尝试重新导入 POST /api/strategy/crcl-1h/import-trades")
+    return ov
+
+
+# ──────────────────────────────────────────────────────────
+# 美股动量轮动策略 INTC_1H / NVDA_2H
+# 交易数据由外部直接插入数据库；K 线 CSV 由后端自动导入
+# ──────────────────────────────────────────────────────────
+
+
+def _import_bats_kline_csv(
+    csv_path: Path,
+    strategy_name: str,
+    symbol: str,
+    timeframe: str,
+    source: str,
+) -> int:
+    """通用：从 BATS_xxx, NN_xxx.csv 把 K 线导入 strategy_klines 表（先全删后写）。"""
+    if not csv_path.exists():
+        raise HTTPException(404, f"K 线 CSV 不存在: {csv_path}")
+    df = pd.read_csv(csv_path, encoding="utf-8")
+    records: List[StrategyKline] = []
+    for _, row in df.iterrows():
+        ts_str = str(row["time"]).strip()
+        if not ts_str or ts_str == "nan":
+            continue
+        try:
+            if "T" in ts_str:
+                dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            else:
+                dt = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
+            if dt.tzinfo:
+                dt = dt.replace(tzinfo=None)
+        except Exception:
+            continue
+        vol = row.get("Volume")
+        if vol is None or (isinstance(vol, float) and pd.isna(vol)) or vol == "":
+            vol = 0.0
+        else:
+            try:
+                vol = float(vol)
+            except Exception:
+                vol = 0.0
+        records.append(
+            StrategyKline(
+                strategy_name=strategy_name,
+                symbol=symbol,
+                timeframe=timeframe,
+                timestamp=dt,
+                open=PyDecimal(str(row["open"])),
+                high=PyDecimal(str(row["high"])),
+                low=PyDecimal(str(row["low"])),
+                close=PyDecimal(str(row["close"])),
+                volume=PyDecimal(str(vol)),
+                source=source,
+            )
+        )
+    session = db_manager.get_session()
+    try:
+        session.query(StrategyKline).filter_by(
+            strategy_name=strategy_name, symbol=symbol, timeframe=timeframe
+        ).delete(synchronize_session=False)
+        for r in records:
+            session.add(r)
+        session.commit()
+    finally:
+        session.close()
+    return len(records)
+
+
+def _ensure_klines_loaded(csv_path: Path, strategy_name: str, symbol: str, timeframe: str, source: str) -> None:
+    session = db_manager.get_session()
+    try:
+        exists = (
+            session.query(StrategyKline.id)
+            .filter_by(strategy_name=strategy_name, symbol=symbol, timeframe=timeframe)
+            .first()
+        )
+    finally:
+        session.close()
+    if exists:
+        return
+    _import_bats_kline_csv(csv_path, strategy_name, symbol, timeframe, source)
+
+
+def _query_klines(strategy_name: str, symbol: str, timeframe: str) -> List["KlinePoint"]:
+    session = db_manager.get_session()
+    try:
+        rows = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=strategy_name, symbol=symbol, timeframe=timeframe)
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+        return [
+            KlinePoint(
+                timestamp=r.timestamp,
+                open=float(r.open),
+                high=float(r.high),
+                low=float(r.low),
+                close=float(r.close),
+                volume=float(r.volume),
+            )
+            for r in rows
+            if r is not None and r.timestamp is not None
+        ]
+    finally:
+        session.close()
+
+
+def _query_trades_by_symbol(symbol: str, strategy_name: Optional[str] = None, timeframe: Optional[str] = None) -> List[StrategyBacktestTrade]:
+    """
+    宽松查询：优先按 (strategy_name+symbol+timeframe) 精确匹配；若 0 行则回退到仅 symbol 匹配。
+    这样无论外部插入回测交易时用了什么命名都能取到。
+    """
+    session = db_manager.get_session()
+    try:
+        q = session.query(StrategyBacktestTrade).filter(StrategyBacktestTrade.symbol == symbol)
+        if strategy_name and timeframe:
+            exact = q.filter(
+                StrategyBacktestTrade.strategy_name == strategy_name,
+                StrategyBacktestTrade.timeframe == timeframe,
+            ).order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc()).all()
+            if exact:
+                return exact
+        return q.order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc()).all()
+    finally:
+        session.close()
+
+
+def _trades_to_out(rows: List[StrategyBacktestTrade], pnl_scale: float = 1.0) -> List["BacktestTradeOut"]:
+    # pnl_scale 用于按"展示本金 / 回测下单本金"等比例缩放金额（百分比字段保持不变）
+    s = float(pnl_scale or 1.0)
+    return [
+        BacktestTradeOut(
+            trade_no=r.trade_no,
+            trade_type=r.trade_type,
+            signal=r.signal,
+            trade_time=r.trade_time,
+            price=float(r.price),
+            position_qty=float(r.position_qty) * s,
+            position_value=float(r.position_value) * s,
+            pnl=float(r.pnl) * s,
+            pnl_pct=float(r.pnl_pct),
+            runup=float(r.runup) * s if r.runup is not None else None,
+            runup_pct=float(r.runup_pct) if r.runup_pct is not None else None,
+            drawdown=float(r.drawdown) * s if r.drawdown is not None else None,
+            drawdown_pct=float(r.drawdown_pct) if r.drawdown_pct is not None else None,
+            cum_pnl=float(r.cum_pnl or 0) * s,
+            cum_pnl_pct=float(r.cum_pnl_pct or 0),
+        )
+        for r in rows
+    ]
+
+
+# ---------- INTC_1H ----------
+@router.post("/intc-1h/import-klines", summary="导入 INTC 1H K 线 CSV 到数据库")
+def import_intc_1h_klines():
+    n = _import_bats_kline_csv(INTC_KLINE_CSV, INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME, "bats_intc")
+    return {"rows": n}
+
+
+@router.get("/intc-1h/klines", response_model=List[KlinePoint], summary="获取 INTC 1H K 线")
+def get_intc_1h_klines():
+    _ensure_klines_loaded(INTC_KLINE_CSV, INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME, "bats_intc")
+    return _query_klines(INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME)
+
+
+@router.get("/intc-1h/trades", response_model=List[BacktestTradeOut], summary="INTC 1H 回测交易明细")
+def get_intc_1h_trades():
+    rows = _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME)
+    # 数据库中 INTC 回测本来就是按 50 万下单（position_value ≈ 500,000），pnl/cum_pnl 是真实金额，无需缩放
+    return _trades_to_out(rows)
+
+
+@router.get("/intc-1h/overview", response_model=StrategyOverview, summary="INTC 1H 策略总体表现")
+def get_intc_1h_overview():
+    _ensure_klines_loaded(INTC_KLINE_CSV, INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME, "bats_intc")
+    trades = _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME)
+    if not trades:
+        raise HTTPException(404, "数据库中尚无 INTC 回测交易数据，请先将交易记录插入 strategy_backtest_trades 表（symbol=INTC）")
+    session = db_manager.get_session()
+    try:
+        kls = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=INTC_STRATEGY_NAME, symbol=INTC_SYMBOL, timeframe=INTC_TIMEFRAME)
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    # 数据库中 INTC 回测本来就是按 50 万下单（position_value ≈ 500,000），pnl/cum_pnl 是真实金额
+    ov = _compute_overview_from_trades_klines(trades, kls, 500_000, "美股动量轮动·INTC")
+    if ov is None:
+        raise HTTPException(404, "INTC 回测数据存在但计算失败")
+    return ov
+
+
+# ---------- NVDA_2H ----------
+@router.post("/nvda-2h/import-klines", summary="导入 NVDA 2H K 线 CSV 到数据库")
+def import_nvda_2h_klines():
+    n = _import_bats_kline_csv(NVDA_KLINE_CSV, NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME, "bats_nvda")
+    return {"rows": n}
+
+
+@router.get("/nvda-2h/klines", response_model=List[KlinePoint], summary="获取 NVDA 2H K 线")
+def get_nvda_2h_klines():
+    _ensure_klines_loaded(NVDA_KLINE_CSV, NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME, "bats_nvda")
+    return _query_klines(NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME)
+
+
+@router.get("/nvda-2h/trades", response_model=List[BacktestTradeOut], summary="NVDA 2H 回测交易明细")
+def get_nvda_2h_trades():
+    rows = _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME)
+    return _trades_to_out(rows)
+
+
+@router.get("/nvda-2h/overview", response_model=StrategyOverview, summary="NVDA 2H 策略总体表现")
+def get_nvda_2h_overview():
+    _ensure_klines_loaded(NVDA_KLINE_CSV, NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME, "bats_nvda")
+    trades = _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME)
+    if not trades:
+        raise HTTPException(404, "数据库中尚无 NVDA 回测交易数据，请先将交易记录插入 strategy_backtest_trades 表（symbol=NVDA）")
+    session = db_manager.get_session()
+    try:
+        kls = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=NVDA_STRATEGY_NAME, symbol=NVDA_SYMBOL, timeframe=NVDA_TIMEFRAME)
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    ov = _compute_overview_from_trades_klines(trades, kls, 1_000_000, "美股动量轮动·NVDA")
+    if ov is None:
+        raise HTTPException(404, "NVDA 回测数据存在但计算失败")
     return ov
 
 

@@ -1,0 +1,11 @@
+{
+  "webhook_scorer_enabled": true,
+  "dingtalk_webhook": "https://oapi.dingtalk.com/robot/send?access_token=5c0c5fc145b217a7a10ec0d6356ae24d9dd31b620ccb4be0251ff729e5cd0adb",
+  "dingtalk_keyword": "提醒",
+  "kline_interval": "4h",
+  "kline_limit": 100,
+  "min_deepseek_score": 0,
+  "scan_top_n": 50,
+  "only_actions": ["buy", "买入", "long"],
+  "deepseek_temperature": 0.2
+}

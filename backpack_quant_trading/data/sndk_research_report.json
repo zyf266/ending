@@ -1,0 +1,393 @@
+{
+  "code": "SNDK",
+  "name": "SanDisk",
+  "tagline": "AI存储周期节点的核心受益者",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：业绩爆炸式增长",
+      "subtitle": "最新季度：FY2026 Q3（截至2026年4月3日）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$59.5亿",
+              "lines": [
+                "QoQ +97%",
+                "YoY +251%"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "Non-GAAP EPS",
+              "value": "$23.41",
+              "lines": [
+                "大幅超预期"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Non-GAAP 毛利率",
+              "value": "78.4%",
+              "lines": [
+                "QoQ +27.3ppt"
+              ]
+            },
+            {
+              "icon": "server",
+              "title": "Data Center (AI SSD)",
+              "value": "$14.67亿",
+              "lines": [
+                "QoQ +233%"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "从周期低谷到超级增长",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "flow",
+              "title": "现金流强劲",
+              "text": "Q3 运营现金流 $30.4亿，调整后 FCF $29.55亿。"
+            },
+            {
+              "icon": "cash",
+              "title": "财务健康",
+              "text": "现金充裕，负债率极低，抗风险能力强。"
+            },
+            {
+              "icon": "trophy",
+              "title": "盈利质量",
+              "text": "ROE/ROIC 随利润爆发大幅提升。"
+            },
+            {
+              "icon": "rocket",
+              "title": "快速转向",
+              "text": "2025 分拆后敏捷调整，驶入超级增长快车道。"
+            },
+            {
+              "icon": "chip",
+              "title": "AI 驱动",
+              "text": "2026 抓住 NAND 短缺，量价齐升创纪录。"
+            },
+            {
+              "icon": "stack",
+              "title": "战略转型",
+              "text": "从传统存储向 AI 企业存储解决方案提供商转型。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：AI 存储需求爆炸",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心需求",
+              "items": [
+                {
+                  "icon": "server",
+                  "title": "企业级 SSD",
+                  "text": "AI 训练/推理对高带宽大容量存储需求爆炸式增长。"
+                },
+                {
+                  "icon": "chip",
+                  "title": "先进 3D NAND",
+                  "text": "BiCS8 等制程构筑技术壁垒。"
+                }
+              ]
+            },
+            {
+              "title": "供给 vs. 需求",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "严重短缺",
+                  "text": "2026 全行业 NAND 供给不足，库存低位，主流产品售罄。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "定价权",
+                  "text": "供需错配下具备极强定价能力与毛利传导。"
+                },
+                {
+                  "icon": "line",
+                  "title": "可持续性",
+                  "text": "Hyperscaler 多年 AI 基建投资驱动，非短期脉冲。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "长期催化剂与市场份额",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "渗透率提升",
+              "text": "AI 数据中心 SSD 渗透率持续提升。"
+            },
+            {
+              "icon": "chip",
+              "title": "BiCS9 迭代",
+              "text": "更高密度 NAND 带来成本下降与性能跃升。"
+            },
+            {
+              "icon": "target",
+              "title": "长期供货锁定",
+              "text": "与云厂商长单锁定未来收入。"
+            },
+            {
+              "icon": "trophy",
+              "title": "份额扩张",
+              "text": "企业级 NAND SSD 市场份额稳步提升。"
+            },
+            {
+              "icon": "trend",
+              "title": "份额 CAGR",
+              "text": "预计未来三年份额年复合增长 5%+。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "factory",
+              "title": "Samsung / SK",
+              "text": "韩系厂商产能与技术实力强劲。"
+            },
+            {
+              "icon": "stack",
+              "title": "Micron / Kioxia",
+              "text": "同业在 enterprise SSD 激烈竞争。"
+            },
+            {
+              "icon": "chip",
+              "title": "技术壁垒",
+              "text": "BiCS 路线与控制器能力构成差异化。"
+            },
+            {
+              "icon": "server",
+              "title": "客户绑定",
+              "text": "与头部云/ OEM 深度合作关系。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "地缘/供应链与周期风险",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "地缘与关税",
+              "text": "贸易政策变化或影响成本与出货节奏。"
+            },
+            {
+              "icon": "factory",
+              "title": "产能周期",
+              "text": "行业扩产可能导致未来价格回落。"
+            },
+            {
+              "icon": "chart",
+              "title": "客户集中度",
+              "text": "大客户订单波动影响短期业绩。"
+            },
+            {
+              "icon": "line",
+              "title": "股价波动",
+              "text": "存储股高 Beta，需严格止损纪律。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "毛利率",
+              "value": "78.4%",
+              "lines": [
+                "历史极高水平"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "运营杠杆",
+              "value": "显著",
+              "lines": [
+                "收入回升阶段利润增速更快"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "产品结构",
+              "value": "AI SSD",
+              "lines": [
+                "高毛利品类占比提升"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与语气",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "指引",
+              "text": "管理层对 AI 存储需求与供给紧张态度积极。"
+            },
+            {
+              "icon": "rocket",
+              "title": "语气",
+              "text": "强调企业级 SSD 与 BiCS 路线图执行。"
+            },
+            {
+              "icon": "trophy",
+              "title": "业绩兑现",
+              "text": "连续超预期增强市场信心。"
+            },
+            {
+              "icon": "chart",
+              "title": "估值风险",
+              "text": "股价已反映部分周期高点预期。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值与三档目标价模型",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~35%",
+              "subtitle": "周期延续",
+              "range_low": 280,
+              "range_high": 350,
+              "note": "NAND 短缺延续、AI SSD 量价齐升"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "中性",
+              "range_low": 200,
+              "range_high": 260,
+              "note": "需求稳健、毛利率高位略回落"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~20%",
+              "subtitle": "周期拐点",
+              "range_low": 120,
+              "range_high": 160,
+              "note": "扩产导致价格下行、需求不及预期"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "顺势持有",
+              "text": "周期上行阶段以持有为主，避免盲目追高。"
+            },
+            {
+              "icon": "target",
+              "title": "分批止盈",
+              "text": "接近乐观区间可分批锁定利润。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "建议 3–6%，与 MU/存储板块分散配置。"
+            },
+            {
+              "icon": "line",
+              "title": "止损",
+              "text": "跌破关键支撑严格止损，防范周期反转。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业叠加",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "SNDK 与 AI 资本开支、NAND 供需、半导体周期高度联动。宜在景气上行持有，密切跟踪库存、合约价与云厂商 CapEx 指引。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "SanDisk 是 AI 存储景气核心受益者，短期供给紧张支撑盈利；需警惕周期拐点与估值透支，严格执行仓位与止损。"
+}

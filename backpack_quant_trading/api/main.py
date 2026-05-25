@@ -45,6 +45,10 @@ from backpack_quant_trading.api.routers.strategy import router as strategy_route
 from backpack_quant_trading.api.routers.okx_agent import router as okx_agent_router
 from backpack_quant_trading.api.routers.okx_console import router as okx_console_router
 from backpack_quant_trading.api.routers.us_weekly_report import router as us_weekly_report_router
+from backpack_quant_trading.api.routers.stock_news_alert import router as stock_news_alert_router
+from backpack_quant_trading.api.routers.polymarket_alert import router as polymarket_alert_router
+from backpack_quant_trading.api.routers.ai_stock_hub import router as ai_stock_hub_router
+from backpack_quant_trading.api.routers.crypto_signal_hub import router as crypto_signal_hub_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["认证"])
 app.include_router(trading_router, prefix="/api/trading", tags=["实盘交易"])
@@ -57,6 +61,10 @@ app.include_router(strategy_router, prefix="/api/strategy", tags=["量化策略"
 app.include_router(okx_agent_router, prefix="/api/okx-agent", tags=["OKX AI 交易"])
 app.include_router(okx_console_router, prefix="/api/okx-console", tags=["OKX 控制台"])
 app.include_router(us_weekly_report_router, prefix="/api/us-weekly-report", tags=["美股周报"])
+app.include_router(stock_news_alert_router, prefix="/api/stock-news-alert", tags=["自选快讯"])
+app.include_router(polymarket_alert_router, prefix="/api/polymarket-alert", tags=["Polymarket概率"])
+app.include_router(ai_stock_hub_router, prefix="/api/ai-stock-hub", tags=["AI选股卡片"])
+app.include_router(crypto_signal_hub_router, prefix="/api/crypto-signal-hub", tags=["加密信号评分"])
 
 
 @app.get("/api/health")
@@ -76,8 +84,15 @@ _sched_logger = _sched_logging.getLogger("kline_scheduler")
 
 @app.on_event("startup")
 async def start_kline_scheduler():
+    from backpack_quant_trading.core.stock_news_alert import try_restore_from_disk
+    from backpack_quant_trading.core.polymarket_alert import try_restore_from_disk as try_restore_polymarket
+
+    try_restore_from_disk()
+    try_restore_polymarket()
     _asyncio.create_task(_daily_kline_sync_loop())
     _asyncio.create_task(_weekly_bubble_analyze_loop())
+    _asyncio.create_task(_bootstrap_research_prices())
+    _asyncio.create_task(_daily_research_price_sync_loop())
 
 
 async def _weekly_bubble_analyze_loop():
@@ -127,6 +142,45 @@ async def _daily_kline_sync_loop():
             _sched_logger.info(f"[K线定时] ETH 2H 同步完成: {r2}")
         except Exception as exc:
             _sched_logger.error(f"[K线定时] ETH 2H 同步失败: {exc}")
+
+
+async def _bootstrap_research_prices():
+    """首次启动若尚无价格缓存，后台立即拉取一次。"""
+    from backpack_quant_trading.core.research_card_prices import load_price_cache, refresh_research_prices_task
+
+    cache = load_price_cache()
+    if cache.get("updated_at"):
+        _sched_logger.info(f"[研究卡片价格] 使用已有缓存: {cache.get('updated_at')}")
+        return
+    try:
+        res = await _asyncio.to_thread(refresh_research_prices_task)
+        _sched_logger.info(f"[研究卡片价格] 首次拉取完成: ok={res.get('ok')} count={res.get('ok_count')}")
+    except Exception as exc:
+        _sched_logger.error(f"[研究卡片价格] 首次拉取失败: {exc}")
+
+
+async def _daily_research_price_sync_loop():
+    """每天凌晨 4:30 更新 AI 选股卡片现价（Yahoo Finance）。"""
+    from backpack_quant_trading.core.research_card_prices import refresh_research_prices_task
+
+    while True:
+        now = _dt.now()
+        target = now.replace(hour=4, minute=30, second=0, microsecond=0)
+        if target <= now:
+            target += _td(days=1)
+        wait_secs = (target - now).total_seconds()
+        _sched_logger.info(
+            f"[研究卡片价格] 下次更新：{target.strftime('%Y-%m-%d %H:%M:%S')}（{wait_secs/3600:.1f}h 后）"
+        )
+        await _asyncio.sleep(wait_secs)
+        try:
+            res = await _asyncio.to_thread(refresh_research_prices_task)
+            _sched_logger.info(
+                f"[研究卡片价格] 定时更新完成: ok={res.get('ok')} "
+                f"成功={res.get('ok_count')}/{res.get('count')}"
+            )
+        except Exception as exc:
+            _sched_logger.error(f"[研究卡片价格] 定时更新失败: {exc}")
 
 
 # ── HYPE 策略 Webhook 快捷入口（无需 /api/trading 前缀，供 TradingView 直接调用）──

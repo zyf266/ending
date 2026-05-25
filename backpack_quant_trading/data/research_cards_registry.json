@@ -1,0 +1,10 @@
+{
+  "cards": [
+    { "code": "NVDA", "card_file": "nvda_research_card.json", "report_file": "nvda_research_report.json" },
+    { "code": "INTC", "card_file": "intc_research_card.json", "report_file": "intc_research_report.json" },
+    { "code": "CRCL", "card_file": "crcl_research_card.json", "report_file": "crcl_research_report.json" },
+    { "code": "SNDK", "card_file": "sndk_research_card.json", "report_file": "sndk_research_report.json" },
+    { "code": "ETH", "card_file": "eth_research_card.json", "report_file": "eth_research_report.json" },
+    { "code": "HYPE", "card_file": "hype_research_card.json", "report_file": "hype_research_report.json" }
+  ]
+}

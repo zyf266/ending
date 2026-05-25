@@ -1,0 +1,440 @@
+{
+  "code": "INTC",
+  "name": "英特尔",
+  "tagline": "AI时代战争转折与复苏",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：业绩超预期，逐步复苏",
+      "subtitle": "最新季度：Q1 2026（截至2026年3月28日）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$136亿",
+              "lines": [
+                "YoY +7%",
+                "大幅 beat"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "Non-GAAP EPS",
+              "value": "$0.29",
+              "lines": [
+                "YoY +123%"
+              ]
+            },
+            {
+              "icon": "server",
+              "title": "DCAI",
+              "value": "$51亿",
+              "lines": [
+                "YoY +22%",
+                "AI CPU 驱动"
+              ]
+            },
+            {
+              "icon": "factory",
+              "title": "Intel Foundry",
+              "value": "$54亿",
+              "lines": [
+                "外部收入 $1.74亿"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "CCG",
+              "text": "Client Computing $77亿（约 57%），PC 市场稳健。"
+            },
+            {
+              "icon": "line",
+              "title": "GAAP EPS",
+              "text": "-$0.73，受重组与 Mobileye 减值等一次性因素拖累。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：转型阵痛与未来引擎",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "现金承压",
+              "text": "Q1 调整后 FCF 约 -$20亿，高额 CapEx 短期考验流动性。"
+            },
+            {
+              "icon": "chart",
+              "title": "负债率上升",
+              "text": "为制程追赶与产能扩张，杠杆有所提升。"
+            },
+            {
+              "icon": "trend",
+              "title": "盈利修复",
+              "text": "ROE/ROIC 脱离低谷，随新产能与成本控制稳步修复。"
+            },
+            {
+              "icon": "rocket",
+              "title": "复苏开启",
+              "text": "2025–2026 进入复苏阶段，需求回暖带动业绩反弹。"
+            },
+            {
+              "icon": "server",
+              "title": "新增长引擎",
+              "text": "DC&AI 重回增长，Foundry 成为第二曲线。"
+            },
+            {
+              "icon": "factory",
+              "title": "转型阵痛",
+              "text": "18A 量产爬坡期，高资本支出，成效需时间验证。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：AI 驱动复苏",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务需求",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "AI PC CPU",
+                  "text": "AI PC 渗透率提升，拉动高性能终端需求。"
+                },
+                {
+                  "icon": "server",
+                  "title": "数据中心 AI CPU",
+                  "text": "Gaudi 与 Xeon 在推理/训练需求复苏。"
+                },
+                {
+                  "icon": "factory",
+                  "title": "Intel 18A 代工",
+                  "text": "西方世界寻求先进制程供应链安全的重要选择。"
+                }
+              ]
+            },
+            {
+              "title": "供给 vs. 需求",
+              "items": [
+                {
+                  "icon": "layers",
+                  "title": "产能释放",
+                  "text": "18A 量产爬坡，良率提升，供给能力逐步释放。"
+                },
+                {
+                  "icon": "globe",
+                  "title": "全球产能紧张",
+                  "text": "2nm/3nm 节点紧张，地缘加剧供应链不确定性。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与市场份额",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "18A/14A 量产",
+              "text": "制程竞争力重定义的关键。"
+            },
+            {
+              "icon": "factory",
+              "title": "Foundry 客户扩张",
+              "text": "获取苹果、高通等外部大单是破局重点。"
+            },
+            {
+              "icon": "globe",
+              "title": "CHIPS Act",
+              "text": "巨额补贴缓解资本开支压力。"
+            },
+            {
+              "icon": "rocket",
+              "title": "AI PC 渗透",
+              "text": "换机潮拉动高性能芯片需求。"
+            },
+            {
+              "icon": "trophy",
+              "title": "Foundry 目标",
+              "text": "3–5 年内挑战台积电、三星，重塑代工格局。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "NVIDIA",
+              "text": "GPU 主导，Intel 在 CPU/加速器与其互补。"
+            },
+            {
+              "icon": "server",
+              "title": "AMD",
+              "text": "EPYC 在数据中心持续施压。"
+            },
+            {
+              "icon": "factory",
+              "title": "TSMC / Samsung",
+              "text": "Foundry 制程与良率领先。"
+            },
+            {
+              "icon": "stack",
+              "title": "IDM+Foundry",
+              "text": "x86 生态与本土先进制程是核心资产；18A 成功是护城河关键。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "地缘/供应链风险",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "中国市场",
+              "text": "收入占比仍高，出口管制限制高端芯片销售。"
+            },
+            {
+              "icon": "factory",
+              "title": "供应链风险",
+              "text": "全球化制造物流任何环节中断均加剧不确定性。"
+            },
+            {
+              "icon": "target",
+              "title": "出口管制",
+              "text": "中美科技脱钩加剧，迫使产品线与区域策略调整。"
+            },
+            {
+              "icon": "chart",
+              "title": "主要市场",
+              "text": "美国及盟国是基本盘，中国风险需常态化监控。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：逐步增强",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Q1 Non-GAAP 毛利率",
+              "value": "41%",
+              "lines": [
+                "优于指引"
+              ]
+            },
+            {
+              "icon": "chip",
+              "title": "驱动因素",
+              "value": "结构优化",
+              "lines": [
+                "高价值 AI 芯片占比",
+                "精准定价"
+              ]
+            },
+            {
+              "icon": "factory",
+              "title": "Foundry 拖累",
+              "value": "短期",
+              "lines": [
+                "量产爬坡折旧与研发较高"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与语气分析",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "Q2 指引",
+              "text": "营收 $138–148亿，Non-GAAP EPS $0.20，复苏信号强劲。"
+            },
+            {
+              "icon": "rocket",
+              "title": "CEO 语气",
+              "text": "2026 是执行之年，对 AI 与 18A 进展乐观务实。"
+            },
+            {
+              "icon": "trophy",
+              "title": "指引准确性",
+              "text": "Q1 大幅超越此前指引，修复市场信任。"
+            },
+            {
+              "icon": "chart",
+              "title": "预期评估",
+              "text": "转型预期处高位，18A 执行偏差或引发回调。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值与三档目标价模型（12–18 个月）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "当前股价",
+              "value": "~$110",
+              "lines": [
+                "2026-05-19"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Forward PE",
+              "value": "较高",
+              "lines": [
+                "转型期利润基数偏低"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "PB",
+              "value": "修复中",
+              "lines": [
+                "距历史中枢仍有空间"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~30%",
+              "subtitle": "上行驱动",
+              "range_low": 150,
+              "range_high": 180,
+              "note": "18A 良率超预期、Foundry 获大单、AI CPU 份额回升"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "中性预期",
+              "range_low": 90,
+              "range_high": 120,
+              "note": "18A 按计划爬坡，Foundry 亏损逐步收窄"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~25%",
+              "subtitle": "下行风险",
+              "range_low": 50,
+              "range_high": 70,
+              "note": "18A 不及预期、Foundry 持续亏损、份额流失"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "回调加仓",
+              "text": "$95–$100 企稳可分批加仓。"
+            },
+            {
+              "icon": "target",
+              "title": "谨慎获利",
+              "text": "$130+ 考虑部分获利。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "组合 4–7%，转型复苏观察仓位。"
+            },
+            {
+              "icon": "line",
+              "title": "风控",
+              "text": "止损 $85–$90；止盈 $140+ 分批；可用期权对冲地缘风险。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业叠加与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "低利率利好 CapEx，AI 结构性需求提供增长缓冲；CHIPS Act 支撑本土产能。短期看 18A 与财报，长期看 Foundry 转型与 AI CPU 第二曲线。评级：择机持有/谨慎买入（信心 55/100）；适合看好美国半导体供应链自主化、能承受高执行风险的长期投资者。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "英特尔处于 AI 与制造复苏交汇点，18A 量产与 Foundry 客户落地是关键拐点；需严格跟踪毛利率、现金流与竞争格局。"
+}

@@ -2157,6 +2157,18 @@ async def adaptive_long_webhook(request: Request):
 
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
 
+    try:
+        from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_signal_score
+        schedule_webhook_signal_score(
+            signal_symbol,
+            action,
+            timeframe=signal_timeframe,
+            webhook_raw=data,
+            strategy_label="adaptive_long",
+        )
+    except Exception as _sc_err:
+        logger.warning("买入信号 AI 评分调度失败(忽略): %s", _sc_err)
+
     # 按 symbol_filter 路由到匹配的实例
     # 同时清理线程已死亡的僵尸实例（防止旧版 finally 未清理留下的残留）
     dead_ids = []

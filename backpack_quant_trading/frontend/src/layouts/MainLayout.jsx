@@ -10,11 +10,14 @@ import {
   TrendingUp,
   Layers,
   Repeat,
+  Newspaper,
   ChevronRight,
   Menu,
   X,
 } from 'lucide-react'
 import ChatBot from '../components/ChatBot'
+import AisPageBackground from '../components/AisPageBackground'
+import '../styles/AisTheme.css'
 import './MainLayout.css'
 
 // 导航配置：支持父菜单 + 子菜单
@@ -39,6 +42,9 @@ const navItems = [
     ],
   },
   { type: 'item', to: '/currency-monitor', icon: Bell, label: '币种监视' },
+  { type: 'item', to: '/crypto-signal-hub', icon: TrendingUp, label: '加密信号AI评分' },
+  { type: 'item', to: '/stock-news-alert', icon: Newspaper, label: '自选多源快讯' },
+  { type: 'item', to: '/polymarket-alert', icon: TrendingUp, label: 'Polymarket概率' },
   { type: 'item', to: '/us-weekly-report', icon: BarChart2, label: '美股泡沫阶段监测' },
 ]
 
@@ -48,6 +54,9 @@ const pageTitles = {
   '/ai-lab': '加密AI分析',
   '/grid-trading': '网格交易',
   '/currency-monitor': '币种监视',
+  '/crypto-signal-hub': '加密信号AI评分',
+  '/stock-news-alert': '自选多源快讯',
+  '/polymarket-alert': 'Polymarket 概率提醒',
   '/stock-ai': 'A股 AI 选股',
   '/ai-stock': 'AI选股',
   '/strategies': 'AI量化实盘',
@@ -238,7 +247,10 @@ const MainLayout = () => {
           </div>
         </header>
         <main className="page-content">
-          <Outlet />
+          <AisPageBackground />
+          <div className="page-content-body">
+            <Outlet />
+          </div>
         </main>
       </div>
       <ChatBot />

@@ -5,6 +5,7 @@ import {
   getLatestBubbleAnalysis,
   getBubbleReportById,
 } from '../api/usWeeklyReport'
+import AisPageShell from '../components/AisPageShell'
 import './UsWeeklyReport.css'
 
 const fmtScore = (v, max) =>
@@ -144,7 +145,11 @@ const UsWeeklyReport = () => {
   }, [history])
 
   return (
-    <div className="page uwr-page">
+    <AisPageShell
+      title="美股泡沫阶段监测"
+      subtitle="周度泡沫评分、三层次综合判断与历史趋势；切换历史周报查看各期摘要与完整报告。"
+    >
+      <div className="uwr-stack">
       {/* 历史周报选择栏 */}
       {sortedHistory.length > 0 && (
         <div className="uwr-history-bar">
@@ -534,7 +539,8 @@ const UsWeeklyReport = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AisPageShell>
   )
 }
 

@@ -1,0 +1,18 @@
+{
+  "code": "ETH",
+  "name": "以太坊",
+  "tagline": "全球智能合约与数字基础设施",
+  "report_date": "2026-05-20",
+  "quote_symbol": "ETH-USD",
+  "scenarios": [
+    { "key": "bull", "label": "乐观情景", "probability": "~40%", "subtitle": "生态扩张", "range_low": 4500, "range_high": 5500, "note": "L2 繁荣、质押与 ETF 资金流、升级叙事" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 3200, "range_high": 4000, "note": "链上活动稳健、估值随 BTC 联动" },
+    { "key": "bear", "label": "悲观情景", "probability": "~15%", "subtitle": "监管/流动性", "range_low": 2200, "range_high": 2800, "note": "宏观流动性收紧、竞争链分流" }
+  ],
+  "highlights": [
+    "L2 费用与 TVL 增长反映生态真实需求",
+    "质押率、销毁与供应动态影响长期估值",
+    "监管与 ETF 资金流向是短期波动主因"
+  ],
+  "pdf_path": "ETH (Ethereum) 加密货币分析报告.pdf"
+}

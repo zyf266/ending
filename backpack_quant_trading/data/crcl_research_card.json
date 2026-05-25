@@ -1,0 +1,18 @@
+{
+  "code": "CRCL",
+  "name": "Circle",
+  "tagline": "连接传统金融与加密世界的稳定币基石",
+  "report_date": "2026-05-20",
+  "quote_symbol": "CRCL",
+  "scenarios": [
+    { "key": "bull", "label": "乐观情景", "probability": "~35%", "subtitle": "监管明朗", "range_low": 180, "range_high": 240, "note": "USDC 超预期、Arc 采用、Agentic AI、利率友好" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 120, "range_high": 160, "note": "USDC 稳健增长、多元化收入兑现" },
+    { "key": "bear", "label": "悲观情景", "probability": "~20%", "subtitle": "政策风险", "range_low": 60, "range_high": 90, "note": "监管收紧、加密熊市、利率下行" }
+  ],
+  "highlights": [
+    "USDC 流通规模与链上活跃度是核心观测指标",
+    "储备资产收益与利率周期高度相关",
+    "合规架构与机构合作构成差异化护城河"
+  ],
+  "pdf_path": "CRCL (Circle) 美股分析报告.pdf"
+}

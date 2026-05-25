@@ -2,3 +2,6 @@ backpack_quant_trading/data/kline_cache/
 backpack_quant_trading/log/
 backpack_quant_trading/data/kline_cache/
 backpack_quant_trading/log/
+# 含钉钉 Webhook 与自选词，勿入库
+backpack_quant_trading/data/stock_news_alert_config.json
+backpack_quant_trading/data/stock_news_alert_state.json

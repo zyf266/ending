@@ -1,0 +1,390 @@
+{
+  "code": "HYPE",
+  "name": "Hyperliquid",
+  "tagline": "去中心化衍生品交易的领导者",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：数据表现强劲",
+      "subtitle": "最新数据（2026年5月）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "HYPE 价格",
+              "value": "$47.5–48.7",
+              "lines": []
+            },
+            {
+              "icon": "trophy",
+              "title": "市值",
+              "value": "$114–116亿",
+              "lines": [
+                "排名前 12–15"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "周收入",
+              "value": "~$1400万",
+              "lines": [
+                "持续高位"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Open Interest",
+              "value": "$26亿",
+              "lines": [
+                "纪录高点"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "快速崛起的顶级 DeFi 基础设施",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "储备雄厚",
+              "text": "平台储备与生态基金为长期发展提供保障。"
+            },
+            {
+              "icon": "target",
+              "title": "网络安全",
+              "text": "Staking 支撑去中心化防御体系。"
+            },
+            {
+              "icon": "trend",
+              "title": "代币经济学",
+              "text": "高收入用于回购/销毁 + Staking 激励。"
+            },
+            {
+              "icon": "rocket",
+              "title": "快速崛起",
+              "text": "2025 上线后凭低延迟体验抢占 DEX 份额。"
+            },
+            {
+              "icon": "chart",
+              "title": "持续创高",
+              "text": "RWA、预测市场与 ETF 催化收入/TVL 新高。"
+            },
+            {
+              "icon": "globe",
+              "title": "战略定位",
+              "text": "从新兴 DEX 蜕变为连接 TradFi 与 DeFi 的枢纽。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心需求",
+              "items": [
+                {
+                  "icon": "chart",
+                  "title": "永续合约",
+                  "text": "专业交易员对低延迟链上透明交易需求强劲。"
+                },
+                {
+                  "icon": "globe",
+                  "title": "RWA 交易",
+                  "text": "真实资产上链拓宽市场深度。"
+                },
+                {
+                  "icon": "robot",
+                  "title": "预测市场",
+                  "text": "吸引新用户群，扩大平台基础。"
+                }
+              ]
+            },
+            {
+              "title": "供给匹配",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "L1 优化",
+                  "text": "专为高频交易优化的高吞吐低延迟架构。"
+                },
+                {
+                  "icon": "trend",
+                  "title": "活跃度攀升",
+                  "text": "OI 与 24h 成交量持续上行。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "长期催化剂与市场地位",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "stack",
+              "title": "RWA 交易",
+              "text": "Tokenized 资产是未来重要增长点。"
+            },
+            {
+              "icon": "robot",
+              "title": "Agentic AI",
+              "text": "AI 交易代理带来新流量与策略。"
+            },
+            {
+              "icon": "chart",
+              "title": "ETF 资金",
+              "text": "合规增量资金推动加密市场活跃度。"
+            },
+            {
+              "icon": "target",
+              "title": "预测市场",
+              "text": "品类与规模扩张打造多元生态。"
+            },
+            {
+              "icon": "trophy",
+              "title": "Perps 领先",
+              "text": "去中心化永续赛道份额领先。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "dYdX / GMX",
+              "text": "同业在流动性与产品上有竞争。"
+            },
+            {
+              "icon": "globe",
+              "title": "CEX",
+              "text": "Binance 等仍占绝对流量，链上争夺激烈。"
+            },
+            {
+              "icon": "chip",
+              "title": "技术体验",
+              "text": "订单簿性能与延迟是专业用户留存关键。"
+            },
+            {
+              "icon": "stack",
+              "title": "收入回购",
+              "text": "手续费回购机制强化代币价值捕获。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "监管与平台风险",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "监管",
+              "text": "衍生品与预测市场面临各地合规不确定性。"
+            },
+            {
+              "icon": "line",
+              "title": "智能合约",
+              "text": "需关注审计与安全事件。"
+            },
+            {
+              "icon": "chart",
+              "title": "代币解锁",
+              "text": "激励与解锁节奏影响供给压力。"
+            },
+            {
+              "icon": "target",
+              "title": "竞争费率",
+              "text": "费用战或压缩短期收入与利润率。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力（平台经济）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "周收入",
+              "value": "~$1400万",
+              "lines": [
+                "交易手续费驱动"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "回购销毁",
+              "value": "持续",
+              "lines": [
+                "通缩代币供给"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Staking",
+              "value": "激励",
+              "lines": [
+                "回馈长期持有者"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "市场预期",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "rocket",
+              "title": "增长叙事",
+              "text": "RWA + 预测市场 + Perps 三位一体。"
+            },
+            {
+              "icon": "chart",
+              "title": "估值",
+              "text": "高收入平台享有溢价，对交易量敏感。"
+            },
+            {
+              "icon": "trophy",
+              "title": "社区",
+              "text": "链上原生用户粘性强。"
+            },
+            {
+              "icon": "line",
+              "title": "波动",
+              "text": "代币波动大于主流币，需控制仓位。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值与三档目标价模型",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~35%",
+              "subtitle": "生态扩张",
+              "range_low": 75,
+              "range_high": 95,
+              "note": "OI/收入超预期、RWA 爆发"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "稳健增长",
+              "range_low": 50,
+              "range_high": 65,
+              "note": "Perps 份额维持、收入高位"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~20%",
+              "subtitle": "竞争加剧",
+              "range_low": 28,
+              "range_high": 38,
+              "note": "费率战、监管、加密熊市"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "趋势持有",
+              "text": "景气上行以持有为主，关注周收入与 OI。"
+            },
+            {
+              "icon": "target",
+              "title": "止盈",
+              "text": "接近乐观区间分批兑现。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "建议 2–5%，属高波动卫星仓位。"
+            },
+            {
+              "icon": "line",
+              "title": "风控",
+              "text": "跌破关键支撑减仓，跟踪解锁日历。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业叠加",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "HYPE 与链上衍生品景气、加密流动性及平台执行力高度相关。适合看好去中心化 Perps 与 RWA 叙事、能承受高波动的投资者，严格仓位与催化剂跟踪。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Hyperliquid 在链上永续与平台收入捕获上具备先发优势；需持续跟踪交易量、回购与代币解锁，防范竞争与监管风险。"
+}

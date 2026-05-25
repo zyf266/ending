@@ -1,0 +1,18 @@
+{
+  "code": "SNDK",
+  "name": "SanDisk",
+  "tagline": "AI存储周期节点的核心受益者",
+  "report_date": "2026-05-20",
+  "quote_symbol": "SNDK",
+  "scenarios": [
+    { "key": "bull", "label": "乐观情景", "probability": "~40%", "subtitle": "AI 存储景气", "range_low": 95, "range_high": 115, "note": "NAND 涨价、企业级 SSD 需求、份额回升" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 72, "range_high": 88, "note": "周期上行但波动大、执行节奏关键" },
+    { "key": "bear", "label": "悲观情景", "probability": "~15%", "subtitle": "周期下行", "range_low": 48, "range_high": 60, "note": "价格竞争、库存调整、需求不及预期" }
+  ],
+  "highlights": [
+    "NAND 价格周期与数据中心/边缘 AI 存储需求共振",
+    "与西部数据分拆后聚焦闪存，经营杠杆弹性大",
+    "需跟踪库存、毛利率及大客户订单能见度"
+  ],
+  "pdf_path": "SNDK (SanDisk) 美股分析报告.pdf"
+}

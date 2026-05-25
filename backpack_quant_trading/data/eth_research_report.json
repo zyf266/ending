@@ -1,0 +1,351 @@
+{
+  "code": "ETH",
+  "name": "以太坊",
+  "tagline": "全球智能合约与数字基础设施",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-20",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：链上指标与供应机制",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "年化通胀",
+              "value": "~0.23%",
+              "lines": [
+                "温和通缩倾向"
+              ]
+            },
+            {
+              "icon": "stack",
+              "title": "Staking",
+              "value": "~36M+ ETH",
+              "lines": [
+                "占比 ~30%"
+              ]
+            },
+            {
+              "icon": "network",
+              "title": "DeFi TVL",
+              "value": "$430–450亿",
+              "lines": [
+                "占比 ~53%"
+              ]
+            },
+            {
+              "icon": "rocket",
+              "title": "Pectra 后",
+              "value": "扩展性提升",
+              "lines": [
+                "L2 活动显著增长"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "机构持仓与 ETF 动向",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "trophy",
+              "title": "BitMine 持仓",
+              "text": "528 万 ETH（占供应 4.37%），成本约 $3050–3450，浮亏未减仓。"
+            },
+            {
+              "icon": "chart",
+              "title": "ETH ETF",
+              "text": "2026 年至今净流入为负，高位抛压压制上行。"
+            },
+            {
+              "icon": "target",
+              "title": "机构信号",
+              "text": "部分机构小额加仓，显示长期信念。"
+            },
+            {
+              "icon": "line",
+              "title": "资金面",
+              "text": "需关注 ETF 回流，持续恶化或拖累 Beta。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "智能合约",
+              "text": "可编程性是去中心化生态底层。"
+            },
+            {
+              "icon": "flow",
+              "title": "DeFi",
+              "text": "借贷、交易等金融服务的核心平台。"
+            },
+            {
+              "icon": "globe",
+              "title": "RWA",
+              "text": "真实世界资产代币化首选底层。"
+            },
+            {
+              "icon": "cash",
+              "title": "稳定币",
+              "text": "USDC 等发行核心网络，链上价值锚定。"
+            },
+            {
+              "icon": "network",
+              "title": "Layer 2",
+              "text": "扩容缓解主网拥堵，匹配海量交易需求。"
+            },
+            {
+              "icon": "robot",
+              "title": "Agentic AI",
+              "text": "AI 智能体链上协作经济基础。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "长期催化剂与市场地位",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "stack",
+              "title": "后续升级",
+              "text": "Glamsterdam 等优化吞吐与安全。"
+            },
+            {
+              "icon": "globe",
+              "title": "RWA 规模化",
+              "text": "房地产、债券等资产链上化加速。"
+            },
+            {
+              "icon": "chart",
+              "title": "Staking ETF",
+              "text": "机构通过 ETF 参与质押成趋势。"
+            },
+            {
+              "icon": "cash",
+              "title": "稳定币扩张",
+              "text": "流通市值向万亿美元级别迈进。"
+            },
+            {
+              "icon": "trophy",
+              "title": "L1 份额",
+              "text": "智能合约平台主导份额 53%+。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "rocket",
+              "title": "Solana",
+              "text": "速度与费用优势，适合高频消费级场景。"
+            },
+            {
+              "icon": "chart",
+              "title": "BNB Chain",
+              "text": "交易所生态导流，DeFi 活跃但去中心化程度较低。"
+            },
+            {
+              "icon": "network",
+              "title": "开发者生态",
+              "text": "ETH 开发者网络与工具链仍最深厚。"
+            },
+            {
+              "icon": "stack",
+              "title": "护城河",
+              "text": "安全记录、L2 矩阵与质押经济形成复合壁垒。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "监管与宏观风险",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "监管政策",
+              "text": "美国及全球加密监管影响 ETF 与机构入场。"
+            },
+            {
+              "icon": "chart",
+              "title": "BTC 联动",
+              "text": "风险偏好与比特币走势显著影响 ETH Beta。"
+            },
+            {
+              "icon": "line",
+              "title": "利率流动性",
+              "text": "宏观流动性收紧压制风险资产估值。"
+            },
+            {
+              "icon": "target",
+              "title": "技术风险",
+              "text": "升级执行、L2 安全与 MEV 需持续跟踪。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利质量（链上经济）",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "以太坊无传统公司利润表，价值捕获来自 Gas、质押收益与生态 TVL。低通胀 + 高质押率形成供应收缩，费用收入与 L2 活动是景气度核心指标。"
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "市场预期与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "ETF 情绪",
+              "text": "资金面疲软时价格易受压制。"
+            },
+            {
+              "icon": "rocket",
+              "title": "生态情绪",
+              "text": "RWA 与 L2 叙事支撑中长期乐观。"
+            },
+            {
+              "icon": "trophy",
+              "title": "机构持仓",
+              "text": "大型持仓方未减仓传递长期信号。"
+            },
+            {
+              "icon": "line",
+              "title": "波动",
+              "text": "加密资产波动大，需动态仓位管理。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值与三档目标价模型",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "~35%",
+              "subtitle": "资金回流",
+              "range_low": 4500,
+              "range_high": 5500,
+              "note": "ETF 净流入、RWA 爆发、宏观宽松"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "~45%",
+              "subtitle": "震荡上行",
+              "range_low": 3200,
+              "range_high": 4200,
+              "note": "生态稳步增长、监管中性"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "~20%",
+              "subtitle": "深度调整",
+              "range_low": 2200,
+              "range_high": 2800,
+              "note": "ETF 持续流出、监管收紧、BTC 走弱"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "定投/回调买",
+              "text": "ETF 流出期宜分批布局，避免一次性重仓。"
+            },
+            {
+              "icon": "target",
+              "title": "止盈",
+              "text": "接近乐观区间分批减仓。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "加密仓位建议 5–15% 组合内，ETH 为核心配置。"
+            },
+            {
+              "icon": "line",
+              "title": "风控",
+              "text": "设置硬止损，关注 ETF 周度资金流。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业叠加",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "ETH 与全球流动性、监管、BTC 周期及链上基本面四维联动。中长期看好智能合约龙头地位，短期以 ETF 资金流与关键阻力位为交易锚点。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "以太坊仍是智能合约与 DeFi 核心基础设施；短期受 ETF 资金面压制，中长期看 L2/RWA 与供应机制。建议核心配置、分批建仓、严格风控。"
+}

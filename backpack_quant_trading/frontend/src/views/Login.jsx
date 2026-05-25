@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login, register } from '../api/auth'
+import AisPageBackground from '../components/AisPageBackground'
+import '../styles/AisTheme.css'
 import './Login.css'
 
 const Login = () => {
@@ -70,7 +72,7 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      <div className="login-bg"></div>
+      <AisPageBackground />
       <div className="login-card">
         <div className="login-brand">
           <div className="brand-logo-box">

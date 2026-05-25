@@ -1,0 +1,42 @@
+{
+  "code": "NVDA",
+  "name": "英伟达",
+  "tagline": "AI时代的绝对霸主",
+  "report_date": "2026-05-20",
+  "quote_symbol": "NVDA",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "~40%",
+      "subtitle": "上行驱动",
+      "range_low": 320,
+      "range_high": 380,
+      "note": "Blackwell/Rubin 超预期、AI 资本开支、份额 80%+"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "~45%",
+      "subtitle": "中性预期",
+      "range_low": 240,
+      "range_high": 290,
+      "note": "AI 需求稳健、战略执行正常、毛利略回落"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "~15%",
+      "subtitle": "下行风险",
+      "range_low": 140,
+      "range_high": 180,
+      "note": "AI ROI 证伪、竞争加剧、宏观衰退"
+    }
+  ],
+  "highlights": [
+    "FY2026 全年营收约 $2159 亿（+65%），数据中心占比超 90%",
+    "Q1 FY2027 指引营收约 $780 亿（±2%），Blackwell 供给仍偏紧",
+    "毛利率维持约 75% 高位，FCF 强劲支撑回购与研发"
+  ],
+  "pdf_path": "NVIDIA (NVDA) 美股分析报告.pdf"
+}

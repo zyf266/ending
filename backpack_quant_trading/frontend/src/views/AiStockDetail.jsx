@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getAiStockReportByCode } from '../data/aiStockReports'
+import NvdaFullReport from './NvdaFullReport'
+import { getResearchCard, RESEARCH_CARD_CODES } from '../api/aiStockHub'
+import { RESEARCH_CARDS_FALLBACK } from '../data/researchCardsFallback'
 import './AiStock.css'
 
 const Row = ({ title, left, middle, right, target, keyLevel }) => {
@@ -19,34 +22,67 @@ const Row = ({ title, left, middle, right, target, keyLevel }) => {
 const AiStockDetail = () => {
   const { code } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const sym = String(code || '').toUpperCase()
+  const isResearchPdf = RESEARCH_CARD_CODES.includes(sym)
 
-  const item = useMemo(() => getAiStockReportByCode(code), [code])
-  const r = item?.report
-  const [tab, setTab] = useState('analysis') // analysis | report
+  const legacyItem = useMemo(() => getAiStockReportByCode(code), [code])
+  const [pdfMeta, setPdfMeta] = useState(null)
+  const fbCard = RESEARCH_CARDS_FALLBACK[sym]
+  const item =
+    legacyItem ||
+    (isResearchPdf && (pdfMeta || fbCard)
+      ? {
+          code: sym,
+          name: pdfMeta?.name || fbCard?.name || sym,
+          updated_at: pdfMeta?.report_date || fbCard?.report_date || '-',
+          report: null,
+        }
+      : null)
+  const r = legacyItem?.report
+  const pdfOnly = isResearchPdf && !legacyItem
+  const initialTab =
+    searchParams.get('tab') === 'fullreport' && isResearchPdf
+      ? 'fullreport'
+      : pdfOnly
+        ? 'fullreport'
+        : 'analysis'
+  const [tab, setTab] = useState(initialTab) // analysis | report | fullreport
   const [streaming, setStreaming] = useState(false)
   const [analysis, setAnalysis] = useState({})
   const idxRef = useRef(0)
   const timerRef = useRef(null)
 
-  if (!item || !r) {
-    return (
-      <div className="page ais-page">
-        <div className="ais-detail-header">
-          <button type="button" className="ais-back" onClick={() => navigate('/ai-stock')}>
-            ← 返回
-          </button>
-        </div>
-        <div className="ais-empty">
-          <div className="ais-empty-title">未找到该股票</div>
-          <div className="ais-empty-sub">
-            返回列表页或检查代码是否正确：<span className="ais-mono">{String(code || '')}</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (!isResearchPdf || legacyItem) {
+      setPdfMeta(null)
+      return undefined
+    }
+    getResearchCard(sym)
+      .then((h) => {
+        const card = h?.card || {}
+        setPdfMeta({
+          name: card.name || sym,
+          report_date: card.report_date,
+          tagline: card.tagline,
+        })
+      })
+        .catch(() => {
+          const fb = RESEARCH_CARDS_FALLBACK[sym]
+          setPdfMeta({
+            name: fb?.name || sym,
+            report_date: fb?.report_date || '-',
+            tagline: fb?.tagline,
+          })
+        })
+    return undefined
+  }, [sym, isResearchPdf, legacyItem])
 
-  const sections = useMemo(() => ([
+  useEffect(() => {
+    if (pdfOnly) setTab('fullreport')
+  }, [pdfOnly])
+
+  const sections = useMemo(() => (r ? [
     { key: 'business', title: r.business?.title || '业务情况', focus: r.business?.left, ai: r.business?.middle, view: r.business?.right, target: r.business?.target },
     { key: 'finance', title: r.finance?.title || '财务状况', focus: r.finance?.left, ai: r.finance?.middle, view: r.finance?.right },
     { key: 'valuation', title: r.valuation?.title || '估值指标', focus: r.valuation?.left, ai: r.valuation?.middle, view: r.valuation?.right },
@@ -55,9 +91,10 @@ const AiStockDetail = () => {
     { key: 'catalysts', title: r.catalysts?.title || '催化剂', focus: r.catalysts?.left, ai: r.catalysts?.middle, view: r.catalysts?.right },
     { key: 'external', title: r.external?.title || '被动影响', focus: r.external?.left, ai: r.external?.middle, view: r.external?.right },
     { key: 'safety', title: r.safety?.title || '安全边际', focus: r.safety?.left, ai: r.safety?.middle, view: r.safety?.right },
-  ]), [r])
+  ] : []), [r])
 
   const fullAnalysis = useMemo(() => {
+    if (!r) return { conclusion: { title: '总结', text: '—' } }
     const safe = (v) => (v == null ? '' : String(v).trim())
     const init = {}
     for (const s of sections) {
@@ -72,7 +109,7 @@ const AiStockDetail = () => {
     }
     init.conclusion = { title: r.conclusion?.title || '总结', text: safe(r.conclusion?.text) || '—' }
     return init
-  }, [sections, r.conclusion])
+  }, [sections, r])
 
   const startStream = () => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -124,17 +161,47 @@ const AiStockDetail = () => {
   }
 
   useEffect(() => {
-    // 默认进来即开始“逐行输出”
-    setTab('analysis')
+    if (!r || tab === 'fullreport' || tab !== 'analysis') return undefined
     startStream()
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.code])
+  }, [sym, tab, r])
+
+  const fullReportMode = isResearchPdf && tab === 'fullreport'
+
+  useEffect(() => {
+    const el = document.querySelector('.page-content')
+    if (!el) return undefined
+    if (fullReportMode) {
+      el.classList.add('page-content-fullreport')
+    } else {
+      el.classList.remove('page-content-fullreport')
+    }
+    return () => el.classList.remove('page-content-fullreport')
+  }, [fullReportMode])
+
+  if (!item) {
+    return (
+      <div className="page ais-page">
+        <div className="ais-detail-header">
+          <button type="button" className="ais-back" onClick={() => navigate('/ai-stock')}>
+            ← 返回
+          </button>
+        </div>
+        <div className="ais-empty">
+          <div className="ais-empty-title">{isResearchPdf ? '加载研报…' : '未找到该股票'}</div>
+          <div className="ais-empty-sub">
+            <span className="ais-mono">{String(code || '')}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="page ais-page">
+    <div className={`page ais-page ${fullReportMode ? 'ais-page-fullreport' : ''}`}>
       <div className="ais-hero">
         <div className="ais-hero-top">
           <button type="button" className="ais-back-link" onClick={() => navigate('/ai-stock')}>
@@ -153,26 +220,42 @@ const AiStockDetail = () => {
             </div>
           </div>
           <div className="ais-hero-tabs">
-            <button
-              type="button"
-              className={`ais-pill ${tab === 'analysis' ? 'active' : ''}`}
-              onClick={() => {
-                setTab('analysis')
-                startStream()
-              }}
-            >
-              AI分析
-            </button>
-            <button
-              type="button"
-              className={`ais-pill ${tab === 'report' ? 'active' : ''}`}
-              onClick={() => {
-                stopStream()
-                setTab('report')
-              }}
-            >
-              研究要点
-            </button>
+            {!pdfOnly && (
+              <button
+                type="button"
+                className={`ais-pill ${tab === 'analysis' ? 'active' : ''}`}
+                onClick={() => {
+                  setTab('analysis')
+                  startStream()
+                }}
+              >
+                AI分析
+              </button>
+            )}
+            {isResearchPdf && (
+              <button
+                type="button"
+                className={`ais-pill ${tab === 'fullreport' ? 'active' : ''}`}
+                onClick={() => {
+                  stopStream()
+                  setTab('fullreport')
+                }}
+              >
+                完整研报
+              </button>
+            )}
+            {!pdfOnly && (
+              <button
+                type="button"
+                className={`ais-pill ${tab === 'report' ? 'active' : ''}`}
+                onClick={() => {
+                  stopStream()
+                  setTab('report')
+                }}
+              >
+                研究要点
+              </button>
+            )}
             <NavLink to={`/ai-stock/${encodeURIComponent(item.code)}/signals`} className="ais-pill">
               历史信号
             </NavLink>
@@ -183,7 +266,9 @@ const AiStockDetail = () => {
         </div>
       </div>
 
-      {tab === 'analysis' ? (
+      {tab === 'fullreport' && isResearchPdf ? (
+        <NvdaFullReport symbol={sym} />
+      ) : tab === 'analysis' && r && !pdfOnly ? (
         <>
           <div className="ais-analysis-toolbar">
             <div className="ais-analysis-status">{streaming ? '实时生成中' : '已生成'}</div>
@@ -255,7 +340,7 @@ const AiStockDetail = () => {
             <div className="ais-conclusion-text">{analysis?.conclusion?.text || (streaming ? '…' : fullAnalysis.conclusion?.text) || '-'}</div>
           </div>
         </>
-      ) : (
+      ) : r ? (
         <>
           <div className="ais-table">
             <div className="ais-row ais-row-head">
@@ -324,7 +409,7 @@ const AiStockDetail = () => {
             <div className="ais-conclusion-text">{r.conclusion?.text || '-'}</div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

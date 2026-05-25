@@ -1,11 +1,59 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BarChart3, Activity, TrendingUp, Wallet, Search, Filter, Plus, LayoutGrid, List, ChevronDown } from 'lucide-react'
+import { BarChart3, Activity, TrendingUp, Wallet, Percent, Search, Filter, Plus, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { StrategyCardMatrix } from '../components/StrategyCardMatrix'
-import { getEthTrendOverview, getEthOnlyOverview, getPaxgTrendOverview, getNas100TrendOverview, getCrclOverview } from '../api/strategy'
+import {
+  getEthTrendOverview,
+  getEthOnlyOverview,
+  getPaxgTrendOverview,
+  getNas100TrendOverview,
+  getCrclOverview,
+  getIntcOverview,
+  getNvdaOverview,
+  getMatrixYearlyReturns,
+} from '../api/strategy'
 
 const strategies = [
+  {
+    to: '/strategies/us-momentum-nvda',
+    icon: '🟢',
+    title: '美股动量轮动策略·NVDA',
+    code: 'ML-USM',
+    description: '聚焦 NVDA 等 AI 龙头，结合趋势强度、回撤过滤与风险预算，进行中短期动量轮动配置，捕捉 AI 主升浪与 Blackwell 出货周期。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '低风险',
+    isRiskWarning: false,
+  },
+  {
+    to: '/strategies/us-momentum-intc',
+    icon: '💠',
+    title: '美股动量轮动策略·INTC',
+    code: 'ML-USM',
+    description: '聚焦 INTC 等半导体核心标的，结合趋势强度、回撤过滤与风险预算，进行中短期动量轮动配置，捕捉半导体板块主升浪行情。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '中风险',
+    isRiskWarning: true,
+  },
+  {
+    to: '/strategies/us-momentum-crcl',
+    icon: '🇺🇸',
+    title: '美股动量轮动策略·CRCL',
+    code: 'ML-USM',
+    description: '专注 CRCL 等高波动资产，通过多周期协同过滤震荡噪音，精准捕捉由趋势扩张驱动的中长期波段，利用量化计算严控风险回撤，追求稳健的风险调整后收益。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '中风险',
+    isRiskWarning: true,
+  },
   {
     to: '/strategies/eth-only',
     icon: '₿',
@@ -29,19 +77,6 @@ const strategies = [
     statusColor: 'bg-green-500 text-white',
     progress: 98,
     progressColor: '#10b981',
-    riskIndex: '中风险',
-    isRiskWarning: true,
-  },
-  {
-    to: '/strategies/us-momentum-crcl',
-    icon: '🇺🇸',
-    title: '美股动量轮动策略·CRCL',
-    code: 'ML-USM',
-    description: '专注 CRCL 等高波动资产，通过多周期协同过滤震荡噪音，精准捕捉由趋势扩张驱动的中长期波段，利用量化计算严控风险回撤，追求稳健的风险调整后收益。',
-    status: '运行中',
-    statusColor: 'bg-green-500 text-white',
-    progress: 68,
-    progressColor: '#3b82f6',
     riskIndex: '中风险',
     isRiskWarning: true,
   },
@@ -86,9 +121,27 @@ const strategies = [
   },
 ]
 
+/** 单策略：由总收益与自身回测区间复利年化（%）；区间不足 9 个月返回 null */
+function computeAnnualizedPct(ov) {
+  if (!ov || ov.total_return_pct == null || !ov.start_date || !ov.end_date) return null
+  const ret = Number(ov.total_return_pct)
+  if (!Number.isFinite(ret) || Math.abs(ret) < 1e-6) return null
+  const days = Math.max(1, (new Date(ov.end_date) - new Date(ov.start_date)) / 86400000)
+  const years = days / 365
+  if (years < 0.75) return null
+  return ((1 + ret / 100) ** (1 / years) - 1) * 100
+}
+
+const formatYearPct = (v) => {
+  if (v == null || !Number.isFinite(Number(v))) return '--'
+  const n = Number(v)
+  return `${n > 0 ? '+' : ''}${n.toFixed(2)}%`
+}
+
 export default function StrategyMatrixAlt() {
   const path = useLocation().pathname
   const [overviews, setOverviews] = useState({})
+  const [yearlyReturns, setYearlyReturns] = useState(null)
 
   useEffect(() => {
     const reqs = [
@@ -97,14 +150,23 @@ export default function StrategyMatrixAlt() {
       { key: 'paxg', fn: getPaxgTrendOverview },
       { key: 'nas100', fn: getNas100TrendOverview },
       { key: 'crcl', fn: getCrclOverview },
+      { key: 'intc', fn: getIntcOverview },
+      { key: 'nvda', fn: getNvdaOverview },
     ]
 
-    Promise.allSettled(reqs.map((r) => r.fn())).then((results) => {
+    Promise.allSettled([
+      ...reqs.map((r) => r.fn()),
+      getMatrixYearlyReturns(),
+    ]).then((results) => {
       const next = {}
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled' && r.value) next[reqs[i].key] = r.value
+      reqs.forEach((r, i) => {
+        if (results[i].status === 'fulfilled' && results[i].value) {
+          next[r.key] = results[i].value
+        }
       })
       setOverviews(next)
+      const yr = results[reqs.length]
+      if (yr.status === 'fulfilled' && yr.value) setYearlyReturns(yr.value)
     })
   }, [])
 
@@ -123,7 +185,12 @@ export default function StrategyMatrixAlt() {
       : `$${(totalProfit / 1e3).toFixed(1)}K`
     : '--'
 
-  const stats = [
+  const yearRows = yearlyReturns?.years || {}
+  const y2024 = yearRows['2024']
+  const y2025 = yearRows['2025']
+  const y2026 = yearRows['2026']
+
+  const statsPrimary = [
     {
       title: '策略总数',
       value: String(strategies.length),
@@ -151,45 +218,56 @@ export default function StrategyMatrixAlt() {
     },
   ]
 
-  const strategyKeys = ['eth', 'hype', 'crcl', 'paxg', 'nas100', null]
+  const statsYearly = [
+    { title: '2024年化', value: formatYearPct(y2024?.annualized_pct) },
+    { title: '2025年化', value: formatYearPct(y2025?.annualized_pct) },
+    { title: '2026年化', value: formatYearPct(y2026?.annualized_pct) },
+    { title: '2027年化', value: '--' },
+  ]
+
+  // 与 strategies 数组顺序一致：NVDA、INTC、CRCL、ETH、HYPE、PAXG、纳指、A股
+  const strategyKeys = ['nvda', 'intc', 'crcl', 'eth', 'hype', 'paxg', 'nas100', null]
+  // INTC/NVDA 的「最大回撤」读 overview；「盈亏比」按产品展示口径固定为指定值。
+  const useLiveDrawdown = new Set(['intc', 'nvda'])
   const enrichedStrategies = strategies.map((s, i) => {
-    const ov = overviews[strategyKeys[i]]
-    // 固定展示值：最大回撤和盈亏比
-    const fixedDrawdown = ['-3.48%', '-6.47%', '-10.89%', '-1.44%', '-4%', '--']
-    const fixedProfitFactor = ['2.58', '2.84', '4.21', '2.25', '0.71', '--']
-    if (!ov) return { ...s, annualReturn: '--', annualReturnLabel: '平均年化', drawdown: fixedDrawdown[i], profitFactor: fixedProfitFactor[i] }
+    const key = strategyKeys[i]
+    const ov = overviews[key]
+    // 固定展示值：最大回撤和盈亏比（按上面 strategies 数组的顺序）
+    const fixedDrawdown = ['--', '--', '-10.89%', '-3.48%', '-6.47%', '-1.44%', '-4%', '--']
+    const fixedProfitFactor = ['--', '--', '4.21', '2.58', '2.84', '2.25', '0.71', '--']
+    const liveDrawdown = ov?.max_drawdown_pct != null
+      ? `-${Number(ov.max_drawdown_pct).toFixed(2)}%`
+      : null
+    const drawdown = useLiveDrawdown.has(key) && liveDrawdown ? liveDrawdown : fixedDrawdown[i]
+    const profitFactor =
+      key === 'intc' ? '10.39' : key === 'nvda' ? '9.8' : fixedProfitFactor[i]
+    if (!ov) return { ...s, annualReturn: '--', annualReturnLabel: '平均年化', drawdown, profitFactor }
     let annualReturn = '--'
     let annualReturnLabel = '平均年化'
-    if (ov.total_return_pct != null && ov.start_date && ov.end_date) {
-      const days = Math.max(1, (new Date(ov.end_date) - new Date(ov.start_date)) / 86400000)
-      const years = days / 365
-      if (years >= 0.75) {
-        // 数据超过9个月才做年化
-        const ann = ((1 + ov.total_return_pct / 100) ** (1 / years) - 1) * 100
-        annualReturn = `${ann > 0 ? '+' : ''}${ann.toFixed(2)}%`
-      } else {
-        // 数据太短，显示区间总收益
-        annualReturnLabel = '区间收益'
-        annualReturn = `${ov.total_return_pct > 0 ? '+' : ''}${ov.total_return_pct.toFixed(2)}%`
-      }
+    const ann = computeAnnualizedPct(ov)
+    if (ann != null) {
+      annualReturn = `${ann > 0 ? '+' : ''}${ann.toFixed(2)}%`
+    } else if (ov.total_return_pct != null) {
+      annualReturnLabel = '区间收益'
+      annualReturn = `${ov.total_return_pct > 0 ? '+' : ''}${ov.total_return_pct.toFixed(2)}%`
     }
     return {
       ...s,
       annualReturn,
       annualReturnLabel,
-      drawdown: fixedDrawdown[i],
-      profitFactor: fixedProfitFactor[i],
+      drawdown,
+      profitFactor,
     }
   })
 
   return (
-    <div className="strategy-matrix-alt min-h-full w-full bg-[#f9fafb]">
+    <div className="strategy-matrix-alt min-h-full w-full">
       <div className="mx-auto w-full max-w-[1920px] px-4 py-5">
-        {/* Stats Grid */}
-        <div className="stats-grid-strategy mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {stats.map((stat, index) => (
+        {/* Stats Grid：第一行汇总，第二行分年年化 */}
+        <div className="stats-grid-strategy mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {statsPrimary.map((stat, index) => (
             <StatCard
-              key={index}
+              key={stat.title}
               title={stat.title}
               value={stat.value}
               change={stat.change}
@@ -197,6 +275,17 @@ export default function StrategyMatrixAlt() {
               percentage={stat.percentage}
               icon={stat.icon}
               iconColor={stat.iconColor}
+            />
+          ))}
+        </div>
+        <div className="stats-grid-strategy mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {statsYearly.map((stat) => (
+            <StatCard
+              key={stat.title}
+              title={stat.title}
+              value={stat.value}
+              icon={Percent}
+              iconColor="bg-indigo-500"
             />
           ))}
         </div>

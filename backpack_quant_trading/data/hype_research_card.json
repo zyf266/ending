@@ -1,0 +1,18 @@
+{
+  "code": "HYPE",
+  "name": "Hyperliquid",
+  "tagline": "去中心化衍生品交易的领导者",
+  "report_date": "2026-05-20",
+  "quote_symbol": "HYPE-USD",
+  "scenarios": [
+    { "key": "bull", "label": "乐观情景", "probability": "~40%", "subtitle": "份额提升", "range_low": 35, "range_high": 48, "note": "交易量创新高、生态激励、上币效应" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 24, "range_high": 32, "note": "DEX 竞争加剧但龙头地位稳固" },
+    { "key": "bear", "label": "悲观情景", "probability": "~15%", "subtitle": "回调", "range_low": 14, "range_high": 20, "note": "加密风险偏好下降、激励退坡" }
+  ],
+  "highlights": [
+    "永续合约交易量与未平仓合约是景气度核心指标",
+    "链上订单簿性能与用户体验构成产品壁垒",
+    "代币激励与收入分配机制影响长期持有价值"
+  ],
+  "pdf_path": "HYPE (Hyperliquid) 加密分析报告.pdf"
+}
