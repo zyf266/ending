@@ -1,0 +1,11 @@
+{
+  "running": false,
+  "watch_names": ["NVDA", "MU", "SNDK", "INTC"],
+  "dingtalk_webhook": "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN_HERE",
+  "poll_interval_sec": 30,
+  "max_news_age_minutes": 120,
+  "only_material": true,
+  "only_extra_impact_keywords": false,
+  "extra_impact_keywords": [],
+  "news_sources": ["jin10", "ths", "eastmoney", "sina", "futu", "yahoo"]
+}

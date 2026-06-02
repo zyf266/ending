@@ -142,7 +142,7 @@ const CryptoSignalHub = () => {
     }
     setLoading(true)
     try {
-      const r = await testSignalScore({ symbol: 'ETH', action: 'buy', timeframe: cfg?.kline_interval || '4h' })
+      const r = await testSignalScore({ symbol: 'ETH', action: 'buy', timeframe: '4h' })
       setMsg(`测试完成：评分 ${r?.deepseek?.structured?.score ?? '—'}，钉钉 ${r?.dingtalk_ok ? '成功' : r?.dingtalk_msg}`)
       await loadAll()
     } catch (e) {
@@ -158,7 +158,7 @@ const CryptoSignalHub = () => {
   return (
     <AisPageShell
       title="加密趋势扫描 & 买入信号 AI 评分"
-      subtitle="Hyperliquid 永续成交额 Top50 → HL 1000 根 K 线筛选上涨趋势；实盘 Webhook 收到 buy 后 DeepSeek 评分并推送钉钉"
+      subtitle="上涨趋势扫描（本地 MACD）；Webhook 买入 → 钉钉 AI 评分为独立通道，与实盘开单门槛无关"
     >
       {msg && <p className="ais-sub" style={{ marginBottom: 12 }}>{msg}</p>}
 
@@ -169,47 +169,20 @@ const CryptoSignalHub = () => {
             <input
               type="checkbox"
               id="wh-en"
-              checked={!!cfg?.webhook_scorer_enabled}
-              onChange={(e) => setCfg((c) => ({ ...c, webhook_scorer_enabled: e.target.checked }))}
+              checked={cfg?.dingtalk_on_webhook_enabled ?? cfg?.webhook_scorer_enabled ?? true}
+              onChange={(e) => setCfg((c) => ({
+                ...c,
+                dingtalk_on_webhook_enabled: e.target.checked,
+                webhook_scorer_enabled: e.target.checked,
+              }))}
             />
-            <label htmlFor="wh-en">实盘 Webhook 买入时自动 AI 评分 + 钉钉</label>
+            <label htmlFor="wh-en">Webhook 买入时自动 AI 评分并推送钉钉（与实盘开单无关）</label>
           </div>
           <div className="csh-field">
             <label>DeepSeek</label>
             <span className={deepseekOk ? 'csh-tag' : ''} style={deepseekOk ? {} : { background: '#fef2f2', color: '#b91c1c' }}>
               {deepseekOk ? '已配置 API Key' : '未配置 DEEPSEEK_API_KEY'}
             </span>
-          </div>
-          <div className="csh-field">
-            <label>K 线周期（扫描 & 评分）</label>
-            <select
-              value={cfg?.kline_interval || '4h'}
-              onChange={(e) => setCfg((c) => ({ ...c, kline_interval: e.target.value }))}
-            >
-              {['1h', '2h', '4h', '1d'].map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
-          </div>
-          <div className="csh-field">
-            <label>K 线根数</label>
-            <input
-              type="number"
-              min={200}
-              max={1500}
-              value={cfg?.kline_limit ?? 100}
-              onChange={(e) => setCfg((c) => ({ ...c, kline_limit: Number(e.target.value) }))}
-            />
-          </div>
-          <div className="csh-field">
-            <label>最低推送评分（低于不推钉钉）</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={cfg?.min_deepseek_score ?? 0}
-              onChange={(e) => setCfg((c) => ({ ...c, min_deepseek_score: Number(e.target.value) }))}
-            />
           </div>
           <div className="csh-actions">
             <button type="button" className="ais-primary-btn" disabled={loading} onClick={onSaveConfig}>保存配置</button>
@@ -221,11 +194,13 @@ const CryptoSignalHub = () => {
             </button>
           </div>
           <p className="csh-meta">
-            <strong>说明：</strong>「上涨趋势扫描」只用 Hyperliquid K 线 + 本地指标，<strong>不调用 DeepSeek</strong>。
-            DeepSeek 仅在 Webhook 买入或「测试 ETH 买入评分」时调用（模型 <code>deepseek-chat</code>，非 v4-pro）。
+            <strong>说明：</strong>上涨 = <strong>周线且日线</strong> MACD 金叉区间；强趋势 = 再满足 <strong>8h</strong> 金叉区间。
+            <strong>进场</strong> = 背景通过 + 8h <strong>死叉交叉</strong>（死叉后）；<strong>离场</strong> = 日线 <strong>金叉交叉</strong>（金叉后）。
+            死叉/金叉是交叉事件，用于进场或离场由配置决定，<strong>不调用 DeepSeek</strong>。
           </p>
           <p className="csh-meta">
-            Webhook：<code>POST /api/trading/adaptive-long/webhook</code>，收到 buy 后评分并推钉钉。
+            钉钉：Webhook buy 后按<strong>信号里的币种 + K 线级别</strong>从 HL 拉 K 线评分后推送。
+            实盘开单门槛请在<strong>策略交易 → 自适应做多</strong>里设置「AI 评分开单门槛」。
           </p>
         </section>
 
@@ -239,12 +214,20 @@ const CryptoSignalHub = () => {
           </div>
           <p className="csh-meta">
             {scan?.scanned_at
-              ? `上次：${scan.scanned_at} · 已分析 ${scan.analyzed_count ?? displayList.length}/${scan.total_candidates} · 近期上涨 ${scan.uptrend_count} · ${scan.duration_sec}s`
+              ? `上次：${scan.scanned_at} · 已分析 ${scan.analyzed_count ?? displayList.length}/${scan.total_candidates} · 三层过滤通过 ${scan.uptrend_count} · ${scan.duration_sec}s`
               : '尚未扫描，点击「开始扫描」（后台约 2–5 分钟，不消耗 DeepSeek）'}
           </p>
           {showSnapshot && (
             <p className="csh-meta" style={{ color: '#b45309', marginBottom: 12 }}>
-              本次无币种满足「近期上涨」条件，下图展示 Top50 技术快照（按趋势分排序，供参考）。
+              本次无币种满足「三层过滤」背景条件，下图展示 Top50 技术快照（按趋势分排序，供参考）。
+            </p>
+          )}
+          {scan?.filter && (
+            <p className="csh-meta" style={{ marginBottom: 8 }}>
+              上涨：{scan.filter.uptrend_rule || '周线且日线金叉'} · 强：{scan.filter.strong_rule || '周线日线8h金叉'}
+              · Pine进场背景(且) D{scan.filter.pine_bg_cond1 || '金叉'}
+              · 进场 {scan.filter.entry_tf} {scan.filter.entry_cond}
+              · 离场 {scan.filter.exit_tf1} {scan.filter.exit_cond1} ({scan.filter.exit_logic || '或'})
             </p>
           )}
           {scan?.errors?.length > 0 && (
@@ -261,9 +244,12 @@ const CryptoSignalHub = () => {
                   <tr>
                     <th>币种</th>
                     <th>趋势分</th>
-                    <th>RSI</th>
-                    <th>MACD柱</th>
-                    <th>近期%</th>
+                    <th>周线</th>
+                    <th>日线</th>
+                    <th>8h</th>
+                    <th>强趋势</th>
+                    <th title="Pine 进场：8h 死叉交叉">进场</th>
+                    <th title="Pine 离场：D 金叉交叉">离场</th>
                     <th>状态</th>
                   </tr>
                 </thead>
@@ -272,12 +258,33 @@ const CryptoSignalHub = () => {
                     <tr key={row.symbol}>
                       <td><strong>{row.symbol}</strong> <span className="csh-tag">#{row.market_cap_rank}</span></td>
                       <td>{row.metrics?.trend_score ?? '—'}</td>
-                      <td>{row.metrics?.rsi14 ?? '—'}</td>
-                      <td>{row.metrics?.macd_hist ?? '—'}</td>
-                      <td>{row.metrics?.recent_change_pct ?? row.metrics?.return_20_bars_pct ?? '—'}%</td>
+                      <td title={row.metrics?.bg1_zone || ''}>{row.metrics?.bg1_ok ? '✓' : '—'}</td>
+                      <td title={row.metrics?.bg2_zone || ''}>{row.metrics?.bg2_ok ? '✓' : '—'}</td>
+                      <td title={row.metrics?.bg3_zone || ''}>{row.metrics?.bg3_ok ? '✓' : '—'}</td>
+                      <td>
+                        {row.metrics?.strong_trend ? (
+                          <span className="csh-tag">强</span>
+                        ) : (
+                          <span className="csh-meta">{row.metrics?.golden_tf_count ?? 0}/3</span>
+                        )}
+                      </td>
+                      <td title={`${row.metrics?.entry_tf || '8h'} ${row.metrics?.entry_cond || ''}`}>
+                        {row.metrics?.entry_trigger ? (
+                          <span className="csh-tag">死叉</span>
+                        ) : (
+                          row.metrics?.entry_cross || '—'
+                        )}
+                      </td>
+                      <td title={`${row.metrics?.exit_tf1 || '1d'} ${row.metrics?.exit_cond1 || ''}`}>
+                        {row.metrics?.exit_conditions_met ? (
+                          <span className="csh-tag" style={{ background: '#7f1d1d' }}>金叉</span>
+                        ) : (
+                          row.metrics?.exit1_cross || '—'
+                        )}
+                      </td>
                       <td>
                         {row.is_uptrend || row.metrics?.is_uptrend ? (
-                          <span className="csh-tag">上涨</span>
+                          <span className="csh-tag">{row.metrics?.strong_trend ? '强+涨' : '上涨'}</span>
                         ) : (
                           <span title={row.metrics?.reject_reason || ''}>未达标</span>
                         )}

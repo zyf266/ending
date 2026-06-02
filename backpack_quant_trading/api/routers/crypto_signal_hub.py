@@ -1,6 +1,7 @@
 """加密货币上涨趋势扫描 + Webhook 买入信号 DeepSeek 评分 API。"""
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Any, Dict, Optional
 
@@ -21,6 +22,7 @@ from backpack_quant_trading.core.crypto_uptrend_scanner import (
 from backpack_quant_trading.core.stock_news_alert import send_dingtalk_text
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _scan_lock = threading.Lock()
 _scan_running = False
@@ -28,11 +30,13 @@ _scan_running = False
 
 class ConfigUpdate(BaseModel):
     webhook_scorer_enabled: Optional[bool] = None
+    dingtalk_on_webhook_enabled: Optional[bool] = None
     dingtalk_webhook: Optional[str] = None
     dingtalk_keyword: Optional[str] = None
     kline_interval: Optional[str] = None
     kline_limit: Optional[int] = None
     min_deepseek_score: Optional[int] = None
+    min_deepseek_score_for_dingtalk: Optional[int] = None
     scan_top_n: Optional[int] = None
     only_actions: Optional[list] = None
     deepseek_temperature: Optional[float] = None
@@ -83,7 +87,7 @@ def run_scan(user: dict = Depends(require_user)) -> Dict[str, Any]:
             scan_top50_uptrend(
                 top_n=int(cfg.get("scan_top_n") or 50),
                 interval=str(cfg.get("kline_interval") or "4h"),
-                kline_limit=int(cfg.get("kline_limit") or 100),
+                kline_limit=int(cfg.get("kline_limit") or 200),
             )
         finally:
             with _scan_lock:
@@ -100,7 +104,7 @@ def run_scan_sync(user: dict = Depends(require_user)) -> Dict[str, Any]:
     data = scan_top50_uptrend(
         top_n=int(cfg.get("scan_top_n") or 50),
         interval=str(cfg.get("kline_interval") or "4h"),
-        kline_limit=int(cfg.get("kline_limit") or 100),
+        kline_limit=int(cfg.get("kline_limit") or 200),
     )
     return {"ok": True, "data": data}
 
@@ -123,7 +127,19 @@ def test_score(body: TestScoreRequest, user: dict = Depends(require_user)) -> Di
         strategy_label="manual_test",
     )
     if not result.get("ok"):
-        raise HTTPException(status_code=500, detail=result.get("error") or "评分失败")
+        err = result.get("error") or "评分失败"
+        # 这里常见是 DeepSeek / 数据源问题，给前端可读错误；同时写日志便于排查
+        try:
+            logger.warning(
+                "score/test failed: symbol=%s action=%s timeframe=%s err=%s",
+                body.symbol,
+                body.action,
+                body.timeframe,
+                err,
+            )
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail=err)
     return result
 
 

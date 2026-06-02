@@ -3,7 +3,7 @@ import asyncio
 import logging
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, Header
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
 import hmac
 import hashlib
 from datetime import datetime
@@ -24,6 +24,94 @@ logging.basicConfig(
 logger = logging.getLogger("WebhookService")
 
 app = FastAPI(title="Ostium TradingView Webhook Service")
+
+# ====== TradingView → AI评分 → 钉钉（实盘筛选） ======
+_RECENT_WEBHOOK_EVENTS: List[Dict[str, Any]] = []
+_RECENT_LIMIT = 50
+
+
+def _append_recent_event(evt: Dict[str, Any]) -> None:
+    try:
+        _RECENT_WEBHOOK_EVENTS.insert(0, evt)
+        del _RECENT_WEBHOOK_EVENTS[_RECENT_LIMIT:]
+    except Exception:
+        pass
+
+
+def _get_filter_id(payload: dict) -> str:
+    return str(
+        payload.get("筛选ID")
+        or payload.get("filter_id")
+        or payload.get("filterId")
+        or payload.get("filterID")
+        or payload.get("id")
+        or payload.get("ID")
+        or ""
+    ).strip()
+
+
+def _is_live_trade_payload(payload: dict) -> bool:
+    """仅对筛选ID=实盘交易的信号做评分推送。"""
+    fid = _get_filter_id(payload)
+    return fid == "实盘交易" or fid.lower() == "live_trade"
+
+
+def _extract_tv_fields(payload: dict) -> tuple[str, str, str, str]:
+    """返回 (symbol, action, timeframe, strategy_name)"""
+    action = str(
+        payload.get("方向")
+        or payload.get("操作")
+        or payload.get("action")
+        or payload.get("signal")
+        or ""
+    ).lower().strip()
+    symbol = str(payload.get("交易品种") or payload.get("symbol") or payload.get("coin") or "").strip()
+    tf = str(
+        payload.get("周期")
+        or payload.get("K线级别")
+        or payload.get("timeframe")
+        or payload.get("interval")
+        or payload.get("tf")
+        or ""
+    ).strip()
+    strategy_name = str(
+        payload.get("策略名称")
+        or payload.get("strategy_name")
+        or payload.get("strategyName")
+        or payload.get("strategy")
+        or payload.get("strategy_label")
+        or ""
+    ).strip()
+    return symbol, action, tf, strategy_name
+
+
+def _maybe_schedule_live_trade_score(payload: dict) -> None:
+    """后台调度评分与钉钉推送（不影响交易路由）。"""
+    if not _is_live_trade_payload(payload):
+        return
+    try:
+        from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_dingtalk_score
+
+        symbol, action, tf, strategy_name = _extract_tv_fields(payload)
+        if not symbol or not action:
+            return
+        schedule_webhook_dingtalk_score(
+            symbol,
+            action,
+            timeframe=tf,
+            webhook_raw=payload,
+            strategy_label=strategy_name or "live_trade",
+            strategy_name=strategy_name,
+        )
+    except Exception as e:
+        logger.warning("实盘筛选评分调度失败(忽略): %s", e)
+
+
+@app.get("/debug/recent-webhooks")
+async def debug_recent_webhooks():
+    """调试：查看最近收到的 Webhook 与是否命中评分分支。"""
+    return {"count": len(_RECENT_WEBHOOK_EVENTS), "items": _RECENT_WEBHOOK_EVENTS[:20]}
+
 
 # 多引擎实例管理器
 # 键: 实例 ID (由 Dashboard 分配)
@@ -330,6 +418,28 @@ async def webhook_unified(request: Request, x_signature: Optional[str] = Header(
     
     try:
         data = await request.json()
+        # 对「筛选ID=实盘交易」的信号做评分推送（不阻塞）
+        live_trade_scoring = False
+        scoring_scheduled = False
+        if isinstance(data, dict):
+            live_trade_scoring = _is_live_trade_payload(data)
+            if live_trade_scoring:
+                scoring_scheduled = True
+            _maybe_schedule_live_trade_score(data)
+
+            sym, act, tf, st_name = _extract_tv_fields(data)
+            _append_recent_event(
+                {
+                    "at": datetime.now().isoformat(timespec="seconds"),
+                    "filter_id": _get_filter_id(data),
+                    "live_trade_scoring": live_trade_scoring,
+                    "scoring_scheduled": scoring_scheduled,
+                    "symbol": sym,
+                    "action": act,
+                    "timeframe": tf,
+                    "strategy_name": st_name,
+                }
+            )
         
         # 从请求体中获取 instance_id
         instance_id = data.get("instance_id")
@@ -355,7 +465,14 @@ async def webhook_unified(request: Request, x_signature: Optional[str] = Header(
             # 异步执行交易（传入原始 payload，供 Hyperliquid 等引擎解析 先前仓位/先前仓位大小）
             asyncio.create_task(engine.execute_signal(signal, data))
             
-            return {"status": "success", "message": "Signal received", "instance_id": instance_id, "mode": "single"}
+            return {
+                "status": "success",
+                "message": "Signal received",
+                "instance_id": instance_id,
+                "mode": "single",
+                "live_trade_scoring": live_trade_scoring,
+                "scoring_scheduled": scoring_scheduled,
+            }
         
         # 模式 2: 广播模式 (按策略名筛选)
         else:
@@ -410,7 +527,9 @@ async def webhook_unified(request: Request, x_signature: Optional[str] = Header(
                     "message": f"No instances found for strategy '{target_strategy}' and symbol '{target_symbol}'",
                     "mode": "broadcast",
                     "instances": [],
-                    "broadcast_count": 0
+                    "broadcast_count": 0,
+                    "live_trade_scoring": live_trade_scoring,
+                    "scoring_scheduled": scoring_scheduled,
                 }
             
             logger.info(f"📡 [广播模式] 将广播到 {len(target_instances)} 个实例: {list(target_instances.keys())}")

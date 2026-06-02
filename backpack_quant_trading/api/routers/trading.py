@@ -268,7 +268,6 @@ def list_strategies():
 @router.get("/instances")
 def list_instances(user: dict = Depends(require_user)):
     """当前用户的实盘实例（含 Webhook 恢复）"""
-    allow_all = False
     try:
         db = DatabaseManager()
         my_ids = set(db.get_user_instance_ids(user["id"], "live"))
@@ -276,13 +275,13 @@ def list_instances(user: dict = Depends(require_user)):
         _log = __import__("logging").getLogger(__name__)
         _log.exception("list_instances: %s", e)
         my_ids = set()
-        allow_all = True
+
+    # 严格隔离：只展示属于当前用户的实例
     if not my_ids:
-        # DB 无记录时不应直接返回空：内存线程/同机 webhook 仍可能在跑（你现在就是这种情况）
-        allow_all = True
+        return {"instances": []}
 
     try:
-        # 尝试从 Webhook 获取运行中实例
+        # 尝试从 Webhook 获取运行中实例（仅返回属于当前用户的 instance_id）
         instances = []
         if _is_port_in_use(WEBHOOK_PORT):
             try:
@@ -291,28 +290,29 @@ def list_instances(user: dict = Depends(require_user)):
                     data = r.json()
                     for inst in data.get("instances", []):
                         iid = inst.get("instance_id", inst)
-                        if allow_all or iid in my_ids:
-                            balance_str = "同步中..."
-                            try:
-                                br = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/balance/{iid}", timeout=3)
-                                if br.status_code == 200:
-                                    bj = br.json()
-                                    bal = bj.get("balance")
-                                    if bal is not None:
-                                        balance_str = f"{float(bal):,.2f}"
-                            except Exception:
-                                pass
-                            instances.append({
-                                "id": iid,
-                                "pid": _get_webhook_pid(),
-                                "platform": inst.get("exchange", "ostium"),
-                                "strategy_name": inst.get("strategy", ""),
-                                "symbol": inst.get("symbol", ""),
-                                "start_time": "--:--",
-                                "balance": balance_str,
-                                "webhook_instance_id": iid,
-                                "status": "running",
-                            })
+                        if iid not in my_ids:
+                            continue
+                        balance_str = "同步中..."
+                        try:
+                            br = requests.get(f"http://127.0.0.1:{WEBHOOK_PORT}/balance/{iid}", timeout=3)
+                            if br.status_code == 200:
+                                bj = br.json()
+                                bal = bj.get("balance")
+                                if bal is not None:
+                                    balance_str = f"{float(bal):,.2f}"
+                        except Exception:
+                            pass
+                        instances.append({
+                            "id": iid,
+                            "pid": _get_webhook_pid(),
+                            "platform": inst.get("exchange", "ostium"),
+                            "strategy_name": inst.get("strategy", ""),
+                            "symbol": inst.get("symbol", ""),
+                            "start_time": "--:--",
+                            "balance": balance_str,
+                            "webhook_instance_id": iid,
+                            "status": "running",
+                        })
             except Exception:
                 pass
 
@@ -332,7 +332,8 @@ def list_instances(user: dict = Depends(require_user)):
             except Exception:
                 pass
         configs = {iid: cfg for iid, cfg in db.get_user_instance_configs(user["id"], "live")}
-        for iid in (my_ids if not allow_all else list({*my_ids, *HYPE_STRATEGY_INSTANCES.keys(), *ETH_TREND_INSTANCES.keys(), *ADAPTIVE_LONG_INSTANCES.keys(), *ADAPTIVE_SHORT_INSTANCES.keys(), *AUTO_CLOSE_INSTANCES.keys()})):
+        # 补充 DB 中有但 Webhook 未返回的（子进程实例 / 未注册 webhook 等）
+        for iid in list(my_ids):
             if any(inst["id"] == iid for inst in instances):
                 continue
             cfg = configs.get(iid)
@@ -540,6 +541,11 @@ def list_instances(user: dict = Depends(require_user)):
                 inst["config"] = obj
         except Exception:
             pass
+
+        # 权限标记：当前接口已只返回本人实例，统一可操作
+        for inst in instances:
+            if isinstance(inst, dict):
+                inst["can_operate"] = True
 
         return {"instances": instances}
     except Exception as e:
@@ -981,17 +987,8 @@ def stop_instance(instance_id: str, user: dict = Depends(require_user)):
     # 新增 POST /instances/{id}/stop 仅停止不删除卡片。
     db = DatabaseManager()
     my_ids = db.get_user_instance_ids(user["id"], "live")
-    # 兼容：自适应做多/做空是内存线程模式，偶发 DB 记录缺失时也必须允许停止，
-    # 否则前端会显示“无权限停止该实例”，但实际实例仍在跑。
     if instance_id not in my_ids:
-        if not (
-            instance_id in ADAPTIVE_LONG_INSTANCES
-            or instance_id in ADAPTIVE_SHORT_INSTANCES
-            or instance_id in HYPE_STRATEGY_INSTANCES
-            or instance_id in ETH_TREND_INSTANCES
-            or instance_id in AUTO_CLOSE_INSTANCES
-        ):
-            raise HTTPException(status_code=403, detail="无权操作该实例")
+        raise HTTPException(status_code=403, detail="非本人账户启动，已隔离（不可操作）")
 
     configs = {iid: cfg for iid, cfg in db.get_user_instance_configs(user["id"], "live")}
     cfg_str = configs.get(instance_id, "{}")
@@ -1186,15 +1183,7 @@ def stop_instance_keep_card(instance_id: str, user: dict = Depends(require_user)
     db = DatabaseManager()
     my_ids = set(db.get_user_instance_ids(user["id"], "live"))
     if instance_id not in my_ids:
-        # 兼容：内存线程模式实例可能尚未落库
-        if not (
-            instance_id in ADAPTIVE_LONG_INSTANCES
-            or instance_id in ADAPTIVE_SHORT_INSTANCES
-            or instance_id in HYPE_STRATEGY_INSTANCES
-            or instance_id in ETH_TREND_INSTANCES
-            or instance_id in AUTO_CLOSE_INSTANCES
-        ):
-            raise HTTPException(status_code=403, detail="无权操作该实例")
+        raise HTTPException(status_code=403, detail="非本人账户启动，已隔离（不可操作）")
 
     configs = {iid: cfg for iid, cfg in db.get_user_instance_configs(user["id"], "live")}
     cfg_str = configs.get(instance_id, "{}")
@@ -1410,6 +1399,7 @@ class InstanceUpdateRequest(BaseModel):
     api_secret: Optional[str] = None
     account_index: Optional[int] = None
     api_key_index: Optional[int] = None
+    min_ai_score_for_trade: Optional[int] = None
 
 
 @router.put("/instances/{instance_id}", summary="修改实例参数（必要时自动重启）")
@@ -1464,6 +1454,8 @@ def update_instance_config(instance_id: str, req: InstanceUpdateRequest, user: d
             s.symbol_filter = coin or getattr(s, "symbol_filter", None)
             tf = (obj.get("timeframe_filter") or "").strip().upper()
             s.timeframe_filter = tf or None
+            if "min_ai_score_for_trade" in obj:
+                s.min_ai_score_for_trade = max(0, int(obj.get("min_ai_score_for_trade") or 0))
             obj["status"] = "running"
             db.save_user_instance(user["id"], "live", instance_id, json.dumps(obj, ensure_ascii=False))
             return {"ok": True, "message": "已保存并生效"}
@@ -1631,10 +1623,7 @@ def stop_eth_trend_short(user: dict = Depends(require_user)):
     my_ids = set(db.get_user_instance_ids(user["id"], "live"))
     target_ids = [iid for iid in list(ETH_TREND_INSTANCES.keys()) if iid in my_ids]
     if not target_ids:
-        # 如果数据库没记录但内存有实例，也一并清除
-        target_ids = list(ETH_TREND_INSTANCES.keys())
-    if not target_ids:
-        return {"ok": True, "message": "没有运行中的ETH趋势做空策略"}
+        return {"ok": True, "message": "没有运行中的ETH趋势做空策略（或不属于当前账号）"}
 
     for iid in target_ids:
         strategy = ETH_TREND_INSTANCES.pop(iid, None)
@@ -1739,6 +1728,7 @@ class AdaptiveLongStartRequest(BaseModel):
     break_even_pct: float = 0.03
     lock_profit_pct: float = 0.0    # 锁利触发盈利比例，0=不启用
     lock_profit_sl_pct: float = 0.0 # 锁利后 SL 锁定的盈利比例
+    min_ai_score_for_trade: int = 0  # 0=不启用 AI 门槛；买入须评分>=该值才开单
     # 注: XYZ 不是子账户，是 HIP-3 DEX，无需地址参数，系统自动识别资产所属 DEX。
 
 
@@ -2029,6 +2019,7 @@ def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(requ
             lock_profit_sl_pct=req.lock_profit_sl_pct,
             symbol_filter=symbol_filter,
             timeframe_filter=timeframe_filter,
+            min_ai_score_for_trade=max(0, int(getattr(req, "min_ai_score_for_trade", 0) or 0)),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"认证参数错误: {str(e)}")
@@ -2063,6 +2054,7 @@ def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(requ
             "account_index": getattr(req, "account_index", 0),
             "api_key_index": getattr(req, "api_key_index", 2),
             "wallet_memo": getattr(req, "wallet_memo", "") if hasattr(req, "wallet_memo") else "",
+            "min_ai_score_for_trade": max(0, int(getattr(req, "min_ai_score_for_trade", 0) or 0)),
             "status": "running",
         },
         ensure_ascii=False
@@ -2078,9 +2070,7 @@ def stop_adaptive_long(user: dict = Depends(require_user)):
     my_ids = set(db.get_user_instance_ids(user["id"], "live"))
     target_ids = [iid for iid in list(ADAPTIVE_LONG_INSTANCES.keys()) if iid in my_ids]
     if not target_ids:
-        target_ids = list(ADAPTIVE_LONG_INSTANCES.keys())
-    if not target_ids:
-        return {"ok": True, "message": "没有运行中的自适应做多策略"}
+        return {"ok": True, "message": "没有运行中的自适应做多策略（或不属于当前账号）"}
 
     for iid in target_ids:
         strategy = ADAPTIVE_LONG_INSTANCES.pop(iid, None)
@@ -2129,6 +2119,14 @@ async def adaptive_long_webhook(request: Request):
     # 解析信号字段（兼容中文字段名 + 英文字段名）
     action = (data.get("方向") or data.get("操作") or data.get("action") or data.get("signal") or "").lower().strip()
     symbol_raw = str(data.get("交易品种") or data.get("symbol") or data.get("coin") or "")
+    strategy_name = str(
+        data.get("策略名称")
+        or data.get("strategy_name")
+        or data.get("strategyName")
+        or data.get("strategy")
+        or data.get("strategy_label")
+        or ""
+    ).strip()
     # K线级别：兼容多种字段名
     signal_timeframe = str(
         data.get("K线级别") or data.get("timeframe") or data.get("interval") or data.get("tf") or ""
@@ -2157,17 +2155,24 @@ async def adaptive_long_webhook(request: Request):
 
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
 
+    from backpack_quant_trading.core.crypto_signal_scorer import (
+        is_buy_action,
+        run_signal_score,
+        schedule_webhook_dingtalk_score,
+    )
+
+    # 路径2：钉钉推送（后台，与是否开单无关）
     try:
-        from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_signal_score
-        schedule_webhook_signal_score(
+        schedule_webhook_dingtalk_score(
             signal_symbol,
             action,
             timeframe=signal_timeframe,
             webhook_raw=data,
             strategy_label="adaptive_long",
+            strategy_name=strategy_name or "自适应做多",
         )
     except Exception as _sc_err:
-        logger.warning("买入信号 AI 评分调度失败(忽略): %s", _sc_err)
+        logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
 
     # 按 symbol_filter 路由到匹配的实例
     # 同时清理线程已死亡的僵尸实例（防止旧版 finally 未清理留下的残留）
@@ -2219,6 +2224,52 @@ async def adaptive_long_webhook(request: Request):
             "action": action,
             "message": "策略已停止（暂停接收信号），本次信号已忽略",
         }
+
+    # 路径1：买入须先 AI 评分，超过实例门槛才开单
+    min_trade_score = max(0, int(getattr(strategy, "min_ai_score_for_trade", 0) or 0))
+    if is_buy_action(action) and min_trade_score > 0:
+        logger.info(
+            "🤖 买入 AI 开单筛选: %s tf=%s 门槛>=%s",
+            signal_symbol, signal_timeframe or "默认", min_trade_score,
+        )
+        score_res = run_signal_score(
+            signal_symbol,
+            action,
+            timeframe=signal_timeframe,
+            webhook_raw=data,
+            strategy_label="adaptive_long",
+        )
+        if not score_res.get("ok"):
+            return {
+                "ok": True,
+                "skipped": True,
+                "instance_id": target_id,
+                "symbol": signal_symbol,
+                "action": action,
+                "ai_score_filter": True,
+                "min_ai_score_required": min_trade_score,
+                "message": f"AI 评分失败，未开单: {score_res.get('error')}",
+            }
+        got_score = int(score_res.get("score") or 0)
+        if got_score < min_trade_score:
+            logger.info(
+                "⛔ AI 分 %s < 门槛 %s，跳过开单 %s",
+                got_score, min_trade_score, signal_symbol,
+            )
+            return {
+                "ok": True,
+                "skipped": True,
+                "instance_id": target_id,
+                "symbol": signal_symbol,
+                "action": action,
+                "ai_score": got_score,
+                "min_ai_score_required": min_trade_score,
+                "grade": score_res.get("grade"),
+                "recommendation": score_res.get("recommendation"),
+                "message": f"AI 评分 {got_score} 低于开单门槛 {min_trade_score}，未执行开仓",
+            }
+        logger.info("✅ AI 评分 %s >= %s，允许开单", got_score, min_trade_score)
+
     loop = ADAPTIVE_LONG_TASKS.get(target_id)
     if not loop or not loop.is_running():
         # 兜底：loop 不存在或已关闭，清理该实例
@@ -2404,9 +2455,7 @@ def stop_adaptive_short(user: dict = Depends(require_user)):
 
     target_ids = [iid for iid in list(ADAPTIVE_SHORT_INSTANCES.keys()) if iid in my_ids]
     if not target_ids:
-        target_ids = list(ADAPTIVE_SHORT_INSTANCES.keys())
-    if not target_ids:
-        return {"ok": True, "message": "没有运行中的自适应做空策略"}
+        return {"ok": True, "message": "没有运行中的自适应做空策略（或不属于当前账号）"}
 
     for iid in target_ids:
         try:
@@ -2451,6 +2500,14 @@ async def adaptive_short_webhook(request: Request):
 
     action = (data.get("方向") or data.get("操作") or data.get("action") or data.get("signal") or "").lower().strip()
     symbol_raw = str(data.get("交易品种") or data.get("symbol") or data.get("coin") or "")
+    strategy_name = str(
+        data.get("策略名称")
+        or data.get("strategy_name")
+        or data.get("strategyName")
+        or data.get("strategy")
+        or data.get("strategy_label")
+        or ""
+    ).strip()
     signal_timeframe = str(data.get("K线级别") or data.get("timeframe") or data.get("interval") or data.get("tf") or "").upper().strip()
     _TF_MAP = {
         "1": "1M", "3": "3M", "5": "5M", "10": "10M",
@@ -2472,6 +2529,21 @@ async def adaptive_short_webhook(request: Request):
         raise HTTPException(status_code=400, detail="信号缺少 symbol 字段")
 
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
+
+    from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_dingtalk_score
+
+    # 路径2：钉钉推送（后台，与是否开单无关）
+    try:
+        schedule_webhook_dingtalk_score(
+            signal_symbol,
+            action,
+            timeframe=signal_timeframe,
+            webhook_raw=data,
+            strategy_label="adaptive_short",
+            strategy_name=strategy_name or "做空策略",
+        )
+    except Exception as _sc_err:
+        logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
 
     dead_ids = []
     for iid, th in list(ADAPTIVE_SHORT_THREADS.items()):

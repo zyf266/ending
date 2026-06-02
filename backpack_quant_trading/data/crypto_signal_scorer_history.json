@@ -1,0 +1,40 @@
+[
+  {
+    "at": "2026-06-02 07:37:45 UTC",
+    "symbol": "ETH",
+    "action": "buy",
+    "timeframe": "4h",
+    "score": 0,
+    "grade": "F",
+    "recommendation": "reject",
+    "dingtalk_ok": true,
+    "dingtalk_msg": "ok",
+    "deepseek_summary": "价格位于EMA20/50/200下方，EMA结构空头排列，趋势偏弱；MACD柱虽为正但未持续上升，RSI低于40，整体动能不足，三层过滤策略强制拒绝。",
+    "channel": "dingtalk"
+  },
+  {
+    "at": "2026-06-02 07:30:57 UTC",
+    "symbol": null,
+    "action": null,
+    "timeframe": null,
+    "score": null,
+    "grade": null,
+    "recommendation": null,
+    "dingtalk_ok": false,
+    "dingtalk_msg": "skipped",
+    "deepseek_summary": null,
+    "channel": "dingtalk"
+  },
+  {
+    "at": "2026-05-28 07:03:54 UTC",
+    "symbol": "ETH",
+    "action": "buy",
+    "timeframe": "4h",
+    "score": 15,
+    "grade": "F",
+    "recommendation": "reject",
+    "dingtalk_ok": true,
+    "dingtalk_msg": "ok",
+    "deepseek_summary": "ETH处于强烈下跌趋势中，RSI深度超卖，MACD柱持续扩大负值，价格远低于所有主要均线，不具备买入条件。"
+  }
+]

@@ -68,6 +68,7 @@ const Trading = () => {
     adaptive_long_timeframe: '',     // K线级别过滤
     adaptive_long_lock_profit: 0,    // 锁利触发盈利%，0=不启用
     adaptive_long_lock_profit_sl: 0, // 锁利后 SL 锁定盈利%
+    adaptive_long_min_ai_score: 0,   // 0=不启用；买入 Webhook 须 AI 分>=该值才开单
     adaptive_short_coin: '',    // 自适应做空：交易对币种
     adaptive_short_account_index: 0,
     adaptive_short_api_key_index: 2,
@@ -209,6 +210,7 @@ const Trading = () => {
           api_secret: isBinance ? (form.api_secret || undefined) : undefined,
           account_index: isLighter ? (isLong ? form.adaptive_long_account_index : form.adaptive_short_account_index) : undefined,
           api_key_index: isLighter ? (isLong ? form.adaptive_long_api_key_index : form.adaptive_short_api_key_index) : undefined,
+          ...(isLong ? { min_ai_score_for_trade: Math.max(0, Number(form.adaptive_long_min_ai_score) || 0) } : {}),
         }
         const res = await updateInstance(editingId, payload)
         alert(res?.message || '已保存')
@@ -271,6 +273,7 @@ const Trading = () => {
           lock_profit_sl_pct: form.adaptive_long_lock_profit > 0 ? form.adaptive_long_lock_profit_sl / 100 : undefined,
           margin_amount:     form.adaptive_long_margin,
           leverage:          form.adaptive_long_leverage,
+          min_ai_score_for_trade: Math.max(0, Number(form.adaptive_long_min_ai_score) || 0),
           stop_loss_pct:     form.hype_stop_loss / 100,
           take_profit_pct:   form.hype_take_profit / 100,
           break_even_pct:    form.hype_break_even / 100,
@@ -480,6 +483,7 @@ const Trading = () => {
       adaptive_short_api_key_index: cfg.api_key_index ?? prev.adaptive_short_api_key_index,
       adaptive_long_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
       adaptive_long_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
+      adaptive_long_min_ai_score: Number(cfg.min_ai_score_for_trade ?? 0),
       adaptive_short_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
       adaptive_short_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
     }))
@@ -582,7 +586,8 @@ const Trading = () => {
                     <button
                       type="button"
                       className={`inst-btn ${getHypeEnabled(inst.id) ? 'inst-btn-warning' : 'inst-btn-primary'}`}
-                      disabled={togglingHype}
+                      disabled={togglingHype || inst?.can_operate === false}
+                      title={inst?.can_operate === false ? (inst?.operate_block_reason || '非本人账户启动，已隔离') : ''}
                       onClick={() => toggleHype(inst.id, !getHypeEnabled(inst.id))}
                     >
                       {getHypeEnabled(inst.id) ? '⏸ 暂停策略' : '▶ 启用策略'}
@@ -591,7 +596,8 @@ const Trading = () => {
                   <button
                     type="button"
                     className="inst-btn inst-btn-primary"
-                    disabled={inst.status !== 'stopped'}
+                    disabled={inst.status !== 'stopped' || inst?.can_operate === false}
+                    title={inst?.can_operate === false ? (inst?.operate_block_reason || '非本人账户启动，已隔离') : ''}
                     onClick={() => startOne(inst.id)}
                   >
                     ▶ 启动
@@ -599,15 +605,28 @@ const Trading = () => {
                   <button
                     type="button"
                     className="inst-btn inst-btn-danger"
-                    disabled={inst.status === 'stopped'}
+                    disabled={inst.status === 'stopped' || inst?.can_operate === false}
+                    title={inst?.can_operate === false ? (inst?.operate_block_reason || '非本人账户启动，已隔离') : ''}
                     onClick={() => stopOne(inst.id)}
                   >
                     ⏹ 停止
                   </button>
-                  <button type="button" className="inst-btn inst-btn-warning" onClick={() => editOne(inst)}>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn-warning"
+                    disabled={inst?.can_operate === false}
+                    title={inst?.can_operate === false ? (inst?.operate_block_reason || '非本人账户启动，已隔离') : ''}
+                    onClick={() => editOne(inst)}
+                  >
                     ✏ 修改
                   </button>
-                  <button type="button" className="inst-btn inst-btn-ghost" onClick={() => deleteOne(inst.id)}>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn-ghost"
+                    disabled={inst?.can_operate === false}
+                    title={inst?.can_operate === false ? (inst?.operate_block_reason || '非本人账户启动，已隔离') : ''}
+                    onClick={() => deleteOne(inst.id)}
+                  >
                     🗑 删除
                   </button>
                 </div>
@@ -834,6 +853,21 @@ const Trading = () => {
                       <option value="1D">1日</option>
                     </select>
                     <small style={{color:'#888',fontSize:'12px'}}>只开指定周期的 Webhook 信号才进行开单，TradingView 信号需带 K线级别字段</small>
+                  </div>
+                  <div className="form-item" style={{marginTop:'12px'}}>
+                    <label>AI 评分开单门槛</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={form.adaptive_long_min_ai_score}
+                      onChange={(e) => setField('adaptive_long_min_ai_score', Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    <small style={{color:'#888',fontSize:'12px'}}>
+                      0=不筛选。买入 Webhook 先按信号币种+K线级别在 HL 拉 K 线并 AI 评分，仅当评分≥该值才开单（与钉钉推送无关）
+                    </small>
                   </div>
                   {/* 平台认证配置 - Binance 显示 API，Lighter 显示私鑰+账户索引，其他显示私鑰 */}
                   {form.platform === 'binance' ? (

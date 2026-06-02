@@ -70,6 +70,7 @@ class AdaptiveLongStrategy:
         timeframe_filter: Optional[str] = None,
         lock_profit_pct: float = 0.0,     # 锁利触发盈利比例，0=不启用
         lock_profit_sl_pct: float = 0.0,  # 锁利后 SL 锁定的盈利比例
+        min_ai_score_for_trade: int = 0,  # 0=不启用；买入 Webhook 须 AI 分>=该值才开单
     ):
         self.exchange = exchange.lower()
         if self.exchange == "binance":
@@ -93,6 +94,7 @@ class AdaptiveLongStrategy:
         self.break_even_pct  = break_even_pct
         self.lock_profit_pct    = lock_profit_pct
         self.lock_profit_sl_pct = lock_profit_sl_pct
+        self.min_ai_score_for_trade = max(0, int(min_ai_score_for_trade or 0))
         self.symbol_filter   = symbol_filter.upper().strip() if symbol_filter else None
         self.timeframe_filter = timeframe_filter.upper().strip() if timeframe_filter else None
         # 注: XYZ 不是子账户，是 Hyperliquid HIP-3 DEX，同一键包地址可以同时下单 Perps 和 XYZ 资产。

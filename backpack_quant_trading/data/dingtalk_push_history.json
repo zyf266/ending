@@ -138,5 +138,25 @@
     "text": "英伟达绩后获华尔街集体调高目标价 最高看至400美元 【英伟达绩后获华尔街集体调高目标价 最高看至400美元】全球AI芯片巨头英伟达（NVIDIA）今日公布了最新季度财报，其强劲的业绩表现与乐观的前瞻指引再次震撼市场。财报发布后，华尔街主流投行及评级机构密集发声，掀起了一轮声势浩大的“目标价上调潮”。尽管如此，英伟达股价在盘前表现仍不温不火，目前持平于昨日收盘价223美元，对应5.4万亿美元市值。",
     "url": "https://finance.eastmoney.com/a/202605213745424226.html",
     "pushed_at": "2026-05-21 12:10:04"
+  },
+  {
+    "id": "yahoo:1c8caf60-c3f6-3690-8287-088be3f3c77e",
+    "kind": "stock_news",
+    "feed": "雅虎财经",
+    "feed_key": "yahoo",
+    "time": "2026-06-01 16:46:43",
+    "text": "[GuruFocus.com] Micron Stock Smashes $1,000 Threshold After Major Wall Street Upgrade (MU)",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/micron-stock-smashes-1-000-164643256.html",
+    "pushed_at": "2026-06-01 16:48:12"
+  },
+  {
+    "id": "yahoo:bf9cc289-4963-3d07-b515-66dfe85718be",
+    "kind": "stock_news",
+    "feed": "雅虎财经",
+    "feed_key": "yahoo",
+    "time": "2026-06-01 18:35:54",
+    "text": "[GuruFocus.com] AMD Target Raised as AI CPU Demand Builds (AMD NVDA INTC)",
+    "url": "https://finance.yahoo.com/sectors/technology/articles/amd-target-raised-ai-cpu-183554961.html",
+    "pushed_at": "2026-06-01 18:37:18"
   }
 ]

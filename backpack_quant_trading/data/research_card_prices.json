@@ -1,47 +1,47 @@
 {
-  "updated_at": "2026-05-25 15:30:12",
+  "updated_at": "2026-06-02 04:29:59",
   "prices": {
     "NVDA": {
       "quote_symbol": "NVDA",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 215.33
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 224.36
     },
     "INTC": {
       "quote_symbol": "INTC",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 119.84
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 109.31
     },
     "CRCL": {
       "quote_symbol": "CRCL",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 113.12
-    },
-    "ETH": {
-      "quote_symbol": "ETH-USD",
-      "currency": "USD",
-      "source": "hyperliquid",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 2105.85
-    },
-    "HYPE": {
-      "quote_symbol": "HYPE-USD",
-      "currency": "USD",
-      "source": "hyperliquid",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 62.0175
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 104.97
     },
     "SNDK": {
       "quote_symbol": "SNDK",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-05-25 15:30:12",
-      "price": 1478.69
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 1761.43
+    },
+    "ETH": {
+      "quote_symbol": "ETH-USD",
+      "currency": "USD",
+      "source": "hyperliquid",
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 2004.85
+    },
+    "HYPE": {
+      "quote_symbol": "HYPE-USD",
+      "currency": "USD",
+      "source": "hyperliquid",
+      "fetched_at": "2026-06-02 04:29:59",
+      "price": 72.9385
     }
   }
 }
