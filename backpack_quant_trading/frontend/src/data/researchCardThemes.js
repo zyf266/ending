@@ -98,6 +98,62 @@ export const RESEARCH_CARD_THEMES = {
     shadow: 'rgba(45, 212, 191, 0.35)',
     tagline: '#134e4a',
   },
+  /** Ondo 蓝紫 */
+  ONDO: {
+    accent: '#2563eb',
+    accent2: '#a855f7',
+    badgeFrom: '#2563eb',
+    badgeTo: '#7c3aed',
+    topFrom: '#eff6ff',
+    topTo: '#f5f3ff',
+    border: 'rgba(37, 99, 235, 0.3)',
+    borderHover: 'rgba(124, 58, 237, 0.4)',
+    glow: 'rgba(37, 99, 235, 0.14)',
+    shadow: 'rgba(30, 64, 175, 0.35)',
+    tagline: '#1e3a8a',
+  },
+  /** 五粮液 红金 */
+  '000858': {
+    accent: '#dc2626',
+    accent2: '#f59e0b',
+    badgeFrom: '#dc2626',
+    badgeTo: '#b45309',
+    topFrom: '#fff1f2',
+    topTo: '#fffbeb',
+    border: 'rgba(220, 38, 38, 0.28)',
+    borderHover: 'rgba(245, 158, 11, 0.38)',
+    glow: 'rgba(220, 38, 38, 0.14)',
+    shadow: 'rgba(185, 28, 28, 0.35)',
+    tagline: '#7f1d1d',
+  },
+  /** Google 经典四色（蓝/红） */
+  GOOGL: {
+    accent: '#1a73e8',
+    accent2: '#ea4335',
+    badgeFrom: '#1a73e8',
+    badgeTo: '#ea4335',
+    topFrom: '#eff6ff',
+    topTo: '#fff1f2',
+    border: 'rgba(26, 115, 232, 0.28)',
+    borderHover: 'rgba(234, 67, 53, 0.35)',
+    glow: 'rgba(26, 115, 232, 0.12)',
+    shadow: 'rgba(26, 115, 232, 0.32)',
+    tagline: '#0b3d91',
+  },
+  /** Credo 蓝青（高速互联） */
+  CRDO: {
+    accent: '#0ea5e9',
+    accent2: '#14b8a6',
+    badgeFrom: '#0ea5e9',
+    badgeTo: '#14b8a6',
+    topFrom: '#eff6ff',
+    topTo: '#f0fdfa',
+    border: 'rgba(14, 165, 233, 0.28)',
+    borderHover: 'rgba(20, 184, 166, 0.38)',
+    glow: 'rgba(14, 165, 233, 0.12)',
+    shadow: 'rgba(3, 105, 161, 0.32)',
+    tagline: '#0c4a6e',
+  },
 }
 
 export function getResearchCardTheme(code) {

@@ -364,14 +364,10 @@ def get_poll_logs(limit: int = 30) -> List[Dict[str, Any]]:
         return list(_poll_logs)[:n]
 
 
-def send_dingtalk_text(webhook_url: str, content: str, timeout: float = 8.0) -> Tuple[bool, str]:
+def _dingtalk_post(webhook_url: str, payload: dict, timeout: float = 8.0) -> Tuple[bool, str]:
     url = (webhook_url or "").strip()
     if not url.startswith("https://oapi.dingtalk.com/robot/send"):
         return False, "钉钉地址需为 https://oapi.dingtalk.com/robot/send?... "
-    content = ensure_dingtalk_keyword(content)
-    if len(content) > 18000:
-        content = content[:17900] + "\n...(截断)"
-    payload = {"msgtype": "text", "text": {"content": content}}
     try:
         with requests.Session() as sess:
             sess.trust_env = _stock_news_trust_env()
@@ -387,6 +383,31 @@ def send_dingtalk_text(webhook_url: str, content: str, timeout: float = 8.0) -> 
         return False, str(j)
     except Exception as exc:
         return False, str(exc)
+
+
+def send_dingtalk_text(webhook_url: str, content: str, timeout: float = 8.0) -> Tuple[bool, str]:
+    content = ensure_dingtalk_keyword(content)
+    if len(content) > 18000:
+        content = content[:17900] + "\n...(截断)"
+    return _dingtalk_post(webhook_url, {"msgtype": "text", "text": {"content": content}}, timeout=timeout)
+
+
+def send_dingtalk_markdown(
+    webhook_url: str,
+    title: str,
+    text: str,
+    timeout: float = 8.0,
+) -> Tuple[bool, str]:
+    """钉钉 Markdown 消息（支持加粗、引用、标题等排版）。"""
+    body = ensure_dingtalk_keyword(text)
+    if len(body) > 18000:
+        body = body[:17900] + "\n...(截断)"
+    title = ensure_dingtalk_keyword((title or "通知")[:120])
+    return _dingtalk_post(
+        webhook_url,
+        {"msgtype": "markdown", "markdown": {"title": title, "text": body}},
+        timeout=timeout,
+    )
 
 
 _instance: Optional["StockNewsAlertService"] = None

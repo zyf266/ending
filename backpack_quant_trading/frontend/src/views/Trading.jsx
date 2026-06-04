@@ -69,6 +69,8 @@ const Trading = () => {
     adaptive_long_lock_profit: 0,    // 锁利触发盈利%，0=不启用
     adaptive_long_lock_profit_sl: 0, // 锁利后 SL 锁定盈利%
     adaptive_long_min_ai_score: 0,   // 0=不启用；买入 Webhook 须 AI 分>=该值才开单
+    adaptive_long_allow_repeat_open: false, // K线不限制时：否=同币种已有仓不再开
+    adaptive_long_use_ai_sr_tpsl: false,   // 是=AI支撑位止损+分批压力位止盈
     adaptive_short_coin: '',    // 自适应做空：交易对币种
     adaptive_short_account_index: 0,
     adaptive_short_api_key_index: 2,
@@ -210,7 +212,11 @@ const Trading = () => {
           api_secret: isBinance ? (form.api_secret || undefined) : undefined,
           account_index: isLighter ? (isLong ? form.adaptive_long_account_index : form.adaptive_short_account_index) : undefined,
           api_key_index: isLighter ? (isLong ? form.adaptive_long_api_key_index : form.adaptive_short_api_key_index) : undefined,
-          ...(isLong ? { min_ai_score_for_trade: Math.max(0, Number(form.adaptive_long_min_ai_score) || 0) } : {}),
+          ...(isLong ? {
+            min_ai_score_for_trade: Math.max(0, Number(form.adaptive_long_min_ai_score) || 0),
+            allow_repeat_open: !!form.adaptive_long_allow_repeat_open,
+            use_ai_sr_tpsl: !!form.adaptive_long_use_ai_sr_tpsl,
+          } : {}),
         }
         const res = await updateInstance(editingId, payload)
         alert(res?.message || '已保存')
@@ -274,6 +280,8 @@ const Trading = () => {
           margin_amount:     form.adaptive_long_margin,
           leverage:          form.adaptive_long_leverage,
           min_ai_score_for_trade: Math.max(0, Number(form.adaptive_long_min_ai_score) || 0),
+          allow_repeat_open: !!form.adaptive_long_allow_repeat_open,
+          use_ai_sr_tpsl: !!form.adaptive_long_use_ai_sr_tpsl,
           stop_loss_pct:     form.hype_stop_loss / 100,
           take_profit_pct:   form.hype_take_profit / 100,
           break_even_pct:    form.hype_break_even / 100,
@@ -484,6 +492,18 @@ const Trading = () => {
       adaptive_long_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
       adaptive_long_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
       adaptive_long_min_ai_score: Number(cfg.min_ai_score_for_trade ?? 0),
+      adaptive_long_allow_repeat_open: !!(
+        cfg.allow_repeat_open === true
+        || cfg.allow_repeat_open === 1
+        || String(cfg.allow_repeat_open || '').toLowerCase() === 'true'
+        || cfg.allow_repeat_open === '是'
+      ),
+      adaptive_long_use_ai_sr_tpsl: !!(
+        cfg.use_ai_sr_tpsl === true
+        || cfg.use_ai_sr_tpsl === 1
+        || String(cfg.use_ai_sr_tpsl || '').toLowerCase() === 'true'
+        || cfg.use_ai_sr_tpsl === '是'
+      ),
       adaptive_short_lock_profit: Number(cfg.lock_profit_pct ?? 0) * 100,
       adaptive_short_lock_profit_sl: Number(cfg.lock_profit_sl_pct ?? 0) * 100,
     }))
@@ -867,6 +887,32 @@ const Trading = () => {
                     />
                     <small style={{color:'#888',fontSize:'12px'}}>
                       0=不筛选。买入 Webhook 先按信号币种+K线级别在 HL 拉 K 线并 AI 评分，仅当评分≥该值才开单（与钉钉推送无关）
+                    </small>
+                  </div>
+                  <div className="form-item" style={{marginTop:'12px'}}>
+                    <label>是否重复开单</label>
+                    <select
+                      value={form.adaptive_long_allow_repeat_open ? 'yes' : 'no'}
+                      onChange={(e) => setField('adaptive_long_allow_repeat_open', e.target.value === 'yes')}
+                    >
+                      <option value="no">否 — 同币种已有仓则不再开（如先 4H 后 2H 的 ETH 买入会忽略后者）</option>
+                      <option value="yes">是 — 不同 K 线级别可加仓（如 4H 与 2H 各开一次）</option>
+                    </select>
+                    <small style={{color:'#888',fontSize:'12px'}}>
+                      在「K 线级别=不限制」时生效；信号须带 timeframe（如 4H、2H）
+                    </small>
+                  </div>
+                  <div className="form-item" style={{marginTop:'12px'}}>
+                    <label>AI 支撑压力止盈止损</label>
+                    <select
+                      value={form.adaptive_long_use_ai_sr_tpsl ? 'yes' : 'no'}
+                      onChange={(e) => setField('adaptive_long_use_ai_sr_tpsl', e.target.value === 'yes')}
+                    >
+                      <option value="no">否 — 使用策略里配置的止损%/止盈%</option>
+                      <option value="yes">是 — 止损=AI同级支撑；50%在小级压力止盈，50%在同级压力止盈（Hyperliquid）</option>
+                    </select>
+                    <small style={{color:'#888',fontSize:'12px'}}>
+                      启用后买入前会跑 AI 评分提取支撑/压力位；数据不足时自动回退百分比止盈止损
                     </small>
                   </div>
                   {/* 平台认证配置 - Binance 显示 API，Lighter 显示私鑰+账户索引，其他显示私鑰 */}

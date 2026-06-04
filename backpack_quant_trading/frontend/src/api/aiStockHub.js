@@ -1,7 +1,8 @@
 import axios from 'axios'
 import request from './request'
 
-export const RESEARCH_CARD_CODES = ['NVDA', 'INTC', 'CRCL', 'SNDK', 'ETH', 'HYPE']
+// 卡片列表以服务端 registry 为准；这里仅作为前端兜底顺序
+export const RESEARCH_CARD_CODES = ['NVDA', 'INTC', 'CRCL', 'SNDK', 'ETH', 'HYPE', 'ONDO', '000858', 'GOOGL', 'CRDO']
 
 export const getResearchCodes = () => request.get('/ai-stock-hub/research-codes')
 export const getResearchCards = () => request.get('/ai-stock-hub/cards')

@@ -5,9 +5,9 @@
   "report_date": "2026-05-20",
   "quote_symbol": "HYPE-USD",
   "scenarios": [
-    { "key": "bull", "label": "乐观情景", "probability": "~40%", "subtitle": "份额提升", "range_low": 35, "range_high": 48, "note": "交易量创新高、生态激励、上币效应" },
-    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 24, "range_high": 32, "note": "DEX 竞争加剧但龙头地位稳固" },
-    { "key": "bear", "label": "悲观情景", "probability": "~15%", "subtitle": "回调", "range_low": 14, "range_high": 20, "note": "加密风险偏好下降、激励退坡" }
+    { "key": "bull", "label": "乐观情景", "probability": "~35%", "subtitle": "RWA/预测市场+ETF+牛市", "range_low": 90, "range_high": 120, "note": "PDF「06 估值与三档目标价模型」：$90-$120" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "稳健增长", "range_low": 55, "range_high": 75, "note": "PDF：$55-$75" },
+    { "key": "bear", "label": "悲观情景", "probability": "~20%", "subtitle": "监管/冬天/交易量下滑", "range_low": 20, "range_high": 35, "note": "PDF：$20-$35" }
   ],
   "highlights": [
     "永续合约交易量与未平仓合约是景气度核心指标",

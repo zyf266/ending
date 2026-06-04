@@ -71,6 +71,8 @@ class AdaptiveLongStrategy:
         lock_profit_pct: float = 0.0,     # 锁利触发盈利比例，0=不启用
         lock_profit_sl_pct: float = 0.0,  # 锁利后 SL 锁定的盈利比例
         min_ai_score_for_trade: int = 0,  # 0=不启用；买入 Webhook 须 AI 分>=该值才开单
+        allow_repeat_open: bool = False,  # K线不限制时：False=同币种已有仓不再开；True=不同周期可加仓
+        use_ai_sr_tpsl: bool = False,  # True=用 AI 支撑/压力位挂 SL+分批 TP（50%小级+50%同级）
     ):
         self.exchange = exchange.lower()
         if self.exchange == "binance":
@@ -95,6 +97,9 @@ class AdaptiveLongStrategy:
         self.lock_profit_pct    = lock_profit_pct
         self.lock_profit_sl_pct = lock_profit_sl_pct
         self.min_ai_score_for_trade = max(0, int(min_ai_score_for_trade or 0))
+        self.allow_repeat_open = bool(allow_repeat_open)
+        self.use_ai_sr_tpsl = bool(use_ai_sr_tpsl)
+        self.pending_ai_sr_levels: Optional[Dict[str, Any]] = None
         self.symbol_filter   = symbol_filter.upper().strip() if symbol_filter else None
         self.timeframe_filter = timeframe_filter.upper().strip() if timeframe_filter else None
         # 注: XYZ 不是子账户，是 Hyperliquid HIP-3 DEX，同一键包地址可以同时下单 Perps 和 XYZ 资产。
@@ -117,6 +122,8 @@ class AdaptiveLongStrategy:
         # 交易所挂单 oid
         self._sl_oid: Optional[str] = None
         self._tp_oid: Optional[str] = None
+        self._tp_oid_lower: Optional[str] = None
+        self._tp_oid_same: Optional[str] = None
         self._sync_count: int = 0   # 持仓同步计数器
         # 本账户上已通过开多信号建仓的 K 线级别（用于：同周期重复 buy 忽略，不同周期可加仓）
         self.position_entry_tfs: set = set()
@@ -132,6 +139,15 @@ class AdaptiveLongStrategy:
     # ─── 主循环 ─────────────────────────────────────────
     async def run(self):
         self._lock = asyncio.Lock()
+        logger.info(
+            "🟢 自适应做多运行中 | instance=%s | 绑定币种=%s | K线过滤=%s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s",
+            self.instance_id,
+            self.symbol_filter or "不限",
+            self.timeframe_filter or "不限",
+            self.min_ai_score_for_trade,
+            "是" if self.allow_repeat_open else "否",
+            "是" if self.use_ai_sr_tpsl else "否",
+        )
         await self.client._get_session()
         try:
             self.balance_cache = await self._get_balance_float()
@@ -232,6 +248,42 @@ class AdaptiveLongStrategy:
         return await self.client.get_balance(dex=dex)
 
     # ─── 持仓状态重置 ────────────────────────────────────
+    async def _sync_long_position_from_exchange(self, symbol: str) -> bool:
+        """从交易所同步多仓到内存（平仓前补救：内存无仓但链上有仓时可恢复）。"""
+        symbol = symbol.upper().strip()
+        try:
+            dex_name = ""
+            if self.exchange not in ("binance", "lighter"):
+                try:
+                    dex_name, _, _, _ = await self.client.find_asset_dex(symbol)
+                except Exception:
+                    dex_name = await self.client.get_asset_dex(symbol)
+            positions = await self.client.get_positions(symbol=symbol, dex=dex_name or None)
+            if not positions:
+                return False
+            pos = positions[0]
+            size = abs(float(pos.get("size", 0) or 0))
+            if size <= 0:
+                return False
+            self.symbol = symbol
+            self.position = "LONG"
+            self.position_size = size
+            self.entry_price = float(pos.get("entry_price") or 0) or await self._get_price(symbol)
+            if self.entry_price <= 0:
+                self.entry_price = await self._get_price(symbol)
+            self.entry_time = self.entry_time or datetime.now()
+            if not self.sl_price and self.entry_price:
+                self.sl_price = self.entry_price * (1 - self.stop_loss_pct)
+            if not self.tp_price and self.entry_price:
+                self.tp_price = self.entry_price * (1 + self.take_profit_pct)
+            logger.info(
+                f"🔄 已从交易所同步多仓: {symbol} 数量={size:.6f} 入场≈{self.entry_price:.4f}（内存状态已对齐）"
+            )
+            return True
+        except Exception as e:
+            logger.info(f"同步交易所持仓失败({symbol}): {e}")
+            return False
+
     def _reset_position_state(self):
         """重置所有持仓相关字段"""
         self.position             = None
@@ -245,6 +297,9 @@ class AdaptiveLongStrategy:
         self.symbol               = None
         self._sl_oid              = None
         self._tp_oid              = None
+        self._tp_oid_lower        = None
+        self._tp_oid_same         = None
+        self.pending_ai_sr_levels = None
         self._closing             = False
         self._opening             = False
         self.position_entry_tfs   = set()
@@ -337,7 +392,12 @@ class AdaptiveLongStrategy:
 
     async def _cancel_exchange_tpsl(self):
         """撤销交易所上挂的 SL/TP 触发单（支持 Hyperliquid 和 Binance）"""
-        for oid, label in [(self._sl_oid, "SL"), (self._tp_oid, "TP")]:
+        for oid, label in [
+            (self._sl_oid, "SL"),
+            (self._tp_oid, "TP"),
+            (self._tp_oid_lower, "TP-小级"),
+            (self._tp_oid_same, "TP-同级"),
+        ]:
             if oid and self.symbol:
                 try:
                     await self.client.cancel_order_async(self.symbol, order_id=oid)
@@ -346,6 +406,108 @@ class AdaptiveLongStrategy:
                     logger.warning(f"撤销 {label} 单失败 oid={oid}: {e}")
         self._sl_oid = None
         self._tp_oid = None
+        self._tp_oid_lower = None
+        self._tp_oid_same = None
+
+    def _round_position_qty(self, qty: float) -> float:
+        q = max(0.0, float(qty))
+        if q <= 0:
+            return 0.0
+        return round(q, 6)
+
+    async def _place_ai_sr_tpsl(self, plan: Dict[str, Any]) -> bool:
+        """按 AI 支撑/压力位挂 SL + 两档 TP（各 50% 仓位）。"""
+        if not plan or not self.position_size or not self.entry_price:
+            return False
+        entry = float(self.entry_price)
+        support = float(plan.get("support") or 0)
+        tp_lower = plan.get("tp_lower_tf")
+        tp_same = plan.get("tp_same_tf")
+        tp_lower = float(tp_lower) if tp_lower else None
+        tp_same = float(tp_same) if tp_same else None
+
+        if support <= 0 or support >= entry * 0.998:
+            logger.info("⛔ AI位阶止盈止损: 支撑位无效，回退百分比 SL/TP")
+            return False
+
+        targets = []
+        if tp_lower and tp_lower > entry * 1.001:
+            targets.append(("小级压力", tp_lower))
+        if tp_same and tp_same > entry * 1.001 and (not tp_lower or abs(tp_same - tp_lower) / entry > 0.001):
+            targets.append(("同级压力", tp_same))
+        if not targets:
+            logger.info("⛔ AI位阶止盈止损: 无有效压力位，回退百分比 SL/TP")
+            return False
+
+        self.sl_price = support
+        self.tp_price = targets[-1][1]
+
+        if self.exchange != "hyperliquid":
+            logger.info("⚠️ AI位阶止盈止损当前仅支持 Hyperliquid，本实例回退百分比 SL/TP")
+            return False
+
+        total = self.position_size
+        if len(targets) >= 2:
+            half = self._round_position_qty(total / 2.0)
+            qty1, qty2 = half, self._round_position_qty(total - half)
+        else:
+            qty1, qty2 = total, 0.0
+
+        logger.info("=" * 60)
+        logger.info("📐 AI位阶止盈止损（Hyperliquid）")
+        logger.info(f"   止损(全仓): 支撑 {support:.4f}")
+        for name, px in targets:
+            logger.info(f"   止盈目标: {name} {px:.4f}")
+        logger.info("=" * 60)
+
+        sl_res = await self.client.place_tpsl_order(
+            symbol=self.symbol,
+            side="SELL",
+            quantity=total,
+            trigger_price=support,
+            tpsl="sl",
+        )
+        if sl_res.get("status") == "FAILED":
+            logger.info(f"⛔ AI止损挂单失败: {sl_res.get('error')}")
+            return False
+        self._sl_oid = sl_res.get("orderId")
+
+        label0, px0 = targets[0]
+        if qty1 > 0:
+            tp1 = await self.client.place_tpsl_order(
+                symbol=self.symbol,
+                side="SELL",
+                quantity=qty1,
+                trigger_price=px0,
+                tpsl="tp",
+            )
+            if tp1.get("status") != "FAILED":
+                self._tp_oid_lower = tp1.get("orderId")
+                logger.info(f"✅ AI止盈1(50%): {label0} @ {px0:.4f}  qty={qty1:.6f} oid={self._tp_oid_lower}")
+            else:
+                logger.info(f"⛔ AI止盈1失败: {tp1.get('error')}")
+
+        if len(targets) >= 2 and qty2 > 0:
+            label1, px1 = targets[1]
+            tp2 = await self.client.place_tpsl_order(
+                symbol=self.symbol,
+                side="SELL",
+                quantity=qty2,
+                trigger_price=px1,
+                tpsl="tp",
+            )
+            if tp2.get("status") != "FAILED":
+                self._tp_oid_same = tp2.get("orderId")
+                logger.info(f"✅ AI止盈2(50%): {label1} @ {px1:.4f}  qty={qty2:.6f} oid={self._tp_oid_same}")
+            else:
+                logger.info(f"⛔ AI止盈2失败: {tp2.get('error')}")
+        elif qty1 > 0 and len(targets) == 1:
+            self._tp_oid = self._tp_oid_lower
+
+        logger.info(
+            f"📌 AI位阶挂单完成 SL={self._sl_oid} TP1={self._tp_oid_lower} TP2={self._tp_oid_same}"
+        )
+        return True
 
     # ─── 开仓 ────────────────────────────────────────────
     async def _get_vault_address(self, symbol: str) -> Optional[str]:
@@ -371,7 +533,7 @@ class AdaptiveLongStrategy:
                 try:
                     dex_name, _, _, _ = await self.client.find_asset_dex(symbol)
                 except (ValueError, Exception) as e:
-                    logger.error(f"❌ 开多失败: 资产查找失败 ({e})")
+                    logger.info(f"⛔ 开多未成交: 资产查找失败 ({e})")
                     return
                 if dex_name:
                     dex_label = "XYZ HIP-3 DEX"
@@ -402,11 +564,11 @@ class AdaptiveLongStrategy:
             usable = balance * 0.9
             actual_margin = self.margin_amount
             if actual_margin > usable:
-                logger.error(
-                    f"❌ 开多失败: 配置保证金超过安全可用额度 "
-                    f"(DEX={dex_label}  账户余额={balance:.2f} {bal_unit}，"
-                    f"配置保证金={actual_margin:.2f}，按余额 90% 计可用上限={usable:.2f}；"
-                    f"请下调「保证金」或向账户充值)"
+                logger.info(
+                    f"⛔ 开多未成交: 保证金不足 "
+                    f"(DEX={dex_label} 余额={balance:.2f} {bal_unit}，"
+                    f"配置保证金={actual_margin:.2f}，可用上限≈{usable:.2f}；"
+                    f"请下调「保证金」或充值后再试)"
                 )
                 return
 
@@ -414,7 +576,7 @@ class AdaptiveLongStrategy:
                 # Binance 期货 quantity 是合约数量（ETH 单位），需要将 USDT 保证金转换
                 current_price = await self._get_price(symbol)
                 if current_price <= 0:
-                    logger.error(f"❌ 开多失败: 获取价格异常 {symbol}")
+                    logger.info(f"⛔ 开多未成交: 获取价格异常 {symbol}")
                     return
                 # 仓位价値 = 保证金 × 杠杆
                 position_value = actual_margin * self.leverage
@@ -422,7 +584,7 @@ class AdaptiveLongStrategy:
                 order_qty = round(position_value / current_price, 3)
                 logger.info(f"📊 开仓计算: 保证金={actual_margin:.2f} USDT × {self.leverage}x / 价格={current_price:.2f} = 数量={order_qty:.4f} {symbol}")
                 if order_qty <= 0:
-                    logger.error("❌ 开多失败: 计算数量为 0")
+                    logger.info("⛔ 开多未成交: 计算数量为 0")
                     return
                 result = await self.client.place_order(
                     symbol=symbol,
@@ -444,14 +606,14 @@ class AdaptiveLongStrategy:
                 bn_code = result.get("code")
                 if result.get("status") == "FAILED" or (bn_code is not None and int(bn_code) < 0):
                     error_msg = result.get("error") or result.get("msg", str(result))
-                    logger.error(f"❌ 开多下单失败: {error_msg}")
+                    logger.info(f"⛔ 开多未成交: 下单失败 {error_msg}")
                     return
             logger.info(f"[Binance 下单响应] {result}")
             # 等待成交后同步持仓状态
             await asyncio.sleep(3)
             positions = await self.client.get_positions(symbol=symbol, dex=dex_name)
             if not positions or abs(positions[0].get("size", 0)) <= 0:
-                logger.error("❌ 开多失败: 链上验证无持仓")
+                logger.info("⛔ 开多未成交: 下单后链上无持仓（可能未成交或延迟，请查交易所）")
                 return
 
             pos = positions[0]
@@ -466,23 +628,34 @@ class AdaptiveLongStrategy:
             self._closing      = False
             self._sync_count   = 0
 
+            plan = self.pending_ai_sr_levels
+            placed_ai_sr = False
+            if getattr(self, "use_ai_sr_tpsl", False) and plan:
+                placed_ai_sr = await self._place_ai_sr_tpsl(plan)
+                self.pending_ai_sr_levels = None
+
             be_trigger = self.entry_price * (1 + self.break_even_pct)
             logger.info("=" * 60)
             logger.info(f"🐂 开多成功: {symbol}")
             logger.info(f"   入场价:     {self.entry_price:.4f}")
             logger.info(f"   保证金:     {actual_margin:.2f} × {self.leverage}x")
             logger.info(f"   实际持仓:   {self.position_size:.6f} {symbol}")
-            logger.info(f"   止损价:     {self.sl_price:.4f}  (-{self.stop_loss_pct*100:.1f}%)")
-            logger.info(f"   止盈价:     {self.tp_price:.4f}  (+{self.take_profit_pct*100:.1f}%)")
+            if placed_ai_sr:
+                logger.info(f"   止损价:     {self.sl_price:.4f}  (AI支撑位)")
+                logger.info(f"   止盈价:     {self.tp_price:.4f}  (AI同级压力，余仓见交易所TP2)")
+            else:
+                logger.info(f"   止损价:     {self.sl_price:.4f}  (-{self.stop_loss_pct*100:.1f}%)")
+                logger.info(f"   止盈价:     {self.tp_price:.4f}  (+{self.take_profit_pct*100:.1f}%)")
             logger.info(f"   保本触发:   {be_trigger:.4f}  (盈利达 {self.break_even_pct*100:.1f}% 时SL移至成本价)")
             logger.info("=" * 60)
 
-            # Hyperliquid / Lighter：开仓后立即在交易所挂好 SL/TP 触发单（若失败会降级为软件御控）
-            if self.exchange in ("hyperliquid", "lighter"):
+            if not placed_ai_sr and self.exchange in ("hyperliquid", "lighter"):
                 await self._place_exchange_tpsl()
+            elif not placed_ai_sr and self.exchange == "binance":
+                logger.info("🛡️ [Binance] 使用软件轮询 + 百分比止盈止损")
 
         except Exception as e:
-            logger.error(f"开多异常: {e}")
+            logger.info(f"⛔ 开多未成交: 异常 {e}")
 
     # ─── 平仓 ────────────────────────────────────────────
     async def _close_position(self, reason: str):
@@ -544,7 +717,13 @@ class AdaptiveLongStrategy:
             self._closing = False
 
     # ─── Webhook 信号处理入口 ─────────────────────────────
-    async def execute_signal(self, symbol: str, action: str, timeframe: Optional[str] = None):
+    async def execute_signal(
+        self,
+        symbol: str,
+        action: str,
+        timeframe: Optional[str] = None,
+        ai_sr_levels: Optional[Dict[str, Any]] = None,
+    ):
         """
         由 Webhook 路由调用。
         action="buy"  → 开多（已有持仓则忽略）
@@ -568,21 +747,30 @@ class AdaptiveLongStrategy:
             if self._opening:
                 logger.info(f"开仓进行中，忽略重复开仓信号 ({symbol} {tf or '未指定级别'})")
                 return
-            # 已有多仓时：仅「与已记录 K 线级别相同」的 buy 视为重复；不同级别允许再次建仓（加仓）
             if self.position == "LONG":
+                held = self.symbol or symbol
+                if not getattr(self, "allow_repeat_open", False):
+                    logger.info(
+                        f"不重复开单=否 | 已有 {held} 多仓，忽略 {symbol} {tf or '未指定级别'} 买入（"
+                        f"已开仓级别={sorted(self.position_entry_tfs) or ['—']}）"
+                    )
+                    return
+                # 允许重复开单：同 K 线级别不重复；不同级别可加仓（K 线不限制时常用）
                 if tf and tf in self.position_entry_tfs:
                     logger.info(
-                        f"已有 {self.symbol or symbol} 多仓，且当前信号 K 线级别={tf} 已开过仓，忽略同级别重复开仓"
+                        f"已有 {held} 多仓，且当前信号 K 线级别={tf} 已开过仓，忽略同级别重复开仓"
                     )
                     return
                 if not tf:
                     logger.info(
-                        f"已有 {self.symbol or symbol} 多仓，但信号未带 K 线级别，忽略重复开仓（请为 TradingView 信号添加 timeframe）"
+                        f"已有 {held} 多仓，但信号未带 K 线级别，忽略重复开仓（请为 TradingView 信号添加 timeframe）"
                     )
                     return
                 logger.info(
-                    f"已有 {self.symbol or symbol} 多仓，收到不同 K 线级别={tf}（已开仓级别={sorted(self.position_entry_tfs)}），尝试追加开仓"
+                    f"重复开单=是 | 已有 {held} 多仓，不同 K 线级别={tf}（已开仓级别={sorted(self.position_entry_tfs)}），尝试追加开仓"
                 )
+            if ai_sr_levels and getattr(self, "use_ai_sr_tpsl", False):
+                self.pending_ai_sr_levels = ai_sr_levels
             self._opening = True
             logger.info(f"收到开多信号: {symbol}  K线级别={tf or '未指定'}")
             self.last_signal = f"buy {symbol}"
@@ -595,8 +783,13 @@ class AdaptiveLongStrategy:
 
         elif action == "sell":
             if self.position != "LONG":
-                logger.info(f"无多仓，忽略平仓信号 ({symbol})")
-                return
+                synced = await self._sync_long_position_from_exchange(symbol)
+                if not synced:
+                    logger.info(
+                        f"无多仓，忽略平仓信号 ({symbol})（策略内存与交易所均无 {symbol} 多仓；"
+                        f"若刚发买入，请查日志是否有「⛔ 开多未成交」）"
+                    )
+                    return
             if self.symbol and self.symbol.upper() != symbol:
                 logger.info(f"持仓 {self.symbol} 与信号 {symbol} 不匹配，忽略")
                 return

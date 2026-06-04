@@ -1,0 +1,42 @@
+{
+  "code": "000858",
+  "name": "五粮液",
+  "tagline": "行业筑底企稳 · 高股息逆向优选标的",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-24",
+  "sections": [
+    {
+      "id": "01",
+      "title": "核心结论与定位",
+      "subtitle": "浓香白酒绝对龙头 · 防守反击型核心持仓",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            { "icon": "shield", "title": "安全边际", "text": "股息率 6.14% + 百亿级回购计划，现金回报托底。" },
+            { "icon": "trend", "title": "拐点信号", "text": "行业筑底，2026Q1 业绩修复与渠道回暖信号增强。" },
+            { "icon": "chart", "title": "估值低位", "text": "PE(TTM) 26.29 倍、PB 2.55 倍，处历史低位区间。" },
+            { "icon": "wallet", "title": "配置建议", "text": "建议 15%–20% 总资产上限，长线底仓+机动加仓。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "三档情景目标价（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenario_cards",
+          "items": [
+            { "key": "bull", "label": "乐观行情", "probability": "30%", "range": "128–145 元", "text": "业绩超预期 + 风格切换" },
+            { "key": "base", "label": "基准行情", "probability": "45%", "range": "105–118 元", "text": "符合机构业绩预期" },
+            { "key": "bear", "label": "悲观行情", "probability": "25%", "range": "65–75 元", "text": "消费复苏不及预期" }
+          ]
+        }
+      ]
+    }
+  ],
+  "conclusion": "当前估值与股东回报提供较强防护垫，若行业景气回暖与业绩兑现，存在明显估值修复空间。"
+}
+

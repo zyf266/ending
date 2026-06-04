@@ -1,0 +1,43 @@
+{
+  "code": "ONDO",
+  "name": "Ondo Finance",
+  "tagline": "RWA 基础设施领导者",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-21",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面快照",
+      "subtitle": "TVL、收入与市场数据（截至 2026-05）",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            { "icon": "layers", "title": "TVL", "value": "~$3.75B", "lines": ["持续增长", "与价格走势脱钩"] },
+            { "icon": "cash", "title": "年化费用收入", "value": "$50M+", "lines": ["2026Q1 $13.26M", "Q2(部分) $8.42M"] },
+            { "icon": "globe", "title": "Global Markets TVL", "value": "$1B+", "lines": ["第二增长曲线"] },
+            { "icon": "chart", "title": "MC/TVL", "value": "~0.5–0.6", "lines": ["历史低位区间", "估值具吸引力"] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "估值与三档目标价模型",
+      "subtitle": "风险收益比与情景假设",
+      "blocks": [
+        {
+          "type": "scenario_cards",
+          "items": [
+            { "key": "bull", "label": "乐观情景", "probability": "~25–30%", "range": "$1.80–$3.00+", "text": "TVL>$10B / Fee-switch / ETF / 牛市周期" },
+            { "key": "base", "label": "基准情景", "probability": "~50%", "range": "$0.85–$1.40", "text": "TVL>$5B / Fee-switch 部分落地" },
+            { "key": "bear", "label": "悲观情景", "probability": "~20–25%", "range": "$0.20–$0.50", "text": "Fee-switch 延迟 / 利率不利 / 监管挫折" }
+          ]
+        }
+      ]
+    }
+  ],
+  "conclusion": "作为 RWA 代币化赛道基础设施龙头，基本面数据与竞争壁垒支撑长期叙事；估值区间处于历史偏低水平，但需动态管理监管与解锁/宏观波动风险。"
+}
+

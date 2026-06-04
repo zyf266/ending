@@ -1,47 +1,75 @@
 {
-  "updated_at": "2026-06-02 04:29:59",
+  "updated_at": "2026-06-04 04:30:00",
   "prices": {
     "NVDA": {
       "quote_symbol": "NVDA",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 224.36
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 214.82
     },
     "INTC": {
       "quote_symbol": "INTC",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 109.31
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 112.69
     },
     "CRCL": {
       "quote_symbol": "CRCL",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 104.97
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 90.315
     },
     "SNDK": {
       "quote_symbol": "SNDK",
       "currency": "USD",
       "source": "stooq",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 1761.43
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 1831.5
     },
     "ETH": {
       "quote_symbol": "ETH-USD",
       "currency": "USD",
       "source": "hyperliquid",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 2004.85
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 1809.35
     },
     "HYPE": {
       "quote_symbol": "HYPE-USD",
       "currency": "USD",
       "source": "hyperliquid",
-      "fetched_at": "2026-06-02 04:29:59",
-      "price": 72.9385
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 73.4055
+    },
+    "000858": {
+      "quote_symbol": "000858.SZ",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 82.35
+    },
+    "ONDO": {
+      "quote_symbol": "ONDO-USD",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 0.42655
+    },
+    "GOOGL": {
+      "quote_symbol": "GOOGL",
+      "currency": "USD",
+      "source": "stooq",
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 358.99
+    },
+    "CRDO": {
+      "quote_symbol": "CRDO",
+      "currency": "USD",
+      "source": "stooq",
+      "fetched_at": "2026-06-04 04:30:00",
+      "price": 214.18
     }
   }
 }

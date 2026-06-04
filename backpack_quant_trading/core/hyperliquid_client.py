@@ -26,7 +26,12 @@ class HyperliquidAPIClient:
         
         if private_key:
             # 清理私钥格式
-            pk = private_key.strip()
+            pk = str(private_key).strip()
+            # 去掉常见包裹引号
+            if (pk.startswith('"') and pk.endswith('"')) or (pk.startswith("'") and pk.endswith("'")):
+                pk = pk[1:-1].strip()
+            # 移除所有空白字符（避免复制粘贴带空格/换行导致长度异常）
+            pk = "".join(pk.split())
             # 移除 0x 前缀（如果存在）
             if pk.startswith('0x') or pk.startswith('0X'):
                 pk = pk[2:]

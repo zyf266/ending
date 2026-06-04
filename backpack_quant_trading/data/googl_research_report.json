@@ -1,0 +1,26 @@
+{
+  "code": "GOOGL",
+  "name": "谷歌",
+  "tagline": "AI基础设施与广告/云现金流机器",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-06-02",
+  "sections": [
+    {
+      "id": "07",
+      "title": "估值锚定：三档情景目标价模型",
+      "subtitle": "目标价分析（PDF 第 18 页）",
+      "blocks": [
+        {
+          "type": "scenario_cards",
+          "items": [
+            { "key": "bull", "label": "乐观情景", "probability": "15%", "range": "$480–$550", "text": "AI需求持续超预期，云业务维持高增速，折旧冲击被有效对冲。" },
+            { "key": "base", "label": "基准情景", "probability": "65%", "range": "$400–$450", "text": "云业务增速回落至行业均值，折旧影响可控，稀释效应计入股价。" },
+            { "key": "bear", "label": "悲观情景", "probability": "20%", "range": "$280–$340", "text": "AI需求放缓 + 折旧侵蚀利润 + 价格战压缩毛利率。" }
+          ]
+        }
+      ]
+    }
+  ],
+  "conclusion": "风险收益比中性偏正面：当前股价位于基准情景下沿，下行风险相对可控；向上弹性取决于 AI 业务落地节奏与成效。"
+}
+

@@ -1,0 +1,44 @@
+{
+  "code": "GOOGL",
+  "name": "谷歌",
+  "tagline": "AI基础设施与广告/云现金流机器",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-06-02",
+  "quote_symbol": "GOOGL",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "15%",
+      "subtitle": "AI需求超预期",
+      "range_low": 480,
+      "range_high": 550,
+      "note": "PDF「07 估值锚定：三档情景目标价模型」：$480-$550"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "65%",
+      "subtitle": "最可能情景",
+      "range_low": 400,
+      "range_high": 450,
+      "note": "PDF：$400-$450"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "20%",
+      "subtitle": "折旧+价格战",
+      "range_low": 280,
+      "range_high": 340,
+      "note": "PDF：$280-$340"
+    }
+  ],
+  "highlights": [
+    "分析师平均目标价 $412.94（54家机构覆盖；最高 $515 / 最低 $220）",
+    "核心风险：$1,800-1,900亿 Capex 折旧潮压缩利润率",
+    "云积压订单翻倍至 $4,620亿，支撑中期增长能见度"
+  ],
+  "pdf_path": "谷歌(GOOGL) 分析报告.pdf"
+}
+

@@ -214,8 +214,8 @@ const CryptoSignalHub = () => {
           </div>
           <p className="csh-meta">
             {scan?.scanned_at
-              ? `上次：${scan.scanned_at} · 已分析 ${scan.analyzed_count ?? displayList.length}/${scan.total_candidates} · 三层过滤通过 ${scan.uptrend_count} · ${scan.duration_sec}s`
-              : '尚未扫描，点击「开始扫描」（后台约 2–5 分钟，不消耗 DeepSeek）'}
+              ? `上次：${scan.scanned_at} · 已分析 ${scan.analyzed_count ?? displayList.length}/${scan.total_candidates} · 三层过滤通过 ${scan.uptrend_count} · ${scan.duration_sec}s · 每1小时自动更新`
+              : '尚未扫描；服务启动后约 90 秒自动首次扫描，之后每 1 小时更新（也可手动「开始扫描」）'}
           </p>
           {showSnapshot && (
             <p className="csh-meta" style={{ color: '#b45309', marginBottom: 12 }}>

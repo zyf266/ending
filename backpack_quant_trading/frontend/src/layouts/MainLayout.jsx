@@ -23,28 +23,18 @@ import './MainLayout.css'
 // 导航配置：支持父菜单 + 子菜单
 const navItems = [
   { type: 'item', to: '/strategies', icon: Layers, label: 'AI量化实盘' },
+  { type: 'item', to: '/ai-stock', icon: LayoutGrid, label: 'AI选股' },
   {
     type: 'item',
     icon: Zap,
     label: '策略交易',
     to: '/trading',
   },
-  {
-    type: 'group',
-    icon: FlaskConical,
-    label: 'AI 实验室',
-    to: '/ai-lab',
-    children: [
-      { to: '/ai-lab', label: '加密AI分析' },
-      { to: '/stock-ai', label: 'A股 AI 选股' },
-      { to: '/ai-stock', label: 'AI选股（卡片版）' },
-      { to: '/okx-console', label: 'OKX 操作台' },
-    ],
-  },
+  // 暂时隐藏：AI 实验室（仅隐藏入口，不影响路由）
   { type: 'item', to: '/currency-monitor', icon: Bell, label: '币种监视' },
   { type: 'item', to: '/crypto-signal-hub', icon: TrendingUp, label: '加密信号AI评分' },
   { type: 'item', to: '/stock-news-alert', icon: Newspaper, label: '自选多源快讯' },
-  { type: 'item', to: '/polymarket-alert', icon: TrendingUp, label: 'Polymarket概率' },
+  // 暂时隐藏：Polymarket概率（仅隐藏入口，不影响路由）
   { type: 'item', to: '/us-weekly-report', icon: BarChart2, label: '美股泡沫阶段监测' },
 ]
 
@@ -71,8 +61,6 @@ function getPageTitle(pathname) {
   if (
     pathname === '/ai-lab'
     || pathname === '/stock-ai'
-    || pathname === '/ai-stock'
-    || pathname.startsWith('/ai-stock/')
     || pathname === '/okx-console'
   ) return 'AI 实验室'
   return pageTitles[pathname] || '沐龙量化'

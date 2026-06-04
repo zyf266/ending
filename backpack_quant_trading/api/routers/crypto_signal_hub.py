@@ -27,6 +27,72 @@ logger = logging.getLogger(__name__)
 _scan_lock = threading.Lock()
 _scan_running = False
 
+# 定时扫描间隔（秒），默认 1 小时
+UPTREND_SCAN_INTERVAL_SEC = int(__import__("os").getenv("UPTREND_SCAN_INTERVAL_SEC", "3600"))
+
+
+def _run_scan_job() -> None:
+    """后台/定时共用的扫描任务体。"""
+    global _scan_running
+    try:
+        cfg = load_config()
+        scan_top50_uptrend(
+            top_n=int(cfg.get("scan_top_n") or 50),
+            interval=str(cfg.get("kline_interval") or "4h"),
+            kline_limit=int(cfg.get("kline_limit") or 200),
+        )
+    finally:
+        with _scan_lock:
+            _scan_running = False
+
+
+def trigger_uptrend_scan_background() -> Dict[str, Any]:
+    """手动触发：后台线程扫描（与定时任务互斥）。"""
+    global _scan_running
+    with _scan_lock:
+        if _scan_running:
+            return {
+                "ok": False,
+                "message": "扫描任务进行中，请稍后刷新",
+                "scan_running": True,
+            }
+        _scan_running = True
+    threading.Thread(target=_run_scan_job, daemon=True, name="crypto-uptrend-scan").start()
+    return {
+        "ok": True,
+        "message": "已启动后台扫描（HL成交额Top50→Hyperliquid K线→上涨趋势）",
+        "scan_running": True,
+    }
+
+
+def run_scheduled_uptrend_scan_sync() -> Dict[str, Any]:
+    """定时任务：同步执行扫描（在 asyncio.to_thread 中调用，避免与手动扫描重叠）。"""
+    global _scan_running
+    with _scan_lock:
+        if _scan_running:
+            return {"ok": False, "skipped": True, "message": "扫描进行中，跳过本次定时"}
+        _scan_running = True
+    try:
+        cfg = load_config()
+        data = scan_top50_uptrend(
+            top_n=int(cfg.get("scan_top_n") or 50),
+            interval=str(cfg.get("kline_interval") or "4h"),
+            kline_limit=int(cfg.get("kline_limit") or 200),
+        )
+        return {
+            "ok": True,
+            "scanned_at": data.get("scanned_at"),
+            "uptrend_count": data.get("uptrend_count"),
+            "analyzed_count": data.get("analyzed_count"),
+            "duration_sec": data.get("duration_sec"),
+        }
+    except Exception as e:
+        logger.exception("定时上涨趋势扫描失败: %s", e)
+        return {"ok": False, "error": str(e)}
+    finally:
+        with _scan_lock:
+            _scan_running = False
+
 
 class ConfigUpdate(BaseModel):
     webhook_scorer_enabled: Optional[bool] = None
@@ -73,28 +139,7 @@ def get_scan_cache(user: dict = Depends(require_user)) -> Dict[str, Any]:
 
 @router.post("/scan/run")
 def run_scan(user: dict = Depends(require_user)) -> Dict[str, Any]:
-    global _scan_running
-    with _scan_lock:
-        if _scan_running:
-            return {"ok": False, "message": "扫描任务进行中，请稍后刷新", "scan_running": True}
-        _scan_running = True
-
-    cfg = load_config()
-
-    def _job():
-        global _scan_running
-        try:
-            scan_top50_uptrend(
-                top_n=int(cfg.get("scan_top_n") or 50),
-                interval=str(cfg.get("kline_interval") or "4h"),
-                kline_limit=int(cfg.get("kline_limit") or 200),
-            )
-        finally:
-            with _scan_lock:
-                _scan_running = False
-
-    threading.Thread(target=_job, daemon=True, name="crypto-uptrend-scan").start()
-    return {"ok": True, "message": "已启动后台扫描（HL成交额Top50→Hyperliquid K线→上涨趋势）", "scan_running": True}
+    return trigger_uptrend_scan_background()
 
 
 @router.post("/scan/run-sync")

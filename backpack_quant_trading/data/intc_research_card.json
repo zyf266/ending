@@ -5,9 +5,9 @@
   "report_date": "2026-05-20",
   "quote_symbol": "INTC",
   "scenarios": [
-    { "key": "bull", "label": "乐观情景", "probability": "~35%", "subtitle": "制造复苏", "range_low": 48, "range_high": 58, "note": "代工回暖、AI PC 渗透、毛利率修复" },
-    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 38, "range_high": 46, "note": "复苏节奏温和、竞争格局仍激烈" },
-    { "key": "bear", "label": "悲观情景", "probability": "~20%", "subtitle": "下行", "range_low": 28, "range_high": 34, "note": "份额流失、CapEx 不及预期、宏观拖累" }
+    { "key": "bull", "label": "乐观情景", "probability": "30%", "subtitle": "18A/Foundry 超预期", "range_low": 150, "range_high": 180, "note": "PDF「06 估值与三档目标价模型」：乐观 $150-$180" },
+    { "key": "base", "label": "基准情景", "probability": "45%", "subtitle": "按计划改善", "range_low": 90, "range_high": 120, "note": "PDF：基准 $90-$120" },
+    { "key": "bear", "label": "悲观情景", "probability": "25%", "subtitle": "执行/竞争风险", "range_low": 50, "range_high": 70, "note": "PDF：悲观 $50-$70" }
   ],
   "highlights": [
     "IDM 2.0 与代工业务复苏是核心叙事，关注产能利用率回升",

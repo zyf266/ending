@@ -1,0 +1,44 @@
+{
+  "code": "ONDO",
+  "name": "Ondo Finance",
+  "tagline": "RWA 基础设施领导者",
+  "institution": "沐龙量化研究",
+  "report_date": "2026-05-21",
+  "quote_symbol": "ONDO-USD",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "~25–30%",
+      "subtitle": "TVL>$10B / Fee-switch / ETF / 牛市",
+      "range_low": 1.8,
+      "range_high": 3.0,
+      "note": "报告 06 估值与三档目标价模型（乐观 $1.80–$3.00+）"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "~50%",
+      "subtitle": "TVL>$5B / Fee-switch 部分落地",
+      "range_low": 0.85,
+      "range_high": 1.4,
+      "note": "报告 06 估值与三档目标价模型（基准 $0.85–$1.40）"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "~20–25%",
+      "subtitle": "Fee-switch 延迟 / 利率不利 / 监管挫折",
+      "range_low": 0.2,
+      "range_high": 0.5,
+      "note": "报告 06 估值与三档目标价模型（悲观 $0.20–$0.50）"
+    }
+  ],
+  "highlights": [
+    "TVL 约 $3.75B，年化费用收入预估 $50M+（2026Q1 $13.26M）",
+    "Tokenized Equities 赛道份额约 60%，Global Markets TVL 已破 $1B",
+    "MC/TVL ~0.5–0.6 处历史低位区间，估值具备吸引力"
+  ],
+  "pdf_path": "ONDO Finance 投资分析报告.pdf"
+}
+

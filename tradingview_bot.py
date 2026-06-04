@@ -542,8 +542,11 @@ def main() -> None:
 
     def _score_and_push_live_trade(raw: dict, parsed: dict) -> None:
         try:
-            from backpack_quant_trading.core.crypto_signal_scorer import run_signal_score, format_dingtalk_message
-            from backpack_quant_trading.core.stock_news_alert import send_dingtalk_text
+            from backpack_quant_trading.core.crypto_signal_scorer import (
+                push_score_to_dingtalk,
+                run_signal_score,
+                should_score_webhook_action,
+            )
 
             symbol = (parsed.get("symbol") or raw.get("交易品种") or raw.get("symbol") or raw.get("coin") or "").strip()
             # 周期优先级：信号字段 > K线级别字段 > 文本解析出的周期
@@ -554,7 +557,19 @@ def main() -> None:
                 print(f"⚠️ 实盘交易评分跳过：symbol/action 缺失 symbol={symbol} action={action}")
                 return
 
-            strategy_label = str(parsed.get("strategy") or raw.get("策略名称") or raw.get("strategy_name") or "live_trade")
+            strategy_name = str(
+                parsed.get("strategy")
+                or raw.get("策略名称")
+                or raw.get("strategy_name")
+                or ""
+            ).strip()
+            if not should_score_webhook_action(action, strategy_name=strategy_name or None):
+                print(
+                    f"⏭️ 平仓信号跳过 AI 评分: strategy={strategy_name or '—'} action={action}"
+                )
+                return
+
+            strategy_label = strategy_name or "live_trade"
             res = run_signal_score(
                 symbol,
                 action,
@@ -566,15 +581,10 @@ def main() -> None:
                 print(f"❌ 实盘交易评分失败: {res.get('error')}")
                 return
 
-            webhook_url = CONFIG["live_trade_score_webhook"]
-            body = format_dingtalk_message(
-                res.get("symbol") or symbol,
-                res.get("action") or action,
-                res.get("snapshot") or {},
-                res.get("deepseek") or {},
-                timeframe=res.get("timeframe") or timeframe,
+            ok, msg = push_score_to_dingtalk(
+                res,
+                webhook_url=CONFIG.get("live_trade_score_webhook"),
             )
-            ok, msg = send_dingtalk_text(webhook_url, body)
             if ok:
                 print("✅ 实盘交易评分已推送钉钉")
             else:

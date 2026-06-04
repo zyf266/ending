@@ -22,7 +22,11 @@ from backpack_quant_trading.core.crypto_uptrend_scanner import (
     load_scan_cache,
 )
 from backpack_quant_trading.core.hyperliquid_klines import to_hl_coin
-from backpack_quant_trading.core.stock_news_alert import ensure_dingtalk_keyword, send_dingtalk_text
+from backpack_quant_trading.core.stock_news_alert import (
+    ensure_dingtalk_keyword,
+    send_dingtalk_markdown,
+    send_dingtalk_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,11 @@ _SYSTEM_PROMPT = """你是加密货币量化风控分析师，对「买入信号
   "rsi_comment": "一句话",
   "macd_comment": "一句话",
   "trend_comment": "一句话",
+  "support_resistance": {
+    "summary": "结合 supports（仅信号同级周期）与 resistances（同级+小一级压力）的一句话",
+    "stop_hint": "止损参考：须引用 supports 中 signal_timeframe 的支撑位",
+    "target_hint": "目标参考：先同级压力，再小一级压力（resistances 两条）"
+  },
   "score_breakdown": {"structure":0-30,"momentum":0-25,"volume":0-20,"risk_penalty":0-25}
 }
 
@@ -378,6 +387,302 @@ def to_binance_futures_symbol(symbol: str) -> str:
     return to_hl_coin(_normalize_symbol(symbol))
 
 
+def _fmt_price_level(price: Any) -> str:
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return "—"
+    if p >= 1000:
+        return f"{p:,.2f}"
+    if p >= 1:
+        return f"{p:.4f}"
+    return f"{p:.6f}"
+
+
+# 信号周期 → 小一级周期（用于第二压力位，如 4h→2h）
+_SMALLER_TF_MAP: Dict[str, str] = {
+    "1w": "1d",
+    "3d": "1d",
+    "1d": "4h",
+    "12h": "4h",
+    "8h": "4h",
+    "4h": "2h",
+    "2h": "1h",
+    "1h": "30m",
+    "30m": "15m",
+    "15m": "5m",
+    "5m": "3m",
+    "3m": "1m",
+}
+
+
+def extract_ai_sr_tpsl_plan(
+    metrics: Optional[Dict[str, Any]],
+    entry_price: float,
+) -> Optional[Dict[str, Any]]:
+    """
+    从 AI 评分指标提取止盈止损方案（做多）：
+    - 止损：信号同级支撑位
+    - 止盈1（50%）：小一级压力位
+    - 止盈2（50%）：同级压力位
+    """
+    if not metrics or entry_price <= 0:
+        return None
+    m = metrics
+    support = m.get("nearest_support")
+    for s in m.get("supports") or []:
+        if s.get("role") == "signal_tf" or support is None:
+            try:
+                support = float(s.get("price"))
+            except (TypeError, ValueError):
+                continue
+            break
+    if support is None:
+        return None
+    try:
+        support = float(support)
+    except (TypeError, ValueError):
+        return None
+
+    tp_same = None
+    tp_lower = None
+    for r in m.get("resistances") or []:
+        role = r.get("role")
+        try:
+            p = float(r.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if role == "same_tf":
+            tp_same = p
+        elif role == "lower_tf":
+            tp_lower = p
+    if tp_same is None and m.get("nearest_resistance") is not None:
+        try:
+            tp_same = float(m.get("nearest_resistance"))
+        except (TypeError, ValueError):
+            pass
+    if tp_lower is None and m.get("nearest_resistance_lower_tf") is not None:
+        try:
+            tp_lower = float(m.get("nearest_resistance_lower_tf"))
+        except (TypeError, ValueError):
+            pass
+
+    if support >= entry_price * 0.998:
+        return None
+    targets = [p for p in (tp_lower, tp_same) if p and p > entry_price * 1.001]
+    if not targets:
+        return None
+    # 近的目标先止盈 50%（通常为小级别压力）
+    if tp_lower and tp_same and tp_lower > tp_same:
+        tp_lower, tp_same = tp_same, tp_lower
+
+    return {
+        "support": support,
+        "tp_lower_tf": tp_lower,
+        "tp_same_tf": tp_same,
+        "sr_signal_timeframe": m.get("sr_signal_timeframe"),
+        "sr_lower_timeframe": m.get("sr_lower_timeframe"),
+    }
+
+
+def normalize_sr_interval(interval: str) -> str:
+    iv = _tf_map_webhook(interval) or (interval or "").strip().lower()
+    if not iv:
+        return "4h"
+    if iv.endswith("H") and iv[:-1].isdigit():
+        return f"{int(iv[:-1])}h"
+    if iv.endswith("D") and iv[:-1].isdigit():
+        return f"{int(iv[:-1])}d" if int(iv[:-1]) > 1 else "1d"
+    return iv
+
+
+def smaller_trading_interval(interval: str) -> Optional[str]:
+    """返回比信号周期小一级的 K 线周期（如 4h→2h）。"""
+    iv = normalize_sr_interval(interval)
+    return _SMALLER_TF_MAP.get(iv)
+
+
+def _sr_dist_pct(close: float, level: float) -> float:
+    if close <= 0:
+        return 0.0
+    return round((level - close) / close * 100.0, 2)
+
+
+def _swing_levels_single_tf(
+    df: pd.DataFrame,
+    *,
+    swing_window: int = 3,
+    lookback: int = 80,
+    want: str,
+    max_levels: int = 3,
+    include_ema: bool = True,
+) -> List[float]:
+    """单周期 K 线上的摆动支撑/压力候选价（不含其他周期）。"""
+    if df is None or len(df) < 25:
+        return []
+    work = df.tail(min(lookback, len(df))).copy()
+    close = float(work.iloc[-1]["close"])
+    if close <= 0:
+        return []
+
+    swing_highs: List[float] = []
+    swing_lows: List[float] = []
+    w = max(2, int(swing_window))
+    for i in range(w, len(work) - w):
+        hi = float(work.iloc[i]["high"])
+        lo = float(work.iloc[i]["low"])
+        seg_h = work.iloc[i - w : i + w + 1]["high"]
+        seg_l = work.iloc[i - w : i + w + 1]["low"]
+        if hi >= float(seg_h.max()):
+            swing_highs.append(hi)
+        if lo <= float(seg_l.min()):
+            swing_lows.append(lo)
+
+    if want == "support":
+        swing_lows.extend([
+            float(work.tail(10)["low"].min()),
+            float(work.tail(30)["low"].min()),
+        ])
+        if include_ema:
+            for col in ("ema20", "ema50", "ema200"):
+                if col not in work.columns:
+                    continue
+                v = work.iloc[-1].get(col)
+                if v is None or (isinstance(v, float) and pd.isna(v)):
+                    continue
+                val = float(v)
+                if val < close:
+                    swing_lows.append(val)
+        prices = sorted({round(x, 10) for x in swing_lows if x < close * 0.9995}, reverse=True)
+    else:
+        swing_highs.extend([
+            float(work.tail(10)["high"].max()),
+            float(work.tail(30)["high"].max()),
+        ])
+        if include_ema:
+            for col in ("ema20", "ema50", "ema200"):
+                if col not in work.columns:
+                    continue
+                v = work.iloc[-1].get(col)
+                if v is None or (isinstance(v, float) and pd.isna(v)):
+                    continue
+                val = float(v)
+                if val > close:
+                    swing_highs.append(val)
+        prices = sorted({round(x, 10) for x in swing_highs if x > close * 1.0005})
+
+    return prices[:max_levels]
+
+
+def compute_support_resistance_levels(
+    df: pd.DataFrame,
+    *,
+    signal_timeframe: str = "",
+    hl_coin: str = "",
+    kline_limit: int = 200,
+    swing_window: int = 3,
+    lookback: int = 80,
+) -> Dict[str, Any]:
+    """
+    支撑：仅信号同级周期 K 线。
+    压力：同级最近一处 + 小一级周期最近一处（如 4h 信号 → 4h 与 2h 各一个压力位）。
+    """
+    if df is None or len(df) < 25:
+        return {}
+
+    signal_tf = normalize_sr_interval(signal_timeframe) or "4h"
+    close = float(df.iloc[-1]["close"])
+    if close <= 0:
+        return {}
+
+    sup_prices = _swing_levels_single_tf(
+        df, swing_window=swing_window, lookback=lookback, want="support", max_levels=3,
+    )
+    res_same = _swing_levels_single_tf(
+        df, swing_window=swing_window, lookback=lookback, want="resistance", max_levels=1,
+    )
+
+    supports: List[Dict[str, Any]] = []
+    for i, p in enumerate(sup_prices):
+        supports.append({
+            "label": f"S{i + 1}",
+            "price": p,
+            "dist_pct": _sr_dist_pct(close, p),
+            "timeframe": signal_tf,
+            "role": "signal_tf",
+        })
+
+    resistances: List[Dict[str, Any]] = []
+    if res_same:
+        resistances.append({
+            "label": "R同级",
+            "price": res_same[0],
+            "dist_pct": _sr_dist_pct(close, res_same[0]),
+            "timeframe": signal_tf,
+            "role": "same_tf",
+        })
+
+    lower_tf = smaller_trading_interval(signal_tf)
+    if lower_tf and lower_tf != signal_tf and hl_coin:
+        try:
+            kl = fetch_klines_crypto(hl_coin, lower_tf, total_limit=kline_limit)
+            if kl and len(kl) >= 25:
+                df_low = compute_technical_indicators(klines_to_df(kl))
+                res_low = _swing_levels_single_tf(
+                    df_low, swing_window=swing_window, lookback=lookback,
+                    want="resistance", max_levels=1, include_ema=False,
+                )
+                if res_low:
+                    p = res_low[0]
+                    if not resistances or abs(p - resistances[0]["price"]) / close > 0.001:
+                        resistances.append({
+                            "label": "R小级",
+                            "price": p,
+                            "dist_pct": _sr_dist_pct(close, p),
+                            "timeframe": lower_tf,
+                            "role": "lower_tf",
+                        })
+        except Exception as e:
+            logger.debug("小级别压力 K 线拉取失败 %s %s: %s", hl_coin, lower_tf, e)
+
+    comment_parts: List[str] = []
+    if supports:
+        s0 = supports[0]
+        comment_parts.append(
+            f"{signal_tf} 支撑 {_fmt_price_level(s0['price'])}（下方 {abs(s0['dist_pct']):.2f}%）"
+        )
+    for r in resistances:
+        tag = "同级压力" if r.get("role") == "same_tf" else "小级压力"
+        comment_parts.append(
+            f"{r.get('timeframe')} {tag} {_fmt_price_level(r['price'])}（上方 +{r['dist_pct']:.2f}%）"
+        )
+    if not comment_parts:
+        comment = f"{signal_tf} 周期暂无清晰支撑/压力位"
+    else:
+        comment = "；".join(comment_parts)
+        if supports and resistances:
+            cushion = abs(supports[0]["dist_pct"])
+            room = resistances[0]["dist_pct"]
+            if cushion > 0.01:
+                comment += f"；至同级压力空间比约 {round(room / cushion, 2)}:1"
+
+    return {
+        "sr_close": close,
+        "sr_signal_timeframe": signal_tf,
+        "sr_lower_timeframe": lower_tf,
+        "supports": supports,
+        "resistances": resistances,
+        "nearest_support": supports[0]["price"] if supports else None,
+        "nearest_resistance": resistances[0]["price"] if resistances else None,
+        "nearest_resistance_lower_tf": (
+            resistances[1]["price"] if len(resistances) > 1 else None
+        ),
+        "support_dist_pct": supports[0]["dist_pct"] if supports else None,
+        "resistance_dist_pct": resistances[0]["dist_pct"] if resistances else None,
+        "support_resistance_comment": comment,
+    }
+
+
 def _tf_map_webhook(tf: str) -> str:
     t = (tf or "").strip().upper()
     mapping = {
@@ -413,6 +718,15 @@ def build_indicator_snapshot(
         min_bars=min(60, len(df) - 1),
         hl_coin=hl_coin,
     )
+    metrics = dict(metrics or {})
+    sr = compute_support_resistance_levels(
+        df,
+        signal_timeframe=iv,
+        hl_coin=hl_coin,
+        kline_limit=limit,
+    )
+    if sr:
+        metrics.update(sr)
 
     # 最近 10 根摘要
     tail = df.tail(10)
@@ -484,12 +798,24 @@ def build_deepseek_user_prompt(
         },
         "scoring_guidance": guidance,
         "indicators_latest": m,
+        "support_resistance": {
+            "signal_timeframe": m.get("sr_signal_timeframe"),
+            "lower_timeframe": m.get("sr_lower_timeframe"),
+            "supports": m.get("supports") or [],
+            "resistances": m.get("resistances") or [],
+            "nearest_support": m.get("nearest_support"),
+            "nearest_resistance": m.get("nearest_resistance"),
+            "nearest_resistance_lower_tf": m.get("nearest_resistance_lower_tf"),
+            "local_comment": m.get("support_resistance_comment"),
+        },
         "analysis_tasks": [
             "1) 先填 score_breakdown 四维，再算 score（须落在 hint_score_band 附近）",
             "2) 金叉量能：last_golden_cross_vol_vs_prev_avg 与 vol_ratio",
             "3) MACD 柱方向须与 EMA 结构一致",
             "4) RSI：ADX>=35 且 MACD 抬升时，RSI>75 仅轻罚",
-            "5) recommendation 必须符合 hard_gates 与 score 映射",
+            "5) 必须填写 support_resistance：支撑仅用 supports（signal_timeframe）；"
+            "压力为 resistances 中 same_tf 与 lower_tf 各一处",
+            "6) recommendation 必须符合 hard_gates 与 score 映射",
         ],
         "recent_bars": snapshot.get("recent_bars"),
     }
@@ -557,6 +883,50 @@ def call_deepseek_score(user_prompt: str, temperature: float = 0.2) -> Dict[str,
     return {"ok": True, "markdown": content, "structured": structured}
 
 
+def _poster_fmt_num(v: Any, digits: int = 2) -> str:
+    try:
+        if v is None or v == "":
+            return "—"
+        x = float(v)
+        if abs(x) >= 1000:
+            return f"{x:,.{max(0, digits)}f}"
+        return f"{x:.{digits}f}"
+    except (TypeError, ValueError):
+        return str(v) if v is not None else "—"
+
+
+def _poster_score_bar(score_val: int) -> str:
+    n = max(0, min(100, int(score_val)))
+    filled = n // 10
+    return "█" * filled + "░" * (10 - filled) + f"  {n}%"
+
+
+def _poster_rec_label(rec: str) -> tuple[str, str]:
+    r = (rec or "").lower().strip()
+    if r == "execute":
+        return "✅", "建议执行"
+    if r == "caution":
+        return "⚠️", "谨慎观望"
+    if r == "reject":
+        return "⛔", "建议拒绝"
+    return "🔔", rec or "—"
+
+
+def _poster_grade_badge(grade: str) -> str:
+    g = str(grade or "—").upper().strip()
+    icons = {"A": "🏆", "B": "🥈", "C": "🥉", "D": "📉", "F": "🚫"}
+    return f"{icons.get(g, '📊')} {g}"
+
+
+def _poster_action_cn(action: str) -> str:
+    a = (action or "").lower().strip()
+    if "buy" in a or "long" in a or "买" in a:
+        return "买入"
+    if "sell" in a or "short" in a or "卖" in a:
+        return "卖出"
+    return action or "—"
+
+
 def format_dingtalk_message(
     symbol: str,
     action: str,
@@ -565,65 +935,144 @@ def format_dingtalk_message(
     *,
     timeframe: str = "",
 ) -> str:
+    """钉钉 Markdown：海报式排版（手机端可读）。"""
     cfg = load_config()
     kw = cfg.get("dingtalk_keyword") or "提醒"
     m = snapshot.get("metrics") or {}
     st = deepseek.get("structured") or {}
-    score = st.get("score", "—")
+    try:
+        score_val = int(float(st.get("score") or 0))
+    except (TypeError, ValueError):
+        score_val = 0
     grade = st.get("grade", "—")
     rec = st.get("recommendation", "—")
-    summary = st.get("summary") or deepseek.get("markdown", "")[:400]
+    summary = (st.get("summary") or deepseek.get("markdown", "") or "").strip()
+    if len(summary) > 280:
+        summary = summary[:277] + "…"
 
     tf = timeframe or snapshot.get("interval", "—")
     action_l = (action or "").lower()
-    direction_ico = "🟢" if ("buy" in action_l or "long" in action_l or "买" in action) else ("🔴" if ("sell" in action_l or "short" in action_l or "卖" in action) else "🔔")
-    score_ico = "🧠"
-    grade_badge = f"`{grade}`" if grade not in (None, "", "—") else "`—`"
+    is_buy = "buy" in action_l or "long" in action_l or "买" in action
+    is_sell = "sell" in action_l or "short" in action_l or "卖" in action
+    dir_ico = "🟢" if is_buy else ("🔴" if is_sell else "🔔")
+    dir_cn = _poster_action_cn(action)
+    rec_ico, rec_cn = _poster_rec_label(str(rec))
+    grade_line = _poster_grade_badge(str(grade))
+    bar = _poster_score_bar(score_val)
+    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    header = f"**{direction_ico} {symbol} · {action} · {tf}**"
-    headline = f"**{score_ico} {score}/100**  {grade_badge}  |  **建议**：`{rec}`"
+    close = _poster_fmt_num(m.get("close"), 2)
+    rsi = _poster_fmt_num(m.get("rsi14"), 2)
+    macd = _poster_fmt_num(m.get("macd_hist"), 4)
+    adx = _poster_fmt_num(m.get("adx14"), 2)
+    volr = _poster_fmt_num(m.get("vol_ratio"), 3)
+    ret20 = _poster_fmt_num(m.get("return_20_bars_pct"), 2)
+    uptrend = "通过 ✅" if snapshot.get("scanner_uptrend") else "未通过 —"
+    top50 = "在池 ✅" if snapshot.get("in_top50_uptrend_list") else "不在 —"
 
-    # 关键指标（紧凑、手机友好）
-    close = m.get("close")
-    rsi = m.get("rsi14")
-    macd = m.get("macd_hist")
-    adx = m.get("adx14")
-    volr = m.get("vol_ratio")
-    ret20 = m.get("return_20_bars_pct")
-    uptrend = "✅" if snapshot.get("scanner_uptrend") else "—"
-    top50 = "✅" if snapshot.get("in_top50_uptrend_list") else "—"
+    strengths = [str(x).strip() for x in (st.get("strengths") or []) if str(x).strip()][:4]
+    risks = [str(x).strip() for x in (st.get("risks") or []) if str(x).strip()][:4]
 
-    strengths = st.get("strengths") or []
-    risks = st.get("risks") or []
+    sep = "━━━━━━━━━━━━━━━━━━━━━━"
+    sep_thin = "──────────────────────"
 
     lines = [
-        f"**【{kw}】AI 评分**",
-        header,
-        headline,
+        f"## {kw} · AI 信号评分",
         "",
-        f"> {summary}",
+        f"#### 🎯 信号档案",
+        sep_thin,
+        f"- **品种** {symbol}",
+        f"- **方向** {dir_ico} {dir_cn}",
+        f"- **周期** {tf}",
+        f"- **时间** {now_utc}",
         "",
-        "**📌 关键指标**",
-        f"- **收盘**：`{close}`   **RSI14**：`{rsi}`   **MACD柱**：`{macd}`",
-        f"- **ADX**：`{adx}`   **量比**：`{volr}`   **20根涨跌%**：`{ret20}`",
-        f"- **趋势扫描**：{uptrend}   **Top50 上涨池**：{top50}",
+        f"#### ⭐ 综合评分",
+        sep,
+        "",
+        f"## {score_val} / 100",
+        "",
+        f"> {bar}",
+        "",
+        f"- **等级** {grade_line}",
+        f"- **结论** {rec_ico} {rec_cn}",
+        "",
+    ]
+
+    if summary:
+        lines += [
+            f"#### 💬 研判摘要",
+            sep_thin,
+            f"> {summary}",
+            "",
+        ]
+
+    # 支撑 / 压力位（本地计算 + AI 补充）
+    sr_block = st.get("support_resistance") if isinstance(st.get("support_resistance"), dict) else {}
+    sr_summary = (sr_block.get("summary") or m.get("support_resistance_comment") or "").strip()
+    sr_stop = (sr_block.get("stop_hint") or "").strip()
+    sr_target = (sr_block.get("target_hint") or "").strip()
+    supports = m.get("supports") or []
+    resistances = m.get("resistances") or []
+
+    sr_tf = m.get("sr_signal_timeframe") or tf
+    sr_low = m.get("sr_lower_timeframe") or ""
+
+    lines += [f"#### 📐 支撑 / 压力位", sep_thin]
+    lines.append(f"- **信号周期** `{sr_tf}`" + (f"　小一级 `{sr_low}`" if sr_low else ""))
+    if supports:
+        for s in supports[:3]:
+            p = _fmt_price_level(s.get("price"))
+            d = s.get("dist_pct")
+            stf = s.get("timeframe") or sr_tf
+            lines.append(f"- **支撑 {s.get('label', 'S')}** `{p}`（**{stf}**）　距现价 **{d}%**")
+    else:
+        lines.append(f"- **支撑** 暂无（**{sr_tf}** 下方无显著摆动低点）")
+    if resistances:
+        for r in resistances[:2]:
+            p = _fmt_price_level(r.get("price"))
+            d = r.get("dist_pct")
+            sign = "+" if (d or 0) >= 0 else ""
+            rtf = r.get("timeframe") or "—"
+            role_cn = "同级" if r.get("role") == "same_tf" else "小一级"
+            lines.append(
+                f"- **压力·{role_cn}** `{p}`（**{rtf}**）　距现价 **{sign}{d}%**"
+            )
+    else:
+        lines.append("- **压力** 暂无（现价上方无显著摆动高点）")
+    if sr_summary:
+        lines.append(f"> {sr_summary}")
+    if sr_stop:
+        lines.append(f"- **止损参考** {sr_stop}")
+    if sr_target:
+        lines.append(f"- **目标参考** {sr_target}")
+    lines.append("")
+
+    lines += [
+        f"#### 📊 技术快照",
+        sep_thin,
+        f"> 收盘 **{close}**　　RSI **{rsi}**",
+        f"> MACD **{macd}**　　ADX **{adx}**",
+        f"> 量比 **{volr}**　　20K **{ret20}%**",
+        "",
+        f"- **趋势扫描** {uptrend}",
+        f"- **Top50池** {top50}",
     ]
 
     if strengths:
-        lines += [
-            "",
-            "**✅ 亮点**",
-            *[f"- {str(x)}" for x in strengths[:4]],
-        ]
-    if risks:
-        lines += [
-            "",
-            "**⚠️ 风险**",
-            *[f"- {str(x)}" for x in risks[:4]],
-        ]
+        lines += ["", f"#### ✅ 亮点", sep_thin]
+        for s in strengths:
+            lines.append(f"- {s}")
 
-    # 末尾轻量分隔，避免过长
-    lines += ["", f"_{symbol} · {tf}_"]
+    if risks:
+        lines += ["", f"#### ⚠️ 风险", sep_thin]
+        for r in risks:
+            lines.append(f"- {r}")
+
+    lines += [
+        "",
+        sep,
+        f"**沐龙量化** · `{symbol}` · `{tf}`",
+    ]
     return "\n".join(lines)
 
 
@@ -667,6 +1116,15 @@ def infer_strategy_is_short(strategy_name: str | None) -> bool:
     """按约定：策略名称包含「做空」视为做空策略；否则视为做多。"""
     name = (strategy_name or "").strip()
     return bool(name) and ("做空" in name)
+
+
+def is_close_signal(action: str, *, strategy_name: str | None = None) -> bool:
+    """平仓信号：做空策略的买入 / 做多策略的卖出。"""
+    if not (strategy_name or "").strip():
+        return False
+    if infer_strategy_is_short(strategy_name):
+        return is_buy_action(action)
+    return is_sell_action(action)
 
 
 def dingtalk_webhook_enabled() -> bool:
@@ -747,7 +1205,11 @@ def run_signal_score(
     }
 
 
-def push_score_to_dingtalk(score_result: Dict[str, Any]) -> Tuple[bool, str]:
+def push_score_to_dingtalk(
+    score_result: Dict[str, Any],
+    *,
+    webhook_url: str | None = None,
+) -> Tuple[bool, str]:
     """将已有评分结果推送到钉钉（与实盘开单无关）。"""
     if not score_result.get("ok"):
         return False, score_result.get("error") or "评分失败"
@@ -763,11 +1225,14 @@ def push_score_to_dingtalk(score_result: Dict[str, Any]) -> Tuple[bool, str]:
     ds = score_result.get("deepseek") or {}
     tf = score_result.get("timeframe") or ""
 
-    webhook_url = (cfg.get("dingtalk_webhook") or DEFAULT_WEBHOOK).strip()
+    webhook_url = (webhook_url or cfg.get("dingtalk_webhook") or DEFAULT_WEBHOOK).strip()
     if not webhook_url:
         return False, "未配置钉钉 Webhook"
     body = format_dingtalk_message(sym, action_l, snapshot, ds, timeframe=tf)
-    return send_dingtalk_text(webhook_url, body)
+    st = ds.get("structured") or {}
+    _, rec_cn = _poster_rec_label(str(st.get("recommendation") or ""))
+    title = f"{sym} {_poster_action_cn(action_l)} · AI {score_val}分 · {rec_cn}"
+    return send_dingtalk_markdown(webhook_url, title, body)
 
 
 def run_signal_score_and_push_dingtalk(
@@ -825,14 +1290,28 @@ def run_signal_score_and_push(
     )
 
 
-def should_score_webhook_action(action: str, *, strategy_name: str | None = None) -> bool:
+def should_score_webhook_action(
+    action: str,
+    *,
+    strategy_name: str | None = None,
+    strategy_side: str | None = None,
+) -> bool:
+    """是否应对该 Webhook 信号做 AI 评分（钉钉旁路）。"""
     if not dingtalk_webhook_enabled():
         return False
 
-    # 新规则：策略名称决定信号方向
-    # - 名称含「做空」→ 只分析卖出信号
-    # - 不含 → 只分析买入信号
+    side = (strategy_side or "").strip().lower()
+    if side == "long":
+        return is_buy_action(action)
+    if side == "short":
+        return is_sell_action(action)
+
+    # 策略名称决定开仓方向；反向信号视为平仓，不做 AI 评分
+    # - 含「做空」（如 eth2h做空）→ 只评卖出；买入=平仓，跳过
+    # - 不含（如 6h进6h出）→ 只评买入；卖出=平仓，跳过
     if strategy_name:
+        if is_close_signal(action, strategy_name=strategy_name):
+            return False
         if infer_strategy_is_short(strategy_name):
             return is_sell_action(action)
         return is_buy_action(action)
@@ -853,9 +1332,27 @@ def schedule_webhook_dingtalk_score(
     webhook_raw: Optional[Dict[str, Any]] = None,
     strategy_label: str = "adaptive_long",
     strategy_name: str | None = None,
+    strategy_side: str | None = None,
 ) -> None:
     """路径2：Webhook 后台线程 → 钉钉推送（与实盘开单无关）。"""
-    if not should_score_webhook_action(action, strategy_name=strategy_name):
+    if not should_score_webhook_action(
+        action, strategy_name=strategy_name, strategy_side=strategy_side,
+    ):
+        if strategy_side == "long" and not is_buy_action(action):
+            logger.info(
+                "跳过 AI 评分（做多策略平仓）: %s action=%s",
+                symbol, action,
+            )
+        elif strategy_side == "short" and not is_sell_action(action):
+            logger.info(
+                "跳过 AI 评分（做空策略平仓）: %s action=%s",
+                symbol, action,
+            )
+        elif is_close_signal(action, strategy_name=strategy_name):
+            logger.info(
+                "跳过平仓信号 AI 评分: strategy=%s action=%s",
+                strategy_name, action,
+            )
         return
 
     def _job():

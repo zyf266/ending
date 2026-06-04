@@ -1,0 +1,44 @@
+{
+  "code": "000858",
+  "name": "五粮液",
+  "tagline": "行业筑底企稳 · 高股息逆向优选标的",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-24",
+  "quote_symbol": "000858.SZ",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观行情",
+      "probability": "30%",
+      "subtitle": "业绩超预期+风格切换",
+      "range_low": 128,
+      "range_high": 145,
+      "note": "对应报告 4.3 三档情景目标估值"
+    },
+    {
+      "key": "base",
+      "label": "基准行情",
+      "probability": "45%",
+      "subtitle": "符合机构业绩预期",
+      "range_low": 105,
+      "range_high": 118,
+      "note": "对应报告 4.3 三档情景目标估值"
+    },
+    {
+      "key": "bear",
+      "label": "悲观行情",
+      "probability": "25%",
+      "subtitle": "消费复苏不及预期",
+      "range_low": 65,
+      "range_high": 75,
+      "note": "对应报告 4.3 三档情景目标估值"
+    }
+  ],
+  "highlights": [
+    "当前股息率 6.14%，高分红+回购提供安全边际",
+    "行业六年调整后边际改善，业绩拐点信号增强（2026Q1 修复）",
+    "估值处于历史低位区间，具备估值修复弹性"
+  ],
+  "pdf_path": "香港沐龙（五粮液）研报分析.pdf"
+}
+

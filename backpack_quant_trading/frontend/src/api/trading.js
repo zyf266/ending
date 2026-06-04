@@ -6,6 +6,13 @@ const finitePositive = (v, fallback) => {
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
 
+/** AI 开单门槛 0–100，0=不拦截 */
+const aiScoreThreshold = (v) => {
+  const n = Math.round(Number(v))
+  if (!Number.isFinite(n) || n < 0) return 0
+  return Math.min(100, n)
+}
+
 export const getStrategies = () => request.get('/trading/strategies')
 export const getInstances = () => request.get('/trading/instances')
 export const launchStrategy = (data) => request.post('/trading/launch', data)
@@ -67,6 +74,9 @@ export const startAdaptiveLong = (params = {}) =>
     break_even_pct:     params.break_even_pct     || 0.03,
     lock_profit_pct:    params.lock_profit_pct    ?? 0,
     lock_profit_sl_pct: params.lock_profit_sl_pct ?? 0,
+    min_ai_score_for_trade: aiScoreThreshold(params.min_ai_score_for_trade),
+    allow_repeat_open: !!params.allow_repeat_open,
+    use_ai_sr_tpsl: !!params.use_ai_sr_tpsl,
   })
 export const stopAdaptiveLong      = () => request.post('/trading/adaptive-long/stop')
 export const getAdaptiveLongStatus = () => request.get('/trading/adaptive-long/status')

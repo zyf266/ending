@@ -1,0 +1,45 @@
+{
+  "code": "CRDO",
+  "name": "Credo",
+  "tagline": "AI数据中心高速互联“连接骨干”",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-06-02",
+  "quote_symbol": "CRDO",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "20%",
+      "subtitle": "FY2027营收+80%+ / 光学DSP放量超预期",
+      "range_low": 280,
+      "range_high": 350,
+      "note": "PDF「06 估值与三档目标价模型」：$280-$350"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "55%",
+      "subtitle": "FY2027营收+50-60% / 指引兑现",
+      "range_low": 210,
+      "range_high": 260,
+      "note": "PDF「06 估值与三档目标价模型」：$210-$260"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "25%",
+      "subtitle": "FY2027营收<40% / 竞争加剧与价格战",
+      "range_low": 120,
+      "range_high": 170,
+      "note": "PDF「06 估值与三档目标价模型」：$120-$170"
+    }
+  ],
+  "highlights": [
+    "FY2026 Q3 营收 $4.07亿（QoQ +52% / YoY +201%），Non-GAAP EPS $1.07",
+    "Non-GAAP 毛利率 68.6%（QoQ +90bps），Non-GAAP 营业利润率 49.6% 创高",
+    "核心引擎 AEC（进入 NVDA 服务器供应链）+ 第二曲线光学DSP（FY2027 订单管线约 $6亿）",
+    "管理层明确“供应仍受约束”，供需紧平衡状态被认为可持续至 2027 年",
+    "核心风险：客户集中度极高（前三大客户贡献 88%）+ Marvell 直接竞争"
+  ],
+  "pdf_path": "Credo (CRDO) 投资分析报告.pdf"
+}

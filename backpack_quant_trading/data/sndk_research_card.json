@@ -5,9 +5,9 @@
   "report_date": "2026-05-20",
   "quote_symbol": "SNDK",
   "scenarios": [
-    { "key": "bull", "label": "乐观情景", "probability": "~40%", "subtitle": "AI 存储景气", "range_low": 95, "range_high": 115, "note": "NAND 涨价、企业级 SSD 需求、份额回升" },
-    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "中性", "range_low": 72, "range_high": 88, "note": "周期上行但波动大、执行节奏关键" },
-    { "key": "bear", "label": "悲观情景", "probability": "~15%", "subtitle": "周期下行", "range_low": 48, "range_high": 60, "note": "价格竞争、库存调整、需求不及预期" }
+    { "key": "bull", "label": "乐观情景", "probability": "~35%", "subtitle": "供需缺口扩大", "range_low": 1800, "range_high": 2200, "note": "PDF「06 估值与三档目标价模型」：$1,800-$2,200" },
+    { "key": "base", "label": "基准情景", "probability": "~45%", "subtitle": "稳健高增长", "range_low": 1200, "range_high": 1600, "note": "PDF：$1,200-$1,600" },
+    { "key": "bear", "label": "悲观情景", "probability": "~20%", "subtitle": "周期反转", "range_low": 600, "range_high": 900, "note": "PDF：$600-$900" }
   ],
   "highlights": [
     "NAND 价格周期与数据中心/边缘 AI 存储需求共振",

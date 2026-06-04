@@ -93,6 +93,7 @@ async def start_kline_scheduler():
     _asyncio.create_task(_weekly_bubble_analyze_loop())
     _asyncio.create_task(_bootstrap_research_prices())
     _asyncio.create_task(_daily_research_price_sync_loop())
+    _asyncio.create_task(_hourly_uptrend_scan_loop())
 
 
 async def _weekly_bubble_analyze_loop():
@@ -117,6 +118,36 @@ async def _weekly_bubble_analyze_loop():
             _sched_logger.info(f"[泡沫监测] 周六自动分析完成: ok={ok}")
         except Exception as exc:
             _sched_logger.error(f"[泡沫监测] 周六自动分析失败: {exc}")
+
+
+async def _hourly_uptrend_scan_loop():
+    """上涨趋势扫描：每 1 小时自动刷新 HL 成交额 Top50 扫描缓存。"""
+    from backpack_quant_trading.api.routers.crypto_signal_hub import (
+        UPTREND_SCAN_INTERVAL_SEC,
+        run_scheduled_uptrend_scan_sync,
+    )
+
+    interval = max(300, int(UPTREND_SCAN_INTERVAL_SEC or 3600))
+    # 启动后稍等，避免与其它初始化任务抢网络
+    await _asyncio.sleep(90)
+    while True:
+        try:
+            res = await _asyncio.to_thread(run_scheduled_uptrend_scan_sync)
+            if res.get("skipped"):
+                _sched_logger.info("[上涨扫描] 跳过：%s", res.get("message"))
+            elif res.get("ok"):
+                _sched_logger.info(
+                    "[上涨扫描] 定时完成: %s · 通过 %s 个 · 耗时 %ss",
+                    res.get("scanned_at"),
+                    res.get("uptrend_count"),
+                    res.get("duration_sec"),
+                )
+            else:
+                _sched_logger.warning("[上涨扫描] 定时失败: %s", res.get("error") or res)
+        except Exception as exc:
+            _sched_logger.error("[上涨扫描] 定时异常: %s", exc)
+        _sched_logger.info(f"[上涨扫描] 下次扫描约 {interval/3600:.1f}h 后")
+        await _asyncio.sleep(interval)
 
 
 async def _daily_kline_sync_loop():

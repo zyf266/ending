@@ -387,6 +387,15 @@ def list_instances(user: dict = Depends(require_user)):
                 sf = getattr(al, "symbol_filter", None) or getattr(al, "symbol", None) or "HYPE"
                 sf = str(sf).upper().strip() if sf else "HYPE"
                 _sname = f"{sf}做多策略(Webhook版)"
+                try:
+                    _cfg_obj = json.loads(configs.get(iid) or "{}")
+                except Exception:
+                    _cfg_obj = {}
+                if not isinstance(_cfg_obj, dict):
+                    _cfg_obj = {}
+                _cfg_obj["min_ai_score_for_trade"] = getattr(
+                    al, "min_ai_score_for_trade", _min_ai_score_from_config(_cfg_obj),
+                )
                 instances.append({
                     "id": iid,
                     "pid": pid,
@@ -396,6 +405,7 @@ def list_instances(user: dict = Depends(require_user)):
                     "start_time": start_time_str,
                     "balance": balance_str,
                     "status": "running" if getattr(al, "is_enabled", True) else "stopped",
+                    "config": _cfg_obj,
                 })
                 continue
 
@@ -1253,6 +1263,35 @@ def _coerce_int(v, default: int) -> int:
         return default
 
 
+def _min_ai_score_from_config(obj: dict) -> int:
+    """从实例配置读取 AI 开单门槛（缺省 0）。"""
+    try:
+        return max(0, int(obj.get("min_ai_score_for_trade") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _use_ai_sr_tpsl_from_config(obj: dict) -> bool:
+    v = obj.get("use_ai_sr_tpsl")
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return bool(v)
+    s = str(v or "").strip().lower()
+    return s in ("1", "true", "yes", "y", "是", "启用", "on")
+
+
+def _allow_repeat_open_from_config(obj: dict) -> bool:
+    """从实例配置读取是否允许同币种重复开单（不同 K 线级别加仓）。"""
+    v = obj.get("allow_repeat_open")
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return bool(v)
+    s = str(v or "").strip().lower()
+    return s in ("1", "true", "yes", "y", "是", "允许", "on")
+
+
 @router.post("/instances/{instance_id}/start", summary="启动实例（使用保存的参数）")
 def start_instance_from_saved_config(instance_id: str, user: dict = Depends(require_user)):
     db = DatabaseManager()
@@ -1264,13 +1303,29 @@ def start_instance_from_saved_config(instance_id: str, user: dict = Depends(requ
     except Exception:
         obj = {}
 
-    # 自适应做多/做空：启动=恢复接收信号（不重建）
+    # 自适应做多/做空：启动=恢复接收信号（不重建，但从 DB 刷新门槛等参数）
     if instance_id in ADAPTIVE_LONG_INSTANCES:
         st = ADAPTIVE_LONG_INSTANCES[instance_id]
         st.is_enabled = True
+        st.min_ai_score_for_trade = _min_ai_score_from_config(obj)
+        st.allow_repeat_open = _allow_repeat_open_from_config(obj)
+        st.use_ai_sr_tpsl = _use_ai_sr_tpsl_from_config(obj)
+        logger.info(
+            "▶️ 恢复做多实例 %s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s（来自已保存配置）",
+            instance_id, st.min_ai_score_for_trade, "是" if st.allow_repeat_open else "否",
+            "是" if st.use_ai_sr_tpsl else "否",
+        )
         obj["status"] = "running"
+        obj["min_ai_score_for_trade"] = st.min_ai_score_for_trade
+        obj["allow_repeat_open"] = st.allow_repeat_open
+        obj["use_ai_sr_tpsl"] = st.use_ai_sr_tpsl
         db.save_user_instance(user["id"], "live", instance_id, json.dumps(obj, ensure_ascii=False))
-        return {"ok": True, "instance_id": instance_id, "message": "已启动（恢复接收信号）"}
+        return {
+            "ok": True,
+            "instance_id": instance_id,
+            "min_ai_score_for_trade": st.min_ai_score_for_trade,
+            "message": f"已启动（恢复接收信号，AI开单门槛={st.min_ai_score_for_trade}）",
+        }
     if instance_id in ADAPTIVE_SHORT_INSTANCES:
         st = ADAPTIVE_SHORT_INSTANCES[instance_id]
         st.is_enabled = True
@@ -1310,6 +1365,9 @@ def start_instance_from_saved_config(instance_id: str, user: dict = Depends(requ
     break_even_pct = _coerce_float(obj.get("break_even_pct", 0.03), 0.03)
     lock_profit_pct = _coerce_float(obj.get("lock_profit_pct", 0.0), 0.0)
     lock_profit_sl_pct = _coerce_float(obj.get("lock_profit_sl_pct", 0.0), 0.0)
+    min_ai_score_for_trade = _min_ai_score_from_config(obj)
+    allow_repeat_open = _allow_repeat_open_from_config(obj)
+    use_ai_sr_tpsl = _use_ai_sr_tpsl_from_config(obj)
 
     # 密钥不存 DB：这里只能使用环境变量（Hyperliquid）或要求用户重新填写（其它平台）
     private_key = None
@@ -1347,6 +1405,14 @@ def start_instance_from_saved_config(instance_id: str, user: dict = Depends(requ
             timeframe_filter=tf,
             account_index=account_index,
             api_key_index=api_key_index,
+            min_ai_score_for_trade=min_ai_score_for_trade,
+            allow_repeat_open=allow_repeat_open,
+            use_ai_sr_tpsl=use_ai_sr_tpsl,
+        )
+        logger.info(
+            "▶️ 重建做多实例 %s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s（来自已保存配置）",
+            instance_id, min_ai_score_for_trade, "是" if allow_repeat_open else "否",
+            "是" if use_ai_sr_tpsl else "否",
         )
         thread = threading.Thread(target=_run_adaptive_long_in_thread, args=(instance_id, strategy), daemon=True)
         ADAPTIVE_LONG_INSTANCES[instance_id] = strategy
@@ -1377,8 +1443,21 @@ def start_instance_from_saved_config(instance_id: str, user: dict = Depends(requ
         thread.start()
 
     obj["status"] = "running"
+    if strat == "adaptive_long":
+        obj["min_ai_score_for_trade"] = min_ai_score_for_trade
+        obj["allow_repeat_open"] = allow_repeat_open
+        obj["use_ai_sr_tpsl"] = use_ai_sr_tpsl
     db.save_user_instance(user["id"], "live", instance_id, json.dumps(obj, ensure_ascii=False))
-    return {"ok": True, "instance_id": instance_id, "message": "已启动"}
+    return {
+        "ok": True,
+        "instance_id": instance_id,
+        "min_ai_score_for_trade": min_ai_score_for_trade if strat == "adaptive_long" else None,
+        "message": (
+            f"已启动（AI开单门槛={min_ai_score_for_trade}）"
+            if strat == "adaptive_long"
+            else "已启动"
+        ),
+    }
 
 
 class InstanceUpdateRequest(BaseModel):
@@ -1400,6 +1479,8 @@ class InstanceUpdateRequest(BaseModel):
     account_index: Optional[int] = None
     api_key_index: Optional[int] = None
     min_ai_score_for_trade: Optional[int] = None
+    allow_repeat_open: Optional[bool] = None
+    use_ai_sr_tpsl: Optional[bool] = None
 
 
 @router.put("/instances/{instance_id}", summary="修改实例参数（必要时自动重启）")
@@ -1454,11 +1535,35 @@ def update_instance_config(instance_id: str, req: InstanceUpdateRequest, user: d
             s.symbol_filter = coin or getattr(s, "symbol_filter", None)
             tf = (obj.get("timeframe_filter") or "").strip().upper()
             s.timeframe_filter = tf or None
-            if "min_ai_score_for_trade" in obj:
-                s.min_ai_score_for_trade = max(0, int(obj.get("min_ai_score_for_trade") or 0))
+            if "min_ai_score_for_trade" in payload:
+                s.min_ai_score_for_trade = _min_ai_score_from_config(obj)
+            elif "min_ai_score_for_trade" in obj:
+                s.min_ai_score_for_trade = _min_ai_score_from_config(obj)
+            obj["min_ai_score_for_trade"] = getattr(s, "min_ai_score_for_trade", 0)
+            if "allow_repeat_open" in payload:
+                s.allow_repeat_open = bool(payload.get("allow_repeat_open"))
+                obj["allow_repeat_open"] = s.allow_repeat_open
+            elif "allow_repeat_open" in obj:
+                s.allow_repeat_open = _allow_repeat_open_from_config(obj)
+                obj["allow_repeat_open"] = s.allow_repeat_open
+            if "use_ai_sr_tpsl" in payload:
+                s.use_ai_sr_tpsl = bool(payload.get("use_ai_sr_tpsl"))
+                obj["use_ai_sr_tpsl"] = s.use_ai_sr_tpsl
+            elif "use_ai_sr_tpsl" in obj:
+                s.use_ai_sr_tpsl = _use_ai_sr_tpsl_from_config(obj)
+                obj["use_ai_sr_tpsl"] = s.use_ai_sr_tpsl
+            logger.info(
+                "💾 热更新做多实例 %s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s",
+                instance_id, s.min_ai_score_for_trade, "是" if s.allow_repeat_open else "否",
+                "是" if s.use_ai_sr_tpsl else "否",
+            )
             obj["status"] = "running"
             db.save_user_instance(user["id"], "live", instance_id, json.dumps(obj, ensure_ascii=False))
-            return {"ok": True, "message": "已保存并生效"}
+            return {
+                "ok": True,
+                "message": f"已保存并生效（AI开单门槛={s.min_ai_score_for_trade}）",
+                "min_ai_score_for_trade": s.min_ai_score_for_trade,
+            }
 
         if instance_id in ADAPTIVE_SHORT_INSTANCES:
             s = ADAPTIVE_SHORT_INSTANCES[instance_id]
@@ -1485,36 +1590,117 @@ def update_instance_config(instance_id: str, req: InstanceUpdateRequest, user: d
 
 @router.get("/logs")
 def get_logs(user: dict = Depends(require_user)):
-    """获取实时日志（最近 150 行）"""
+    """获取实盘交易相关实时日志（最近 150 行）
+
+    只展示：启动/停止/买卖/下单/撤单/平仓/止盈止损/Webhook 等交易动作。
+    """
     try:
-        log_dir = PROJECT_ROOT / "backpack_quant_trading" / "log"
-        lines = []
-        # 添加各策略日志文件到读取列表
-        for fname in [
-            "webhook_server.log",
+        # 兼容不同启动目录：日志目录可能在 <repo>/log 或 <repo>/backpack_quant_trading/log
+        cand_dirs = [
+            PROJECT_ROOT / "log",
+            PROJECT_ROOT / "backpack_quant_trading" / "log",
+        ]
+        log_dir = next((d for d in cand_dirs if d.exists()), cand_dirs[0])
+        lines: list[str] = []
+
+        # 只读取“交易相关”的独立日志文件（优先）。避免把 app_*.log 的杂讯塞进来。
+        fixed = [
             "live_console.log",
+            "webhook_server.log",
             "hype_strategy.log",
             "eth_trend_short.log",
             "adaptive_long.log",
             "adaptive_short.log",
             "auto_close.log",
-        ]:
-            fp = log_dir / fname
-            if fp.exists():
-                try:
-                    with open(fp, "rb") as f:
-                        f.seek(0, 2)
-                        size = f.tell()
-                        buf = min(300 * 150, size)
-                        f.seek(-buf, 2)
-                        chunk = f.read().decode("utf-8", errors="replace")
-                        for line in chunk.splitlines():
-                            if line.strip():
-                                lines.append(f"[{fname}] {line}")
-                except Exception:
-                    pass
+        ]
+
+        # 始终追加最新 app_*.log（但严格过滤，只保留策略/交易动作相关行）
+        app_logs: list[str] = []
+        try:
+            app_logs = sorted(
+                [p.name for p in log_dir.glob("app_*.log")],
+                key=lambda n: (log_dir / n).stat().st_mtime,
+                reverse=True,
+            )[:1]
+        except Exception:
+            app_logs = []
 
         import re
+        # 强过滤：只保留“策略生命周期 + 交易动作”相关行（不按交易所关键词保留，避免监控/网络噪音混入）
+        keep_pat = re.compile(
+            r"(启动|已启动|启动成功|停止|已停止|重启|退出|开始|结束|运行|"
+            r"策略|strategy|instance_id|instance=|adaptive_long|adaptive_short|eth_trend|hype|auto_close|"
+            r"下单|开仓|平仓|撤单|改单|挂单|成交|拒绝|失败|成功|"
+            r"买入|卖出|BUY|SELL|reduce_only|"
+            r"止损|止盈|tpsl|tp\\b|sl\\b|break[-_ ]?even|lock[-_ ]?profit|"
+            r"Webhook|webhook|signal|TradingView|入场|离场|开多|开空|平多|平空|"
+            r"AI|评分|门槛|开单门槛|开单筛选|未达门槛|拒绝交易|评分开单|跳过 AI|平仓|开多未成交|保证金不足|同步多仓|做多策略|重复开单|AI位阶|止盈止损|"
+            r"✅|❌|🚀|🧹|✍️|🤖|⛔|📋)",
+            re.IGNORECASE,
+        )
+        # 丢弃明显噪音：轮询/状态/instances debug 等
+        drop_pat = re.compile(
+            r"(HYPE_STRATEGY_INSTANCES|/api/(currency-monitor|trading/instances|trading/hype/status|trading/logs)|"
+            r"Starting new HTTP connection|Starting new HTTPS connection|urllib3\\.connectionpool|"
+            r"binance_monitor|yahoo|query\\d\\.finance\\.yahoo|轮询完成|currency-monitor|"
+            r"GET\\s+http://127\\.0\\.0\\.1:8005/instances|/instances\\s+HTTP/1\\.1)",
+            re.IGNORECASE,
+        )
+
+        # 默认 INFO；交易相关的 ERROR 也展示（如开多失败、平仓异常）
+        info_pat = re.compile(r"(\|\s*INFO\s*\|)|(^INFO:\s)", re.IGNORECASE)
+        err_pat = re.compile(r"\|\s*ERROR\s*\|", re.IGNORECASE)
+
+        def _append_filtered(fname: str, content: str):
+            for line in content.splitlines():
+                s = (line or "").strip()
+                if not s:
+                    continue
+                is_info = bool(info_pat.search(s))
+                is_trade_err = bool(err_pat.search(s) and keep_pat.search(s))
+                if not is_info and not is_trade_err:
+                    continue
+                if drop_pat.search(s):
+                    continue
+                if keep_pat.search(s):
+                    lines.append(f"[{fname}] {s}")
+
+        # 先读 fixed（交易专用日志）
+        for fname in fixed:
+            fp = log_dir / fname
+            if not fp.exists():
+                continue
+            try:
+                with open(fp, "rb") as f:
+                    f.seek(0, 2)
+                    size = f.tell()
+                    if size <= 0:
+                        continue
+                    buf = min(350 * 180, size)
+                    f.seek(-buf, 2)
+                    chunk = f.read().decode("utf-8", errors="replace")
+                _append_filtered(fname, chunk)
+            except Exception:
+                pass
+
+        # 始终读取最新 app_*.log（严格过滤后追加），确保“启动成功/下单”等关键日志不会漏
+        for fname in app_logs:
+            fp = log_dir / fname
+            if not fp.exists():
+                continue
+            try:
+                with open(fp, "rb") as f:
+                    f.seek(0, 2)
+                    size = f.tell()
+                    if size <= 0:
+                        continue
+                    buf = min(450 * 260, size)
+                    f.seek(-buf, 2)
+                    chunk = f.read().decode("utf-8", errors="replace")
+                _append_filtered(fname, chunk)
+            except Exception:
+                pass
+
         pat = re.compile(r"(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2})")
         def _t(l):
             m = pat.search(l)
@@ -1729,6 +1915,8 @@ class AdaptiveLongStartRequest(BaseModel):
     lock_profit_pct: float = 0.0    # 锁利触发盈利比例，0=不启用
     lock_profit_sl_pct: float = 0.0 # 锁利后 SL 锁定的盈利比例
     min_ai_score_for_trade: int = 0  # 0=不启用 AI 门槛；买入须评分>=该值才开单
+    allow_repeat_open: bool = False  # K线不限制时：False=同币种已有仓不再开；True=不同周期可加仓
+    use_ai_sr_tpsl: bool = False  # True=AI 支撑位止损 + 小级/同级压力分批止盈
     # 注: XYZ 不是子账户，是 HIP-3 DEX，无需地址参数，系统自动识别资产所属 DEX。
 
 
@@ -1922,6 +2110,14 @@ async def auto_close_webhook(request: Request):
 
 
 def _run_adaptive_long_in_thread(instance_id: str, strategy: AdaptiveLongStrategy):
+    logger.info(
+        "▶️ 做多策略线程启动 %s | %s | AI开单门槛=%s | 重复开单=%s",
+        instance_id,
+        getattr(strategy, "symbol_filter", "—"),
+        getattr(strategy, "min_ai_score_for_trade", 0),
+        "是" if getattr(strategy, "allow_repeat_open", False) else "否",
+        "是" if getattr(strategy, "use_ai_sr_tpsl", False) else "否",
+    )
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     ADAPTIVE_LONG_TASKS[instance_id] = loop
@@ -2000,10 +2196,15 @@ def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(requ
         pk = (str(getattr(req, "private_key", "") or "")).strip()
         pk_raw = pk[2:] if pk.lower().startswith("0x") else pk
         pk_fingerprint = (pk_raw[:6] + "..." + pk_raw[-4:]) if pk_raw else ""
+        min_ai = max(0, int(getattr(req, "min_ai_score_for_trade", 0) or 0))
+        allow_rep = bool(getattr(req, "allow_repeat_open", False))
+        use_ai_sr = bool(getattr(req, "use_ai_sr_tpsl", False))
         logger.info(
             f"🚀 请求启动自适应做多: exchange={exchange} coin={symbol_filter} "
             f"timeframe_filter={timeframe_filter or '不限制'} "
             f"margin_amount={req.margin_amount} leverage={req.leverage} "
+            f"AI开单门槛={min_ai} 重复开单={'是' if allow_rep else '否'} "
+            f"AI位阶止盈止损={'是' if use_ai_sr else '否'} "
             f"account_index={getattr(req, 'account_index', None)} api_key_index={getattr(req, 'api_key_index', None)} "
             f"pk_len={len(pk_raw) if pk_raw else 0} pk_fp={pk_fingerprint}"
         )
@@ -2019,12 +2220,21 @@ def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(requ
             lock_profit_sl_pct=req.lock_profit_sl_pct,
             symbol_filter=symbol_filter,
             timeframe_filter=timeframe_filter,
-            min_ai_score_for_trade=max(0, int(getattr(req, "min_ai_score_for_trade", 0) or 0)),
+            min_ai_score_for_trade=min_ai,
+            allow_repeat_open=allow_rep,
+            use_ai_sr_tpsl=use_ai_sr,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"认证参数错误: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"策略初始化失败: {str(e)}")
+
+    logger.info(
+        "✅ 做多策略对象已创建 %s | %s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s（内存）",
+        instance_id, symbol_filter, strategy.min_ai_score_for_trade,
+        "是" if strategy.allow_repeat_open else "否",
+        "是" if strategy.use_ai_sr_tpsl else "否",
+    )
 
     thread = threading.Thread(
         target=_run_adaptive_long_in_thread, args=(instance_id, strategy), daemon=True
@@ -2054,14 +2264,30 @@ def start_adaptive_long(req: AdaptiveLongStartRequest, user: dict = Depends(requ
             "account_index": getattr(req, "account_index", 0),
             "api_key_index": getattr(req, "api_key_index", 2),
             "wallet_memo": getattr(req, "wallet_memo", "") if hasattr(req, "wallet_memo") else "",
-            "min_ai_score_for_trade": max(0, int(getattr(req, "min_ai_score_for_trade", 0) or 0)),
+            "min_ai_score_for_trade": min_ai,
+            "allow_repeat_open": allow_rep,
+            "use_ai_sr_tpsl": use_ai_sr,
             "status": "running",
         },
         ensure_ascii=False
     )
     db.save_user_instance(user["id"], "live", instance_id, cfg)
-    logger.info(f"✅ {strategy_name}已启动: {instance_id} (交易所={exchange} 币种={symbol_filter})")
-    return {"ok": True, "instance_id": instance_id, "message": f"{strategy_name}已启动"}
+    logger.info(
+        "✅ %s已启动: %s (交易所=%s 币种=%s AI开单门槛=%s 重复开单=%s AI位阶止盈止损=%s 已写入DB)",
+        strategy_name, instance_id, exchange, symbol_filter, min_ai,
+        "是" if allow_rep else "否", "是" if use_ai_sr else "否",
+    )
+    return {
+        "ok": True,
+        "instance_id": instance_id,
+        "min_ai_score_for_trade": min_ai,
+        "allow_repeat_open": allow_rep,
+        "use_ai_sr_tpsl": use_ai_sr,
+        "message": (
+            f"{strategy_name}已启动（AI开单门槛={min_ai}，重复开单={'是' if allow_rep else '否'}，"
+            f"AI位阶止盈止损={'是' if use_ai_sr else '否'}）"
+        ),
+    }
 
 
 @router.post("/adaptive-long/stop", summary="停止自适应做多策略")
@@ -2156,23 +2382,19 @@ async def adaptive_long_webhook(request: Request):
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
 
     from backpack_quant_trading.core.crypto_signal_scorer import (
+        dingtalk_webhook_enabled,
+        extract_ai_sr_tpsl_plan,
         is_buy_action,
+        is_sell_action,
+        push_score_to_dingtalk,
         run_signal_score,
-        schedule_webhook_dingtalk_score,
     )
 
-    # 路径2：钉钉推送（后台，与是否开单无关）
-    try:
-        schedule_webhook_dingtalk_score(
-            signal_symbol,
-            action,
-            timeframe=signal_timeframe,
-            webhook_raw=data,
-            strategy_label="adaptive_long",
-            strategy_name=strategy_name or "自适应做多",
+    if is_sell_action(action):
+        logger.info(
+            "📋 做多策略卖出=平仓 | %s %s | 跳过 AI 评分与开单门槛",
+            signal_symbol, signal_timeframe or "默认周期",
         )
-    except Exception as _sc_err:
-        logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
 
     # 按 symbol_filter 路由到匹配的实例
     # 同时清理线程已死亡的僵尸实例（防止旧版 finally 未清理留下的残留）
@@ -2225,36 +2447,36 @@ async def adaptive_long_webhook(request: Request):
             "message": "策略已停止（暂停接收信号），本次信号已忽略",
         }
 
-    # 路径1：买入须先 AI 评分，超过实例门槛才开单
+    allow_repeat = bool(getattr(strategy, "allow_repeat_open", False))
+    use_ai_sr = bool(getattr(strategy, "use_ai_sr_tpsl", False))
     min_trade_score = max(0, int(getattr(strategy, "min_ai_score_for_trade", 0) or 0))
-    if is_buy_action(action) and min_trade_score > 0:
+    ai_sr_plan = None
+    score_res: dict = {}
+
+    if is_buy_action(action):
         logger.info(
-            "🤖 买入 AI 开单筛选: %s tf=%s 门槛>=%s",
-            signal_symbol, signal_timeframe or "默认", min_trade_score,
-        )
-        score_res = run_signal_score(
+            "📋 实例 %s | %s %s | AI开单门槛=%s | 重复开单=%s | AI位阶止盈止损=%s | 持仓=%s | 开仓中=%s",
+            target_id,
             signal_symbol,
-            action,
-            timeframe=signal_timeframe,
-            webhook_raw=data,
-            strategy_label="adaptive_long",
+            signal_timeframe or "默认周期",
+            min_trade_score,
+            "是" if allow_repeat else "否",
+            "是" if use_ai_sr else "否",
+            getattr(strategy, "position", None) or "无",
+            "是" if getattr(strategy, "_opening", False) else "否",
         )
-        if not score_res.get("ok"):
-            return {
-                "ok": True,
-                "skipped": True,
-                "instance_id": target_id,
-                "symbol": signal_symbol,
-                "action": action,
-                "ai_score_filter": True,
-                "min_ai_score_required": min_trade_score,
-                "message": f"AI 评分失败，未开单: {score_res.get('error')}",
-            }
-        got_score = int(score_res.get("score") or 0)
-        if got_score < min_trade_score:
+        if not allow_repeat and (
+            getattr(strategy, "position", None) == "LONG"
+            or getattr(strategy, "_opening", False)
+        ):
+            entry_tfs = sorted(getattr(strategy, "position_entry_tfs", set()) or [])
             logger.info(
-                "⛔ AI 分 %s < 门槛 %s，跳过开单 %s",
-                got_score, min_trade_score, signal_symbol,
+                "⛔ Webhook拦截 | 重复开单=否 | 已有或正在建立 %s 多仓，忽略 %s %s 买入"
+                "（已开仓级别=%s）",
+                signal_symbol,
+                signal_symbol,
+                signal_timeframe or "—",
+                entry_tfs or ["—"],
             )
             return {
                 "ok": True,
@@ -2262,13 +2484,114 @@ async def adaptive_long_webhook(request: Request):
                 "instance_id": target_id,
                 "symbol": signal_symbol,
                 "action": action,
-                "ai_score": got_score,
-                "min_ai_score_required": min_trade_score,
-                "grade": score_res.get("grade"),
-                "recommendation": score_res.get("recommendation"),
-                "message": f"AI 评分 {got_score} 低于开单门槛 {min_trade_score}，未执行开仓",
+                "allow_repeat_open": False,
+                "message": (
+                    f"重复开单=否，已有{signal_symbol}多仓或开仓进行中，"
+                    f"忽略{signal_timeframe or '本次'}买入"
+                ),
             }
-        logger.info("✅ AI 评分 %s >= %s，允许开单", got_score, min_trade_score)
+
+    # 买入：先同步完成 AI 评分，再决定是否开单（避免后台钉钉评分未结束就已开仓）
+    if is_buy_action(action):
+        need_score = min_trade_score > 0 or use_ai_sr or dingtalk_webhook_enabled()
+        logger.info(
+            "🤖 AI评分（同步，开单前）| %s %s | 开单门槛=%s%s%s",
+            signal_symbol,
+            signal_timeframe or "默认周期",
+            min_trade_score,
+            "（未启用拦截）" if min_trade_score <= 0 else "（低于门槛将拒绝开仓）",
+            " | 将提取支撑/压力挂止盈止损" if use_ai_sr else "",
+        )
+        if not need_score:
+            score_res = {"ok": False, "error": "skip"}
+        else:
+            score_res = run_signal_score(
+                signal_symbol,
+                action,
+                timeframe=signal_timeframe,
+                webhook_raw=data,
+                strategy_label="adaptive_long",
+            )
+        if need_score and not score_res.get("ok"):
+            err_detail = score_res.get("error") or "未知错误"
+            logger.info(
+                "⛔ AI评分失败 | %s | 开单门槛=%s | 原因=%s",
+                signal_symbol, min_trade_score, err_detail,
+            )
+            if min_trade_score > 0:
+                return {
+                    "ok": True,
+                    "skipped": True,
+                    "instance_id": target_id,
+                    "symbol": signal_symbol,
+                    "action": action,
+                    "ai_score_filter": True,
+                    "min_ai_score_required": min_trade_score,
+                    "message": (
+                        f"AI评分为—（评分失败），开单门槛为{min_trade_score}，未达门槛，拒绝交易：{err_detail}"
+                    ),
+                }
+        elif need_score:
+            got_score = int(score_res.get("score") or 0)
+            grade = score_res.get("grade") or "—"
+            rec = score_res.get("recommendation") or "—"
+            if min_trade_score > 0 and got_score < min_trade_score:
+                logger.info(
+                    "⛔ 拒绝交易 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=%s | 未达门槛，拒绝开仓",
+                    signal_symbol, got_score, grade, rec, min_trade_score,
+                )
+                return {
+                    "ok": True,
+                    "skipped": True,
+                    "instance_id": target_id,
+                    "symbol": signal_symbol,
+                    "action": action,
+                    "ai_score": got_score,
+                    "min_ai_score_required": min_trade_score,
+                    "grade": grade,
+                    "recommendation": rec,
+                    "message": (
+                        f"AI评分为{got_score}，开单门槛为{min_trade_score}，未达门槛，拒绝交易"
+                    ),
+                }
+            if min_trade_score > 0:
+                logger.info(
+                    "✅ 允许开单 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=%s | 已达门槛",
+                    signal_symbol, got_score, grade, rec, min_trade_score,
+                )
+            else:
+                logger.info(
+                    "📋 允许开单 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=0（仅记录，不拦截）",
+                    signal_symbol, got_score, grade, rec,
+                )
+
+            if use_ai_sr and score_res.get("ok"):
+                metrics = (score_res.get("snapshot") or {}).get("metrics") or {}
+                entry_est = float(metrics.get("close") or metrics.get("sr_close") or 0)
+                ai_sr_plan = extract_ai_sr_tpsl_plan(metrics, entry_est)
+                if ai_sr_plan:
+                    logger.info(
+                        "📐 AI位阶止盈止损方案 | 止损支撑=%.4f | 止盈1(50%%)小级=%s | 止盈2(50%%)同级=%s",
+                        ai_sr_plan["support"],
+                        f"{ai_sr_plan['tp_lower_tf']:.4f}" if ai_sr_plan.get("tp_lower_tf") else "—",
+                        f"{ai_sr_plan['tp_same_tf']:.4f}" if ai_sr_plan.get("tp_same_tf") else "—",
+                    )
+                else:
+                    logger.info("⚠️ AI位阶止盈止损: 支撑/压力数据不足，开仓后将使用百分比止盈止损")
+
+            if dingtalk_webhook_enabled() and score_res.get("ok"):
+
+                def _push_dingtalk_cached(res: dict = score_res):
+                    try:
+                        push_score_to_dingtalk(res)
+                    except Exception as e:
+                        logger.warning("钉钉 AI 评分推送失败(忽略): %s", e)
+
+                threading.Thread(
+                    target=_push_dingtalk_cached,
+                    daemon=True,
+                    name=f"dingtalk-push-{signal_symbol}",
+                ).start()
 
     loop = ADAPTIVE_LONG_TASKS.get(target_id)
     if not loop or not loop.is_running():
@@ -2283,7 +2606,12 @@ async def adaptive_long_webhook(request: Request):
 
     try:
         future = asyncio.run_coroutine_threadsafe(
-            strategy.execute_signal(signal_symbol, action, timeframe=signal_timeframe or None),
+            strategy.execute_signal(
+                signal_symbol,
+                action,
+                timeframe=signal_timeframe or None,
+                ai_sr_levels=ai_sr_plan if is_buy_action(action) else None,
+            ),
             loop
         )
         try:
@@ -2530,20 +2858,31 @@ async def adaptive_short_webhook(request: Request):
 
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
 
-    from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_dingtalk_score
+    from backpack_quant_trading.core.crypto_signal_scorer import (
+        is_buy_action,
+        is_sell_action,
+        schedule_webhook_dingtalk_score,
+    )
 
-    # 路径2：钉钉推送（后台，与是否开单无关）
-    try:
-        schedule_webhook_dingtalk_score(
-            signal_symbol,
-            action,
-            timeframe=signal_timeframe,
-            webhook_raw=data,
-            strategy_label="adaptive_short",
-            strategy_name=strategy_name or "做空策略",
+    # 路径2：钉钉 AI 评分（仅卖出开空；买入=平空，不评分）
+    if is_sell_action(action):
+        try:
+            schedule_webhook_dingtalk_score(
+                signal_symbol,
+                action,
+                timeframe=signal_timeframe,
+                webhook_raw=data,
+                strategy_label="adaptive_short",
+                strategy_name=strategy_name or "自适应做空",
+                strategy_side="short",
+            )
+        except Exception as _sc_err:
+            logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
+    elif is_buy_action(action):
+        logger.info(
+            "📋 做空策略买入=平仓 | %s %s | 跳过 AI 评分（钉钉）",
+            signal_symbol, signal_timeframe or "默认周期",
         )
-    except Exception as _sc_err:
-        logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
 
     dead_ids = []
     for iid, th in list(ADAPTIVE_SHORT_THREADS.items()):
