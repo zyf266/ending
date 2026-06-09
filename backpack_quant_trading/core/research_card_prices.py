@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -177,7 +178,9 @@ def refresh_all_research_prices() -> Dict[str, Any]:
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     prices: Dict[str, Any] = {}
     ok_count = 0
-    for code in list_research_codes():
+    for i, code in enumerate(list_research_codes()):
+        if i > 0:
+            time.sleep(0.4)  # 降低 Massive 批量拉价 429 概率
         qsym = get_quote_symbol(code)
         price, source = fetch_market_price(code, qsym)
         entry: Dict[str, Any] = {

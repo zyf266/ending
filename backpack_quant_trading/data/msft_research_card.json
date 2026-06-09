@@ -1,0 +1,45 @@
+{
+  "code": "MSFT",
+  "name": "微软",
+  "tagline": "云+AI平台型企业，Azure与Copilot双引擎",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "quote_symbol": "MSFT",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "40%",
+      "subtitle": "Copilot超预期渗透",
+      "range_low": 580,
+      "range_high": 650,
+      "note": "PDF：$580-$650"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "45%",
+      "subtitle": "Azure维持35%+增长",
+      "range_low": 480,
+      "range_high": 550,
+      "note": "PDF：$480-$550"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "15%",
+      "subtitle": "AI ROI不及预期",
+      "range_low": 300,
+      "range_high": 360,
+      "note": "PDF：$300-$360"
+    }
+  ],
+  "highlights": [
+    "FY2026 Q3 营收 $828.86亿（YoY +18%），GAAP EPS $4.27（YoY +23%）",
+    "Microsoft Cloud $545亿（YoY +29%），Azure 同比增长 +40%",
+    "AI 业务 ARR 超 $370亿（YoY +123%），Copilot 订阅加速渗透",
+    "全年 CapEx 指引上调至 $1900亿，用于 AI 基础设施扩建",
+    "核心风险：高估值敏感性、CapEx 压力、地缘/监管与云竞争"
+  ],
+  "pdf_path": "MSFT 美股分析报告.pdf"
+}

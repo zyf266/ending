@@ -1,0 +1,45 @@
+{
+  "code": "IBM",
+  "name": "IBM",
+  "tagline": "关键基础设施软件与混合云防守型价值股",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-06-02",
+  "quote_symbol": "IBM",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "15%",
+      "subtitle": "AI订单持续超预期",
+      "range_low": 400,
+      "range_high": 449,
+      "note": "PDF：$400-$449"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "60%",
+      "subtitle": "营收增长5-6%",
+      "range_low": 325,
+      "range_high": 355,
+      "note": "PDF：$325-$355"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "25%",
+      "subtitle": "AI增速放缓/大型机回落",
+      "range_low": 240,
+      "range_high": 280,
+      "note": "PDF：$240-$280"
+    }
+  ],
+  "highlights": [
+    "2026 Q1 营收 $159.2亿（YoY +9%），Non-GAAP EPS $1.91（YoY +19%）",
+    "软件部门 $70.52亿（YoY +11%），占比 44.3% 成最大收入来源",
+    "AI 相关软件与服务收入同比 +40%，RPO 达 $680亿",
+    "股息率 ~2.65%，前瞻 PE ~26-27x（13年来首次超越微软）",
+    "核心风险：估值透支、大型机脉冲回落、CFO 高位减持信号"
+  ],
+  "pdf_path": "IBM (IBM) 投资分析报告.pdf"
+}

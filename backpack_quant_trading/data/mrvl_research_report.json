@@ -1,0 +1,420 @@
+{
+  "code": "MRVL",
+  "name": "Marvell",
+  "tagline": "AI数据中心互联与自定义ASIC基础设施",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：FY2026创纪录财报",
+      "subtitle": "数据中心业务占比达74%，战略转型完成",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "全年营收",
+              "value": "$81.95亿",
+              "lines": [
+                "YoY +42%",
+                "创历史新高"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "Non-GAAP EPS",
+              "value": "$2.84",
+              "lines": [
+                "YoY +81%",
+                "利润大幅提升"
+              ]
+            },
+            {
+              "icon": "server",
+              "title": "Q4 营收",
+              "value": "$22.19亿",
+              "lines": [
+                "YoY +22%",
+                "稳健增长"
+              ]
+            },
+            {
+              "icon": "calendar",
+              "title": "Q4 Non-GAAP EPS",
+              "value": "$0.80",
+              "lines": [
+                "超出市场预期"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "绝对核心引擎",
+              "text": "数据中心业务占比达74%，营收与利润双双创历史新高，确立AI基础设施供应商领先地位。"
+            },
+            {
+              "icon": "chip",
+              "title": "战略定位",
+              "text": "自定义ASIC、高带宽光学互联、以太网交换与DPU构成AI集群关键网络基石。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：估值锚点与同业参照",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Forward P/E",
+              "text": "约44-46x，处于历史较高水平，反映AI基础设施增长预期。"
+            },
+            {
+              "icon": "layers",
+              "title": "P/S Ratio",
+              "text": "约18-19x，溢价由数据中心+40%增长指引支撑。"
+            },
+            {
+              "icon": "trophy",
+              "title": "NVIDIA战略合作",
+              "text": "20亿美元战略合作强化AI基础设施地位，形成稳固利益共同体。"
+            },
+            {
+              "icon": "rocket",
+              "title": "设计订单",
+              "text": "已获超50个Hyperscaler自定义硅芯片设计订单，客户粘性强。"
+            },
+            {
+              "icon": "stack",
+              "title": "FY2027展望",
+              "text": "全年营收预计近$110亿，数据中心业务预计+40%爆发式增长。"
+            },
+            {
+              "icon": "network",
+              "title": "稀缺性溢价",
+              "text": "估值高于行业均值但低于AVGO，需业绩持续超预期以维持。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：AI集群需求爆炸",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务需求",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "自定义ASIC",
+                  "text": "专为AI加速器(XPU)设计，精准满足Hyperscaler定制化算力需求。"
+                },
+                {
+                  "icon": "network",
+                  "title": "高带宽光学互联",
+                  "text": "800G+ PAM4技术突破传统瓶颈，解决AI集群内部海量数据传输难题。"
+                },
+                {
+                  "icon": "server",
+                  "title": "以太网交换 & DPU",
+                  "text": "构建大规模、高稳定性AI集群的关键网络基石组件。"
+                }
+              ]
+            },
+            {
+              "title": "供给 vs. 需求",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "需求确定性",
+                  "text": "AI基建是长期轻周期，Hyperscaler资本开支持续强劲。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "产能爬坡",
+                  "text": "超50个定制芯片项目出货量快速爬坡，产能利用率维持高位。"
+                },
+                {
+                  "icon": "line",
+                  "title": "长期催化剂",
+                  "text": "FY2027数据中心+40%，FY2028接近+50%，高增长预期可持续兑现。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与市场份额",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "自定义硅放量",
+              "text": "AI加速器定制芯片订单创纪录，设计胜出达历史新高。"
+            },
+            {
+              "icon": "globe",
+              "title": "光学互联升级",
+              "text": "800G+向更高速率演进，AI集群规模扩大驱动互联需求。"
+            },
+            {
+              "icon": "robot",
+              "title": "Hyperscaler CapEx",
+              "text": "美欧云巨头AI资本开支为需求核心驱动力。"
+            },
+            {
+              "icon": "rocket",
+              "title": "Q1 FY2027指引",
+              "text": "营收$24亿±5%，显著高于市场共识。"
+            },
+            {
+              "icon": "trophy",
+              "title": "技术领先",
+              "text": "高带宽SerDes与光学技术解决AI时代数据传输关键瓶颈。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "vs Broadcom",
+              "text": "Marvell更专注DCI与特定场景定制，业务纯度更高、细分赛道更灵活。"
+            },
+            {
+              "icon": "server",
+              "title": "vs NVIDIA/AMD",
+              "text": "侧重底层互联层，与GPU生态互补大于竞争，共同构建数据中心基础设施。"
+            },
+            {
+              "icon": "network",
+              "title": "技术壁垒",
+              "text": "高带宽SerDes与光学积累深厚，大规模部署验证可靠性与性能。"
+            },
+            {
+              "icon": "stack",
+              "title": "客户粘性",
+              "text": "50+Hyperscaler设计订单形成强粘性，切换成本高。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "中国市场敞口",
+              "text": "收入占比约36-40%，主要源于传统网络与存储，是重要现金流基石。"
+            },
+            {
+              "icon": "chip",
+              "title": "AI业务隔离",
+              "text": "数据中心AI增长由美欧Hyperscaler驱动，受地缘直接冲击较小。"
+            },
+            {
+              "icon": "factory",
+              "title": "供应链多元化",
+              "text": "加速越南、马来西亚等地布局，分散中美脱钩与关税风险。"
+            },
+            {
+              "icon": "trend",
+              "title": "综合判断",
+              "text": "中国市场风险主要影响传统业务，核心AI增长驱动力影响有限，总体可控。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Non-GAAP毛利率",
+              "value": "59-60%",
+              "lines": [
+                "长期稳定区间"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Q1 FY2027指引",
+              "value": "58.25-59.25%",
+              "lines": [
+                "可预测性强"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "驱动因素",
+              "value": "产品组合优化",
+              "lines": [
+                "高价值AI产品占比提升",
+                "规模效应释放"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "Q1 FY2027指引",
+              "text": "营收$24亿±5%；Non-GAAP EPS $0.79±$0.05，显著高于共识。"
+            },
+            {
+              "icon": "rocket",
+              "title": "全年展望",
+              "text": "FY2027营收近$110亿，数据中心+40%爆发式增长。"
+            },
+            {
+              "icon": "trophy",
+              "title": "管理层语气",
+              "text": "强调「AI需求强劲」「订单创纪录」「设计胜出历史新高」，信心十足。"
+            },
+            {
+              "icon": "chart",
+              "title": "指引可信度",
+              "text": "历史指引偏保守且多次超预期，市场可信度高。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "35%",
+              "subtitle": "AI资本开支超预期",
+              "range_low": 240,
+              "range_high": 280,
+              "note": "份额持续扩张、技术壁垒加深、重大合作公告"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "45%",
+              "subtitle": "中性预期",
+              "range_low": 180,
+              "range_high": 220,
+              "note": "AI需求稳健增长，业务执行符合市场预期"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "20%",
+              "subtitle": "下行风险",
+              "range_low": 100,
+              "range_high": 130,
+              "note": "AI投资放缓、竞争加剧、宏观衰退与地缘冲突"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前价约$177，Forward P/E约44-46x，估值已部分消化利好。向上空间仍合理但需警惕宏观波动，建议分批建仓。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "买入/加仓",
+              "text": "$150-$160为中长期理想切入点。"
+            },
+            {
+              "icon": "target",
+              "title": "减仓/卖出",
+              "text": "$200+可能已反映过度乐观，建议逐步获利了结。"
+            },
+            {
+              "icon": "line",
+              "title": "严格止损",
+              "text": "有效跌破$140-$150应果断止损离场。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位控制",
+              "text": "单一个股建议5%-8%，适合作为AI基础设施核心仓位。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "AI基础设施建设（互联+自定义ASIC）是持续多年的超级周期。低利率与科技CapEx环境友好，但经济衰退或高利率可能短期延缓进度。MRVL与NVDA、AVGO及半导体景气度高度联动，建议置于AI基础设施组合框架内配置。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Marvell在自定义ASIC与光学互联领域构建差异化壁垒，FY2027数据中心+40%指引强劲；但估值已反映乐观预期，建议回调至$150-$160分批买入，严格控制仓位，长期关注订单落地与业绩兑现。评级：持有/择机买入，信心65/100。"
+}

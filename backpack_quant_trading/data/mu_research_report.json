@@ -1,0 +1,418 @@
+{
+  "code": "MU",
+  "name": "美光",
+  "tagline": "AI超级周期下的内存与HBM核心受益者",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：FY2026 Q2财报创纪录",
+      "subtitle": "HBM驱动存储超级周期",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "季度总营收",
+              "value": "$23.86B",
+              "lines": [
+                "QoQ +75%",
+                "YoY +196%"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "Non-GAAP EPS",
+              "value": "$12.20",
+              "lines": [
+                "远超市场预期"
+              ]
+            },
+            {
+              "icon": "shield",
+              "title": "Non-GAAP毛利率",
+              "value": "~74.9%",
+              "lines": [
+                "历史高位"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "DRAM / NAND",
+              "value": "79% / 21%",
+              "lines": [
+                "HBM为核心驱动力"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "行业地位",
+              "text": "全球三大内存制造商之一，深度绑定英伟达、AMD等AI巨头，是AI硬件浪潮核心受益者。"
+            },
+            {
+              "icon": "chip",
+              "title": "股价背景",
+              "text": "报告时点约$725，处于历史高位，业绩与估值双升，显著受益于AI半导体超级周期。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：三巨头横向对比",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Micron (MU)",
+              "text": "营收增速QoQ +75%/YoY +196%，毛利率~75%，执行力与增速突出。"
+            },
+            {
+              "icon": "layers",
+              "title": "SK Hynix",
+              "text": "QoQ +60%/YoY +198%，运营利润率72%创新高，HBM利润率行业领先。"
+            },
+            {
+              "icon": "stack",
+              "title": "Samsung",
+              "text": "Memory业务创纪录，规模最大、业务多元化，供应链整合能力极强。"
+            },
+            {
+              "icon": "trophy",
+              "title": "行业结论",
+              "text": "三巨头均显著受益于AI/HBM超级周期，竞争格局稳固。"
+            },
+            {
+              "icon": "rocket",
+              "title": "Q3指引",
+              "text": "营收$33.5B±0.75B，毛利率~81%，EPS ~$19.15。"
+            },
+            {
+              "icon": "network",
+              "title": "范式转变",
+              "text": "管理层认为当前是AI驱动的行业范式转变，而非传统库存周期反弹。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：HBM爆炸式增长",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心需求",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "内存用量跃升",
+                  "text": "单台AI服务器HBM/高端DRAM搭载量为传统服务器数倍。"
+                },
+                {
+                  "icon": "server",
+                  "title": "供需错配",
+                  "text": "HBM工艺复杂、良率挑战大，2026年产能基本售罄，长单锁定。"
+                },
+                {
+                  "icon": "network",
+                  "title": "TAM扩张",
+                  "text": "HBM市场预计到2028年接近千亿美元规模。"
+                }
+              ]
+            },
+            {
+              "title": "HBM份额格局",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "SK Hynix领跑",
+                  "text": "早期技术布局与客户深度绑定，占据领先地位。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "Micron追赶",
+                  "text": "赢得NVIDIA平台设计订单后份额快速提升，潜力巨大。"
+                },
+                {
+                  "icon": "line",
+                  "title": "Samsung加速",
+                  "text": "HBM4备受期待，全力追赶以实现份额突破。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与长期能见度",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "AI CapEx",
+              "text": "超大规模数据中心AI资本开支驱动需求至2027年后。"
+            },
+            {
+              "icon": "globe",
+              "title": "供给纪律",
+              "text": "三寡头严格供给控制，支撑高利润防守。"
+            },
+            {
+              "icon": "robot",
+              "title": "终端双轮",
+              "text": "云厂商与终端侧双轮驱动内存消耗。"
+            },
+            {
+              "icon": "rocket",
+              "title": "美股流动性",
+              "text": "相比韩国同行，治理透明、流动性更佳。"
+            },
+            {
+              "icon": "trophy",
+              "title": "估值吸引力",
+              "text": "Forward PE处于个位数至低双位数，风险收益比佳。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "三寡头格局",
+              "text": "SK海力士、三星、美光瓜分HBM/高端DRAM市场，进入壁垒极高。"
+            },
+            {
+              "icon": "server",
+              "title": "技术追赶",
+              "text": "美光在NVIDIA生态订单验证技术实力，差距持续缩小。"
+            },
+            {
+              "icon": "network",
+              "title": "定价权",
+              "text": "供给紧张下三巨头毛利率均处历史峰值，定价权强劲。"
+            },
+            {
+              "icon": "stack",
+              "title": "周期属性",
+              "text": "虽AI需求结构性，传统半导体周期波动仍需警惕。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "中国敞口",
+              "text": "中国收入占比约12%，AI全球化（美欧主导）有效缓解风险。"
+            },
+            {
+              "icon": "chip",
+              "title": "制造布局",
+              "text": "制造基地分散于美国、新加坡等地。"
+            },
+            {
+              "icon": "factory",
+              "title": "地缘风险",
+              "text": "中美脱钩、出口管制、关税及供应链中断为共同挑战。"
+            },
+            {
+              "icon": "trend",
+              "title": "本土替代",
+              "text": "中国本土内存产业替代进程推进，长期竞争格局生变。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "毛利率峰值",
+              "value": "~75%",
+              "lines": [
+                "三巨头均处历史高位"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Q3指引毛利率",
+              "value": "~81%",
+              "lines": [
+                "继续创新高"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "防守逻辑",
+              "value": "供给纪律+AI",
+              "lines": [
+                "结构性需求",
+                "非传统周期反弹"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "Q3官方指引",
+              "text": "营收$33.5B±0.75B，毛利率~81%，EPS ~$19.15，创历史新高。"
+            },
+            {
+              "icon": "rocket",
+              "title": "结构性需求",
+              "text": "管理层强调AI带来长期结构性需求，将持续多年。"
+            },
+            {
+              "icon": "trophy",
+              "title": "行业共识",
+              "text": "SK海力士与三星均给出强势指引，全行业迎来新增长纪元。"
+            },
+            {
+              "icon": "chart",
+              "title": "市场预期",
+              "text": "强劲指引推高市场期望，需关注Q3财报（约6月）兑现节奏。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "35%",
+              "subtitle": "HBM份额升至25%+",
+              "range_low": 950,
+              "range_high": 1100,
+              "note": "AI资本开支超预期，行业景气持续上行"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "45%",
+              "subtitle": "中性预期",
+              "range_low": 650,
+              "range_high": 780,
+              "note": "需求稳健，产能利用率高位，利润率正常化"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "20%",
+              "subtitle": "下行风险",
+              "range_low": 350,
+              "range_high": 480,
+              "note": "AI ROI受质疑、宏观衰退、资本开支缩减"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前约$725，Forward PE仍具吸引力，向上空间大于下行风险，但波动大，建议关注资本开支落地与库存周期。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "加仓区域",
+              "text": "$600-$650为强势回调后优质买点。"
+            },
+            {
+              "icon": "target",
+              "title": "谨慎区域",
+              "text": "$800+接近压力位，可部分获利了结。"
+            },
+            {
+              "icon": "line",
+              "title": "止损纪律",
+              "text": "有效跌破$550-$600坚决离场。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位建议",
+              "text": "核心AI内存仓位5%-10%，可搭配韩国半导体ETF分散风险。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "半导体行业进入AI驱动超级周期，区别于传统库存周期。低利率与科技CapEx环境有利，但宏观衰退或高利率可能延缓节奏。MU与NVDA、MRVL及存储产业链高度联动，建议作为AI硬件主线核心配置。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "美光处于AI存储超级周期核心位置，HBM执行力与毛利率防守突出，Q3指引强劲。建议买入/持有作为核心AI内存仓位，回调至$600-$650加仓，严格止损。信心70/100。"
+}

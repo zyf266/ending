@@ -1,75 +1,117 @@
 {
-  "updated_at": "2026-06-04 04:30:00",
+  "updated_at": "2026-06-09 16:25:32",
   "prices": {
     "NVDA": {
       "quote_symbol": "NVDA",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 214.82
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 208.64
     },
     "INTC": {
       "quote_symbol": "INTC",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 112.69
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 110.27
     },
     "CRCL": {
       "quote_symbol": "CRCL",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 90.315
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 82.53
     },
     "SNDK": {
       "quote_symbol": "SNDK",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 1831.5
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 1642.0
     },
     "ETH": {
       "quote_symbol": "ETH-USD",
       "currency": "USD",
       "source": "hyperliquid",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 1809.35
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 1676.15
     },
     "HYPE": {
       "quote_symbol": "HYPE-USD",
       "currency": "USD",
       "source": "hyperliquid",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 73.4055
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 62.0095
     },
     "000858": {
       "quote_symbol": "000858.SZ",
       "currency": "USD",
       "source": "yahoo",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 82.35
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 79.11
     },
     "ONDO": {
       "quote_symbol": "ONDO-USD",
       "currency": "USD",
       "source": "yahoo",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 0.42655
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 0.37212
     },
     "GOOGL": {
       "quote_symbol": "GOOGL",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 358.99
+      "source": "massive",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 363.31
     },
     "CRDO": {
       "quote_symbol": "CRDO",
       "currency": "USD",
-      "source": "stooq",
-      "fetched_at": "2026-06-04 04:30:00",
-      "price": 214.18
+      "source": "massive",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 222.27
+    },
+    "MRVL": {
+      "quote_symbol": "MRVL",
+      "currency": "USD",
+      "source": "massive",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 288.85
+    },
+    "MU": {
+      "quote_symbol": "MU",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 949.28
+    },
+    "MSFT": {
+      "quote_symbol": "MSFT",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 411.74
+    },
+    "NOK": {
+      "quote_symbol": "NOK",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 14.59
+    },
+    "RKLB": {
+      "quote_symbol": "RKLB",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 113.65
+    },
+    "IBM": {
+      "quote_symbol": "IBM",
+      "currency": "USD",
+      "source": "yahoo",
+      "fetched_at": "2026-06-09 16:25:32",
+      "price": 280.82
     }
   }
 }

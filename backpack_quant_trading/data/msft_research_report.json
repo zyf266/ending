@@ -1,0 +1,418 @@
+{
+  "code": "MSFT",
+  "name": "微软",
+  "tagline": "云+AI平台型企业，Azure与Copilot双引擎",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：FY2026 Q3创纪录",
+      "subtitle": "云+AI转型加速，利润率与现金流创新高",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$828.86亿",
+              "lines": [
+                "YoY +18%",
+                "大幅超预期"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "GAAP EPS",
+              "value": "$4.27",
+              "lines": [
+                "YoY +23%"
+              ]
+            },
+            {
+              "icon": "cloud",
+              "title": "Microsoft Cloud",
+              "value": "$545亿",
+              "lines": [
+                "YoY +29%"
+              ]
+            },
+            {
+              "icon": "calendar",
+              "title": "净收入",
+              "value": "$317.78亿",
+              "lines": [
+                "YoY +23%"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "增长引擎",
+              "text": "Azure同比增长+40%，Copilot与AI服务贡献显著增量，Cloud成为绝对核心。"
+            },
+            {
+              "icon": "chip",
+              "title": "CapEx上调",
+              "text": "全年资本支出指引上调至$1900亿，用于扩建AI基础设施与算力。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：业务分部与财务健康",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "server",
+              "title": "Intelligent Cloud",
+              "text": "含Azure，主导增长引擎，企业级订阅持续强劲。"
+            },
+            {
+              "icon": "layers",
+              "title": "Productivity & Business",
+              "text": "Office 365、Dynamics、LinkedIn与Copilot订阅加速渗透。"
+            },
+            {
+              "icon": "stack",
+              "title": "More Personal Computing",
+              "text": "Windows、搜索、游戏受PC低迷拖累，增速放缓。"
+            },
+            {
+              "icon": "cash",
+              "title": "现金极其充裕",
+              "text": "自由现金流优异，支撑巨额CapEx与股东回报。"
+            },
+            {
+              "icon": "trend",
+              "title": "ROE/ROIC",
+              "text": "盈利能力持续高位，软件+云协同运营效率突出。"
+            },
+            {
+              "icon": "calendar",
+              "title": "Q3 CapEx",
+              "text": "当季$319亿，持续投入AI基础设施建设。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：Azure与Copilot",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心需求",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "AI基础设施",
+                  "text": "Azure AI服务与Copilot需求持续旺盛。"
+                },
+                {
+                  "icon": "server",
+                  "title": "企业云迁移",
+                  "text": "存量客户上云进程加速，订阅模式现金流稳健。"
+                },
+                {
+                  "icon": "network",
+                  "title": "数据+AI平台",
+                  "text": "一站式智能平台需求爆炸式增长。"
+                }
+              ]
+            },
+            {
+              "title": "关键增长数据",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "Azure增速",
+                  "text": "Q3 +40%，Q4指引维持39-40%（固定汇率）。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "AI ARR",
+                  "text": "已超$370亿，同比+123%，超预期。"
+                },
+                {
+                  "icon": "line",
+                  "title": "容量紧张",
+                  "text": "数据中心HPC资源供不应求，CapEx大力扩张匹配需求。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与市场份额",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "Copilot渗透",
+              "text": "企业级AI助手采用率超预期，带动高价值用户扩大。"
+            },
+            {
+              "icon": "globe",
+              "title": "OpenAI合作",
+              "text": "全栈AI能力从模型训练到应用部署。"
+            },
+            {
+              "icon": "robot",
+              "title": "混合/主权云",
+              "text": "满足跨国企业与政府数据本地化与合规需求。"
+            },
+            {
+              "icon": "rocket",
+              "title": "云份额~28%",
+              "text": "增速迅猛，依托365+Copilot深度整合建立粘性。"
+            },
+            {
+              "icon": "trophy",
+              "title": "长期可持续性",
+              "text": "根植于企业数字化转型与AI采用的长周期产业变革。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "vs AWS (~31%)",
+              "text": "AWS规模领先、生态成熟，但增速放缓。"
+            },
+            {
+              "icon": "server",
+              "title": "vs Google Cloud (~13%)",
+              "text": "体量最小但增速最快，纯AI创新优势。"
+            },
+            {
+              "icon": "network",
+              "title": "生态锁定",
+              "text": "深度绑定企业业务流程，迁移成本极高。"
+            },
+            {
+              "icon": "stack",
+              "title": "企业市场",
+              "text": "合规安全及政府/教育市场绝对优势。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "欧美主导",
+              "text": "美国与欧洲贡献绝大部分收入，中国市场占比约5-8%。"
+            },
+            {
+              "icon": "chip",
+              "title": "供应链调整",
+              "text": "计划2026年起将大部分新产品制造移出中国，转向越南等地。"
+            },
+            {
+              "icon": "factory",
+              "title": "全球监管",
+              "text": "欧盟DMA/AI法案及数据本地化法规推高合规成本。"
+            },
+            {
+              "icon": "trend",
+              "title": "综合判断",
+              "text": "中国市场风险可控，最大不确定性来自全球监管升级。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "整体毛利率",
+              "value": "~67.6%",
+              "lines": [
+                "历史高位"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Cloud毛利率",
+              "value": "稳健",
+              "lines": [
+                "规模效应提升"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "盈利防守",
+              "value": "订阅+云",
+              "lines": [
+                "强现金流缓冲",
+                "抗周期能力强"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "Q4营收指引",
+              "text": "$867-878亿（+13-15%），延续稳健增长。"
+            },
+            {
+              "icon": "rocket",
+              "title": "Azure指引",
+              "text": "39-40%固定汇率增长，显著超共识。"
+            },
+            {
+              "icon": "trophy",
+              "title": "管理层语气",
+              "text": "Nadella强调「范式转变」，AI需求强劲且加速，容量紧张但执行出色。"
+            },
+            {
+              "icon": "chart",
+              "title": "指引可信度",
+              "text": "历史多次保守指引并最终超越，准确性极高。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "40%",
+              "subtitle": "Copilot超预期",
+              "range_low": 580,
+              "range_high": 650,
+              "note": "Azure高增长，利润率显著扩张"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "45%",
+              "subtitle": "中性预期",
+              "range_low": 480,
+              "range_high": 550,
+              "note": "AI需求稳健，Azure ~35%+增长"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "15%",
+              "subtitle": "下行风险",
+              "range_low": 300,
+              "range_high": 360,
+              "note": "AI ROI不及预期、IT支出疲软、监管冲击"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前约$422，Forward PE ~21-22x，风险收益比极具吸引力，向上空间显著大于下行风险。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "加仓区域",
+              "text": "$380-$400积极布局。"
+            },
+            {
+              "icon": "target",
+              "title": "获利再平衡",
+              "text": "$480+逐步止盈部分仓位。"
+            },
+            {
+              "icon": "line",
+              "title": "严格止损",
+              "text": "跌破$360-$380关键支撑离场。"
+            },
+            {
+              "icon": "layers",
+              "title": "核心仓位",
+              "text": "建议组合配置8%-15%，可搭配AWS/GOOG分散风险。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "MSFT与全球AI资本开支、利率预期、企业IT支出及监管政策高度联动。建议作为科技核心长期仓位，通过长期持有平滑CapEx折旧与估值波动。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "微软AI驱动的长期增长逻辑稳固，Azure+Copilot双引擎强劲，管理层指引可信度高。建议买入/持有作为核心长期仓位，信心85/100。加仓$380-$400，止盈$550+分批减仓。"
+}

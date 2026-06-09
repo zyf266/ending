@@ -114,4 +114,76 @@ export const RESEARCH_CARDS_FALLBACK = {
       { key: 'bear', label: '悲观情景', probability: '25%', range_low: 120, range_high: 170 },
     ],
   },
+
+  MRVL: {
+    code: 'MRVL',
+    name: 'Marvell',
+    tagline: 'AI数据中心互联与自定义ASIC基础设施',
+    report_date: '2026-05-18',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '35%', range_low: 240, range_high: 280 },
+      { key: 'base', label: '基准情景', probability: '45%', range_low: 180, range_high: 220 },
+      { key: 'bear', label: '悲观情景', probability: '20%', range_low: 100, range_high: 130 },
+    ],
+  },
+
+  MU: {
+    code: 'MU',
+    name: '美光',
+    tagline: 'AI超级周期下的内存与HBM核心受益者',
+    report_date: '2026-05-18',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '35%', range_low: 950, range_high: 1100 },
+      { key: 'base', label: '基准情景', probability: '45%', range_low: 650, range_high: 780 },
+      { key: 'bear', label: '悲观情景', probability: '20%', range_low: 350, range_high: 480 },
+    ],
+  },
+
+  MSFT: {
+    code: 'MSFT',
+    name: '微软',
+    tagline: '云+AI平台型企业，Azure与Copilot双引擎',
+    report_date: '2026-05-18',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '40%', range_low: 580, range_high: 650 },
+      { key: 'base', label: '基准情景', probability: '45%', range_low: 480, range_high: 550 },
+      { key: 'bear', label: '悲观情景', probability: '15%', range_low: 300, range_high: 360 },
+    ],
+  },
+
+  NOK: {
+    code: 'NOK',
+    name: '诺基亚',
+    tagline: 'AI基础设施驱动的光网络转型',
+    report_date: '2026-05-18',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '35%', range_low: 18, range_high: 22 },
+      { key: 'base', label: '基准情景', probability: '45%', range_low: 13, range_high: 16 },
+      { key: 'bear', label: '悲观情景', probability: '20%', range_low: 7, range_high: 10 },
+    ],
+  },
+
+  RKLB: {
+    code: 'RKLB',
+    name: 'Rocket Lab',
+    tagline: '垂直整合的太空发射与卫星系统',
+    report_date: '2026-05-18',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '35%', range_low: 180, range_high: 220 },
+      { key: 'base', label: '基准情景', probability: '45%', range_low: 110, range_high: 140 },
+      { key: 'bear', label: '悲观情景', probability: '20%', range_low: 50, range_high: 80 },
+    ],
+  },
+
+  IBM: {
+    code: 'IBM',
+    name: 'IBM',
+    tagline: '关键基础设施软件与混合云防守型价值股',
+    report_date: '2026-06-02',
+    scenarios: [
+      { key: 'bull', label: '乐观情景', probability: '15%', range_low: 400, range_high: 449 },
+      { key: 'base', label: '基准情景', probability: '60%', range_low: 325, range_high: 355 },
+      { key: 'bear', label: '悲观情景', probability: '25%', range_low: 240, range_high: 280 },
+    ],
+  },
 }

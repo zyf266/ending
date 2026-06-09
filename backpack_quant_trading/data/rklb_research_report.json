@@ -1,0 +1,418 @@
+{
+  "code": "RKLB",
+  "name": "Rocket Lab",
+  "tagline": "垂直整合的太空发射与卫星系统",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：Q1 2026创纪录季度",
+      "subtitle": "首次突破$200M营收大关",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$200.3M",
+              "lines": [
+                "YoY +63.5%",
+                "QoQ +11.5%"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "GAAP EPS",
+              "value": "-$0.07",
+              "lines": [
+                "优于预期 -$0.08"
+              ]
+            },
+            {
+              "icon": "shield",
+              "title": "毛利率",
+              "value": "38.2%",
+              "lines": [
+                "创历史新高"
+              ]
+            },
+            {
+              "icon": "calendar",
+              "title": "Adj. EBITDA",
+              "value": "-$11.75M",
+              "lines": [
+                "同比改善60.8%"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "Space Systems",
+              "text": "收入$136.7M（~68%），YoY +57.2%，卫星平台与组件为增长主力。"
+            },
+            {
+              "icon": "chip",
+              "title": "Launch Services",
+              "text": "收入$63.7M（~32%），YoY +78.9%，Electron火箭高可靠性贡献稳定营收。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：流动性与订单储备",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "总流动性",
+              "text": "超$20亿（含股权发行后），资金储备充裕。"
+            },
+            {
+              "icon": "trend",
+              "title": "订单储备",
+              "text": "Backlog $2.2B同比大幅增长，收入可见度极高。"
+            },
+            {
+              "icon": "rocket",
+              "title": "Neutron催化剂",
+              "text": "中运力火箭13,000kg+至LEO，目标2026 Q4首飞。"
+            },
+            {
+              "icon": "stack",
+              "title": "Electron验证",
+              "text": "50+次成功发射，小运力市场绝对领先。"
+            },
+            {
+              "icon": "network",
+              "title": "运营现金流",
+              "text": "经营性现金流持续改善，造血能力增强。"
+            },
+            {
+              "icon": "calendar",
+              "title": "FCF阶段",
+              "text": "自由现金流短期为负，主要因Neutron战略研发投入。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：国防与商业星座",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "Electron火箭",
+                  "text": "小运力市场领先者，高频率发射能力是现金流支柱。"
+                },
+                {
+                  "icon": "server",
+                  "title": "Space Systems",
+                  "text": "卫星总线与组件制造，高价值高毛利，深度绑定商业客户。"
+                },
+                {
+                  "icon": "network",
+                  "title": "Neutron火箭",
+                  "text": "可回收中运力火箭，运力超13吨至LEO，将打破市场格局。"
+                }
+              ]
+            },
+            {
+              "title": "核心需求",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "国防政府",
+                  "text": "SDA、高超音速武器及天基拦截器等项目需求强劲。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "商业星座",
+                  "text": "全球卫星星座部署浪潮，制造与发射需求指数级增长。"
+                },
+                {
+                  "icon": "line",
+                  "title": "供需缺口",
+                  "text": "小运力长期供不应求，Neutron精准切入中运力空白。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与TAM扩张",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "Neutron首飞",
+              "text": "2026 Q4最大增长事件，TAM扩大一个数量级。"
+            },
+            {
+              "icon": "globe",
+              "title": "垂直整合",
+              "text": "制造-发射-运营全链条，提升粘性与利润率。"
+            },
+            {
+              "icon": "robot",
+              "title": "M&A布局",
+              "text": "Mynaric、Motiv等收购强化多元化与国防能力。"
+            },
+            {
+              "icon": "rocket",
+              "title": "Q2指引",
+              "text": "营收$225-240M，中点大幅高于共识。"
+            },
+            {
+              "icon": "trophy",
+              "title": "政府信任",
+              "text": "美及盟国政府高度信任，独家专利技术壁垒。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "vs SpaceX",
+              "text": "SpaceX绝对主导，RKLB专注差异化竞争避开正面交锋。"
+            },
+            {
+              "icon": "server",
+              "title": "vs Firefly/Relativity",
+              "text": "中小运力竞争者规模与成熟度仍落后。"
+            },
+            {
+              "icon": "network",
+              "title": "唯一上市",
+              "text": "垂直整合纯太空上市公司，Electron+Space Systems多元化。"
+            },
+            {
+              "icon": "stack",
+              "title": "核心风险",
+              "text": "Neutron能否按时首飞是决定份额与估值的关键变量。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "美欧为主",
+              "text": "业务高度集中于美国、欧洲及核心盟国，结构稳定。"
+            },
+            {
+              "icon": "chip",
+              "title": "双基地",
+              "text": "美国与新西兰制造基地分散单一区域风险。"
+            },
+            {
+              "icon": "factory",
+              "title": "供应链",
+              "text": "部分关键电子组件亚洲暴露，需警惕断供与物流延误。"
+            },
+            {
+              "icon": "trend",
+              "title": "国防预算",
+              "text": "美国国防预算年度波动是最大不确定性变量。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Q1毛利率",
+              "value": "38.2%",
+              "lines": [
+                "GAAP创纪录"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "Q2指引",
+              "value": "33-35% GAAP",
+              "lines": [
+                "Non-GAAP 38-40%"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "驱动因素",
+              "value": "产品组合",
+              "lines": [
+                "Space Systems占比提升",
+                "规模效应"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "Q2指引",
+              "text": "营收$225-240M；毛利率GAAP 33-35%；EBITDA亏损继续收窄。"
+            },
+            {
+              "icon": "rocket",
+              "title": "高度自信",
+              "text": "强调「纪录季度」「强劲执行」「强大需求尾风」。"
+            },
+            {
+              "icon": "trophy",
+              "title": "保守超越",
+              "text": "历史指引偏保守且多次超预期，信誉极高。"
+            },
+            {
+              "icon": "chart",
+              "title": "市场预期",
+              "text": "Neutron执行预期处于高位，微小延误可能引发波动。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "35%",
+              "subtitle": "Neutron成功首飞",
+              "range_low": 180,
+              "range_high": 220,
+              "note": "快速量产、大量合同、margin扩张"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "45%",
+              "subtitle": "中性预期",
+              "range_low": 110,
+              "range_high": 140,
+              "note": "Neutron按计划推进，Backlog正常转化"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "20%",
+              "subtitle": "下行风险",
+              "range_low": 50,
+              "range_high": 80,
+              "note": "Neutron延误/失败、发射事故、国防预算削减"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前约$120-125，高Beta成长股，高PS支撑于Backlog与增速，执行风险高需密切跟踪Neutron节点。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "加仓区域",
+              "text": "$100-$110低估区间。"
+            },
+            {
+              "icon": "target",
+              "title": "谨慎获利",
+              "text": "$140+技术压力位，$160+分批减仓。"
+            },
+            {
+              "icon": "line",
+              "title": "止损",
+              "text": "$90-$100严格执行。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "高波动成长股3%-7%，仅适合高风险承受力投资者。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Rocket Lab与国防预算、商业航天景气度及Neutron项目进度高度绑定。行业处于技术突破前夜，政策红利持续，但地缘与供应链扰动可能带来高波动。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "Rocket Lab订单储备$2.2B、毛利持续改善，Neutron首飞将打开巨大市场空间。建议择机买入/持有作为高风险高回报成长仓位，信心60/100，密切跟踪Neutron关键节点。"
+}

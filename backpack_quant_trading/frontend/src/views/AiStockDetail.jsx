@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getAiStockReportByCode } from '../data/aiStockReports'
 import NvdaFullReport from './NvdaFullReport'
-import { getResearchCard, RESEARCH_CARD_CODES } from '../api/aiStockHub'
+import { getResearchCard } from '../api/aiStockHub'
 import { RESEARCH_CARDS_FALLBACK } from '../data/researchCardsFallback'
 import './AiStock.css'
 
@@ -24,7 +24,7 @@ const AiStockDetail = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const sym = String(code || '').toUpperCase()
-  const isResearchPdf = RESEARCH_CARD_CODES.includes(sym)
+  const [isResearchPdf, setIsResearchPdf] = useState(Boolean(RESEARCH_CARDS_FALLBACK[sym]))
 
   const legacyItem = useMemo(() => getAiStockReportByCode(code), [code])
   const [pdfMeta, setPdfMeta] = useState(null)
@@ -52,6 +52,24 @@ const AiStockDetail = () => {
   const [analysis, setAnalysis] = useState({})
   const idxRef = useRef(0)
   const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (RESEARCH_CARDS_FALLBACK[sym]) {
+      setIsResearchPdf(true)
+      return undefined
+    }
+    let cancelled = false
+    getResearchCard(sym)
+      .then(() => {
+        if (!cancelled) setIsResearchPdf(true)
+      })
+      .catch(() => {
+        if (!cancelled) setIsResearchPdf(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [sym])
 
   useEffect(() => {
     if (!isResearchPdf || legacyItem) {

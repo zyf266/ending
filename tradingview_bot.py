@@ -203,6 +203,34 @@ def _normalize_tv_timeframe(value: str) -> str:
     return ""
 
 
+def _json_pick(data: dict, *keys: str) -> str:
+    for k in keys:
+        if k not in data:
+            continue
+        v = data[k]
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s:
+            return s
+    return ""
+
+
+def _looks_like_tv_json(data: dict) -> bool:
+    """TradingView JSON alert：含筛选ID/交易品种/方向等字段。"""
+    if not isinstance(data, dict):
+        return False
+    keys = set(data.keys())
+    if not keys or keys <= {"raw_message", "message"}:
+        return False
+    markers = {
+        "筛选ID", "ID", "id", "alert_id", "交易品种", "symbol", "ticker", "coin",
+        "方向", "action", "side", "周期", "timeframe", "K线级别", "interval",
+        "策略名称", "strategy", "strategy_name", "策略",
+    }
+    return bool(keys & markers)
+
+
 class TradingViewBot:
     def __init__(self, config: dict):
         self.config = config
@@ -256,10 +284,131 @@ class TradingViewBot:
             return "未知品种"
         return m.group(1).strip().upper()
 
+    def _apply_direction(self, parsed_data: dict, direction: str) -> None:
+        direction = (direction or "").strip()
+        if not direction:
+            return
+        parsed_data["action"] = direction
+        dlow = direction.lower()
+        if "buy" in dlow or "long" in dlow or "买入" in direction:
+            parsed_data["signal"] = "买入"
+        elif "sell" in dlow or "short" in dlow or "卖出" in direction:
+            parsed_data["signal"] = "卖出"
+        elif "close" in dlow or "exit" in dlow or "平仓" in direction or "清空" in direction:
+            parsed_data["signal"] = "清空"
+        else:
+            parsed_data["signal"] = direction
+
+    def _parse_json_alert(self, data: dict) -> dict:
+        """解析 TradingView JSON 格式 alert。"""
+        parsed_data = {
+            "raw_message": json.dumps(data, ensure_ascii=False),
+            "alert_id": "",
+            "symbol": "未知品种",
+            "signal": "信号",
+            "price": "N/A",
+            "price_label": "",
+            "current_price": "N/A",
+            "stop_loss_price": "",
+            "take_profit_price": "",
+            "strategy": "未知策略",
+            "action": "",
+            "position_size": "",
+            "signal_strength": "N/A",
+            "timeframe": "",
+            "id": "",
+        }
+
+        alert_id = _json_pick(
+            data,
+            "筛选ID", "ID", "id", "alert_id", "filter_id", "提醒ID",
+        )
+        if alert_id:
+            parsed_data["alert_id"] = alert_id
+            parsed_data["id"] = alert_id
+
+        symbol = _json_pick(
+            data, "交易品种", "symbol", "ticker", "coin", "品种", "交易对",
+        )
+        if symbol:
+            parsed_data["symbol"] = symbol.upper().replace(".P", "")
+
+        strategy = _json_pick(
+            data, "策略名称", "strategy", "strategy_name", "策略",
+        )
+        if strategy:
+            parsed_data["strategy"] = strategy
+
+        tf_raw = _json_pick(
+            data, "周期", "timeframe", "K线级别", "interval", "kline_interval",
+        )
+        if tf_raw:
+            parsed_data["timeframe"] = _normalize_tv_timeframe(tf_raw) or tf_raw
+
+        if not parsed_data["timeframe"] and strategy:
+            tf_m = re.search(r"(\d+[hHdDmMwW])", strategy)
+            if tf_m:
+                parsed_data["timeframe"] = _normalize_tv_timeframe(tf_m.group(1)) or tf_m.group(1)
+
+        direction = _json_pick(data, "方向", "action", "side", "signal", "信号")
+        self._apply_direction(parsed_data, direction)
+
+        price = _json_pick(
+            data, "成交价格", "price", "买入价格", "卖出价格", "成交价",
+        )
+        if price:
+            parsed_data["price"] = price
+            parsed_data["price_label"] = "成交价格"
+
+        current = _json_pick(data, "当前价格", "current_price", "现价", "最新价")
+        if current:
+            parsed_data["current_price"] = current
+            if not price:
+                parsed_data["price"] = current
+                parsed_data["price_label"] = "当前价格"
+
+        sl = _json_pick(data, "止损价格", "stop_loss", "止损", "stop_loss_price")
+        if sl:
+            parsed_data["stop_loss_price"] = sl
+
+        tp = _json_pick(data, "止盈价格", "take_profit", "止盈", "take_profit_price")
+        if tp:
+            parsed_data["take_profit_price"] = tp
+
+        pos = _json_pick(data, "仓位", "position_size", "策略仓位", "新策略仓位")
+        if pos:
+            parsed_data["position_size"] = pos
+
+        strength = _json_pick(data, "信号强度", "signal_strength", "强度")
+        if strength:
+            parsed_data["signal_strength"] = strength
+
+        if CONFIG["debug"]:
+            print(
+                f"[JSON] id={parsed_data['id']} symbol={parsed_data['symbol']} "
+                f"strategy={parsed_data['strategy']} signal={parsed_data['signal']} tf={parsed_data['timeframe']}"
+            )
+        return parsed_data
+
     def parse_tradingview_message(self, raw_message):
         if isinstance(raw_message, dict):
-            raw_msg = raw_message.get("raw_message", str(raw_message))
-            return self.parse_tradingview_message(raw_msg)
+            if _looks_like_tv_json(raw_message):
+                parsed = self._parse_json_alert(raw_message)
+                raw_text = raw_message.get("raw_message") or raw_message.get("message")
+                if isinstance(raw_text, str) and raw_text.strip():
+                    text_parsed = self.parse_tradingview_message(raw_text)
+                    for k, v in text_parsed.items():
+                        if k == "raw_message":
+                            continue
+                        cur = parsed.get(k)
+                        empty = cur in (None, "", "未知品种", "未知策略", "N/A", "信号")
+                        if empty and v and v not in ("未知品种", "未知策略", "N/A", "", "信号"):
+                            parsed[k] = v
+                return parsed
+            raw_msg = raw_message.get("raw_message") or raw_message.get("message")
+            if isinstance(raw_msg, str) and raw_msg.strip():
+                return self.parse_tradingview_message(raw_msg)
+            return self._parse_json_alert(raw_message)
 
         parsed_data = {
             "raw_message": raw_message,
@@ -313,16 +462,7 @@ class TradingViewBot:
 
         direction_match = re.search(r"方向[:：]\s*(\w+)", clean_message)
         if direction_match:
-            direction = direction_match.group(1).strip()
-            parsed_data["action"] = direction
-            if "buy" in direction.lower() or "买入" in direction:
-                parsed_data["signal"] = "买入"
-            elif "sell" in direction.lower() or "卖出" in direction:
-                parsed_data["signal"] = "卖出"
-            elif "close" in direction.lower() or "exit" in direction.lower() or "平仓" in direction or "清空" in direction:
-                parsed_data["signal"] = "清空"
-            else:
-                parsed_data["signal"] = direction
+            self._apply_direction(parsed_data, direction_match.group(1).strip())
 
         position_match = re.search(r"仓位[:：]\s*([\d.-]+|.+?)", clean_message)
         if not position_match:

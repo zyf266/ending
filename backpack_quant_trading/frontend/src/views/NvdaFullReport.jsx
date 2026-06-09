@@ -21,6 +21,9 @@ const ICONS = {
   globe: '○',
   robot: '◇',
   stack: '▤',
+  shield: '⛨',
+  cloud: '☁',
+  bolt: '⚡',
 }
 
 const PdfIcon = ({ name }) => (
@@ -65,9 +68,14 @@ const blockSteps = (sec, block) => {
         steps.push({ kind: 'colItem', sectionId: sid, colTitle: col.title, data: c })
       }
     }
-  } else if (block.type === 'scenarios') {
+  } else if (block.type === 'scenarios' || block.type === 'scenario_cards') {
     for (const c of block.items || []) {
       steps.push({ kind: 'scenario', sectionId: sid, data: c })
+    }
+  } else if (block.type === 'bullets') {
+    for (const item of block.items || []) {
+      const text = typeof item === 'string' ? item : item?.text || ''
+      if (text) steps.push({ kind: 'bullet', sectionId: sid, text })
     }
   } else if (block.type === 'p') {
     steps.push({ kind: 'para', sectionId: sid, text: block.text })
@@ -176,6 +184,7 @@ const NvdaFullReport = ({ symbol = 'NVDA' }) => {
       if (step.kind === 'conclusion') return 420
       if (step.kind === 'statCard') return 200
       if (step.kind === 'scenario') return 260
+      if (step.kind === 'bullet') return 180
       return 210
     }
     const tick = (i) => {
@@ -324,20 +333,48 @@ const NvdaFullReport = ({ symbol = 'NVDA' }) => {
         </div>
       )
     }
-    if (block.type === 'scenarios') {
+    if (block.type === 'scenarios' || block.type === 'scenario_cards') {
       const n = count(sid, 'scenario')
       const cards = (block.items || []).filter((_, i) => done || i < n)
       if (!cards.length) return null
       return (
         <div key={bi} className="nv-pdf-scenario-row">
-          {cards.map((c) => (
-            <div key={c.key} className={`nv-pdf-scenario-card nv-pdf-scenario-${c.key}`}>
-              <div className="nv-pdf-scenario-label">{c.label}</div>
-              <div className="nv-pdf-scenario-sub">{c.probability} · {c.subtitle}</div>
-              <div className="nv-pdf-scenario-price">${c.range_low} – ${c.range_high}</div>
-              <div className="nv-pdf-scenario-note">{c.note}</div>
-            </div>
-          ))}
+          {cards.map((c) => {
+            const price =
+              c.range_low != null && c.range_high != null
+                ? `$${c.range_low} – $${c.range_high}`
+                : (c.range || '')
+            const sub = c.subtitle ? `${c.probability || ''} · ${c.subtitle}` : (c.probability || '')
+            const note = c.note || c.text || ''
+            return (
+              <div key={c.key} className={`nv-pdf-scenario-card nv-pdf-scenario-${c.key}`}>
+                <div className="nv-pdf-scenario-label">{c.label}</div>
+                {sub && <div className="nv-pdf-scenario-sub">{sub}</div>}
+                {price && <div className="nv-pdf-scenario-price">{price}</div>}
+                {note && <div className="nv-pdf-scenario-note">{note}</div>}
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+    if (block.type === 'bullets') {
+      const n = count(sid, 'bullet')
+      const items = (block.items || []).filter((_, i) => done || i < n)
+      if (!items.length) return null
+      return (
+        <div key={bi} className="nv-pdf-bullets">
+          {block.title && <div className="nv-pdf-bullets-title">{block.title}</div>}
+          <ul className="ais-pdf-ul nv-pdf-ul">
+            {items.map((item, i) => {
+              const text = typeof item === 'string' ? item : item?.text || ''
+              return (
+                <li key={i}>
+                  <TypeText text={text} active={streaming && isActive && i === items.length - 1} />
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )
     }

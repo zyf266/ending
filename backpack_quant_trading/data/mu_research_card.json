@@ -1,0 +1,45 @@
+{
+  "code": "MU",
+  "name": "美光",
+  "tagline": "AI超级周期下的内存与HBM核心受益者",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "quote_symbol": "MU",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "35%",
+      "subtitle": "HBM份额升至25%+",
+      "range_low": 950,
+      "range_high": 1100,
+      "note": "PDF：$950-$1100"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "45%",
+      "subtitle": "需求稳健、产能高位",
+      "range_low": 650,
+      "range_high": 780,
+      "note": "PDF：$650-$780"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "20%",
+      "subtitle": "AI资本开支缩减",
+      "range_low": 350,
+      "range_high": 480,
+      "note": "PDF：$350-$480"
+    }
+  ],
+  "highlights": [
+    "FY2026 Q2 营收 $23.86B（QoQ +75% / YoY +196%）",
+    "Non-GAAP EPS $12.20，Non-GAAP 毛利率 ~74.9% 处于历史高位",
+    "DRAM $18.8B（79%）+ NAND $5.0B（21%），HBM 为核心增长引擎",
+    "Q3 指引营收 $33.5B±0.75B，毛利率 ~81%，EPS ~$19.15",
+    "核心风险：周期反转、地缘摩擦、三星/SK海力士竞争"
+  ],
+  "pdf_path": "Micron (MU) 分析报告.pdf"
+}

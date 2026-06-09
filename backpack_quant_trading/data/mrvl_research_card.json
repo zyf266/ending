@@ -1,0 +1,45 @@
+{
+  "code": "MRVL",
+  "name": "Marvell",
+  "tagline": "AI数据中心互联与自定义ASIC基础设施",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "quote_symbol": "MRVL",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "35%",
+      "subtitle": "AI资本开支超预期",
+      "range_low": 240,
+      "range_high": 280,
+      "note": "PDF：$240-$280"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "45%",
+      "subtitle": "需求稳健、执行正常",
+      "range_low": 180,
+      "range_high": 220,
+      "note": "PDF：$180-$220"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "20%",
+      "subtitle": "AI投资放缓/竞争加剧",
+      "range_low": 100,
+      "range_high": 130,
+      "note": "PDF：$100-$130"
+    }
+  ],
+  "highlights": [
+    "FY2026 全年营收 $81.95亿（YoY +42%），数据中心业务占比 74%",
+    "Non-GAAP EPS $2.84（YoY +81%），Q1 FY2027 指引营收 $24亿 ±5%",
+    "自定义ASIC + 800G+ 光学互联 + 以太网交换/DPU 构成 AI 集群基础设施",
+    "与 NVIDIA 20亿美元战略合作，已获超 50 个 Hyperscaler 设计订单",
+    "核心风险：估值偏高、Broadcom 竞争、中国市场传统业务敞口"
+  ],
+  "pdf_path": "Marvell (MRVL) 美股分析报告.pdf"
+}

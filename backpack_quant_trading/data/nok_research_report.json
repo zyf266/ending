@@ -1,0 +1,417 @@
+{
+  "code": "NOK",
+  "name": "诺基亚",
+  "tagline": "AI基础设施驱动的光网络转型",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：Q1 2026复苏通道",
+      "subtitle": "从5G低谷转向AI基础设施驱动",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "营收",
+              "value": "€45亿",
+              "lines": [
+                "固定汇率 +4%"
+              ]
+            },
+            {
+              "icon": "shield",
+              "title": "可比毛利率",
+              "value": "45.5%",
+              "lines": [
+                "YoY +320bps"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "可比营业利润率",
+              "value": "6.2%",
+              "lines": [
+                "YoY +200bps"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "自由现金流",
+              "value": "€6.29亿",
+              "lines": [
+                "净现金 €38亿"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "Network Infrastructure",
+              "text": "同比增长+6%，Optical Networks增长+20%，AI & Cloud净销售飙升+49%。"
+            },
+            {
+              "icon": "chip",
+              "title": "订单动能",
+              "text": "新增订单达€10亿，光网络业务势头强劲，CapEx €9-10亿支持扩张。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：业务转型与财务健康",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "净现金强劲",
+              "text": "€38亿净现金，资本结构健康，抗风险能力强。"
+            },
+            {
+              "icon": "trend",
+              "title": "盈利能力修复",
+              "text": "毛利率与现金流显著改善，ROE/ROIC处于改善通道。"
+            },
+            {
+              "icon": "rocket",
+              "title": "AI & Cloud",
+              "text": "受云厂商资本开支驱动，净销售同比+49%。"
+            },
+            {
+              "icon": "stack",
+              "title": "Infinera收购",
+              "text": "显著提升AI数据中心互联市场战略定位，协同超预期。"
+            },
+            {
+              "icon": "network",
+              "title": "Mobile Networks",
+              "text": "表现平稳，降本增效保持业务韧性。"
+            },
+            {
+              "icon": "trophy",
+              "title": "估值吸引力",
+              "text": "Forward PE低双位数，PS/EV/EBITDA处于历史低位。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：光网络与DCI",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心产品/业务",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "全栈网络",
+                  "text": "5G/6G RAN、光网络传输、IP路由交换机及AI网络自动化。"
+                },
+                {
+                  "icon": "server",
+                  "title": "AI/云需求",
+                  "text": "数据中心互联(DCI)需求激增，光网络设备供需紧张。"
+                },
+                {
+                  "icon": "network",
+                  "title": "运营商投资",
+                  "text": "聚焦5G-Advanced及6G基础设施长期演进。"
+                }
+              ]
+            },
+            {
+              "title": "长期催化剂",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "光网络指引",
+                  "text": "2026年增长指引上调至18-20%。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "网络基建",
+                  "text": "全年增长指引上调至12-14%（前值6-8%）。"
+                },
+                {
+                  "icon": "line",
+                  "title": "NVIDIA合作",
+                  "text": "深度合作开发AI-native原生网络架构，6G研究领先。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与订单能见度",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "云CapEx",
+              "text": "超大规模云厂商资本开支驱动光网络订单。"
+            },
+            {
+              "icon": "globe",
+              "title": "企业私有网",
+              "text": "企业级私有无线网络方案成熟，差异化优势。"
+            },
+            {
+              "icon": "robot",
+              "title": "Q2环比",
+              "text": "管理层指引Q2环比增长5-9%。"
+            },
+            {
+              "icon": "rocket",
+              "title": "专利组合",
+              "text": "庞大专利构建技术壁垒，获欧美政府与运营商信任。"
+            },
+            {
+              "icon": "trophy",
+              "title": "AI转型故事",
+              "text": "逐步兑现有望带来估值扩张空间。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "vs Ericsson",
+              "text": "RAN份额领先但Optical/IP较弱；西方RAN双寡头格局。"
+            },
+            {
+              "icon": "server",
+              "title": "vs Huawei",
+              "text": "技术储备深厚但西方市场拓展受地缘限制。"
+            },
+            {
+              "icon": "network",
+              "title": "vs Cisco/Arista",
+              "text": "数据中心交换机统治力强，正向运营商边缘渗透。"
+            },
+            {
+              "icon": "stack",
+              "title": "Nokia优势",
+              "text": "光网络与IP路由技术领先，护城河中等坚固。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "核心市场",
+              "text": "欧洲、北美为主导，AI/cloud与运营商业务高度集中。"
+            },
+            {
+              "icon": "chip",
+              "title": "地缘风险",
+              "text": "中美及欧中关系波动影响供应链与市场准入。"
+            },
+            {
+              "icon": "factory",
+              "title": "应对策略",
+              "text": "供应链多元化与西方市场本地化生产研发。"
+            },
+            {
+              "icon": "trend",
+              "title": "综合判断",
+              "text": "中国市场风险可控，但全球地缘不确定性仍需监控。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "可比毛利率",
+              "value": "45.5%",
+              "lines": [
+                "YoY +320bps"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "驱动因素",
+              "value": "产品结构优化",
+              "lines": [
+                "Infinera协同",
+                "高价值Optical占比提升"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "外部压力",
+              "value": "运营商CapEx",
+              "lines": [
+                "资本支出纪律带来压力"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "全年指引",
+              "text": "可比营业利润€20-25亿；网络基建增长12-14%；光通信/IP增长18-20%。"
+            },
+            {
+              "icon": "rocket",
+              "title": "语气积极",
+              "text": "强调AI与云服务需求强劲，光通信是核心增长引擎。"
+            },
+            {
+              "icon": "trophy",
+              "title": "低预期高兑现",
+              "text": "Q1超预期后上调全年指引，投资者信誉度提升。"
+            },
+            {
+              "icon": "chart",
+              "title": "市场预期",
+              "text": "AI增长预期抬升，任何不及预期可能引发回调。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "35%",
+              "subtitle": "Optical持续高增长",
+              "range_low": 18,
+              "range_high": 22,
+              "note": "AI/cloud超预期，6G/AI-RAN里程碑落地"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "45%",
+              "subtitle": "中性预期",
+              "range_low": 13,
+              "range_high": 16,
+              "note": "网络基建12-14%增速，毛利率稳定"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "20%",
+              "subtitle": "下行风险",
+              "range_low": 7,
+              "range_high": 10,
+              "note": "运营商CapEx放缓、AI ROI不及预期、地缘冲击"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前约$13.95，估值具备吸引力，AI转型故事提供上行空间，但传统电信周期属性仍在。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "加仓区域",
+              "text": "$11.5-$12.5逢低吸纳。"
+            },
+            {
+              "icon": "target",
+              "title": "止盈",
+              "text": "$15+分批止盈，$17+大幅减仓。"
+            },
+            {
+              "icon": "line",
+              "title": "止损",
+              "text": "跌破$10-$11关键支撑离场。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "AI基础设施转型仓位4%-8%，可搭配爱立信分散风险。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "诺基亚与全球电信CapEx、云厂商投资及地缘政策高度相关。光网络转型是核心叙事，适合中长期投资者在AI基础设施主题下配置，严格跟踪订单与毛利率边际变化。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "诺基亚正从5G低谷转向AI基础设施复苏，光网络转型提供上行空间，管理层指引上调增强信心。建议持有/择机买入，信心65/100，逢低$11.5-$12.5布局。"
+}

@@ -35,6 +35,12 @@ _SYMBOL_ALIASES: Dict[str, List[str]] = {
     "HYPE": ["hype", "hyperliquid"],
     "CRCL": ["crcl", "circle"],
     "MSFT": ["msft", "microsoft", "微软"],
+    "MRVL": ["mrvl", "marvell", "美满", "美满电子"],
+    "NOK": ["nok", "nokia", "诺基亚"],
+    "RKLB": ["rklb", "rocket lab", "rocketlab", "火箭实验室"],
+    "IBM": ["ibm", "国际商业机器"],
+    "GOOGL": ["googl", "goog", "google", "谷歌", "alphabet"],
+    "CRDO": ["crdo", "credo"],
     "AAPL": ["aapl", "apple", "苹果"],
 }
 

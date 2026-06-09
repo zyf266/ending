@@ -2618,6 +2618,22 @@
   color: #475569;
 }
 
+.nv-pdf-bullets {
+  margin-top: 4px;
+}
+
+.nv-pdf-bullets-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 10px;
+}
+
+.nv-pdf-ul {
+  margin: 0;
+  padding-left: 0;
+}
+
 .nv-pdf-icon-grid {
   display: grid;
   gap: 18px;

@@ -131,6 +131,109 @@ def sync_eth_klines_hl() -> dict:
     return {"inserted": len(rows), "source": "hyperliquid"}
 
 
+def _get_last_kline_timestamp(strategy_name: str, symbol: str, timeframe: str) -> Optional[datetime]:
+    session = db_manager.get_session()
+    try:
+        last = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=strategy_name, symbol=symbol, timeframe=timeframe)
+            .order_by(StrategyKline.timestamp.desc())
+            .first()
+        )
+        return last.timestamp if (last and last.timestamp) else None
+    finally:
+        session.close()
+
+
+def _is_kline_stale(strategy_name: str, symbol: str, timeframe: str, max_age_hours: float) -> bool:
+    last_ts = _get_last_kline_timestamp(strategy_name, symbol, timeframe)
+    if last_ts is None:
+        return True
+    if last_ts.tzinfo:
+        last_ts = last_ts.replace(tzinfo=None)
+    age = (datetime.now() - last_ts).total_seconds()
+    return age > max(1.0, float(max_age_hours)) * 3600
+
+
+def sync_us_stock_klines_massive(
+    strategy_name: str,
+    symbol: str,
+    timeframe: str,
+    ticker: str,
+    massive_interval: str,
+) -> dict:
+    """从 Massive/Polygon 增量同步美股 K 线到 strategy_kline 表。"""
+    from backpack_quant_trading.core.massive_klines import (
+        fetch_massive_bars,
+        get_massive_api_key,
+        interval_label,
+        normalize_us_ticker,
+    )
+
+    if not get_massive_api_key():
+        return {"inserted": 0, "source": "massive", "error": "未配置 MASSIVE_API_KEY"}
+
+    sym = normalize_us_ticker(ticker)
+    iv = interval_label(massive_interval or timeframe)
+    last_ts = _get_last_kline_timestamp(strategy_name, symbol, timeframe)
+
+    bars = fetch_massive_bars(sym, iv, limit=5000)
+    if not bars:
+        return {"inserted": 0, "source": "massive", "ticker": sym, "interval": iv}
+
+    rows = []
+    for bar in bars:
+        ts = datetime.fromtimestamp(int(bar["time"]) / 1000)
+        if last_ts:
+            cmp_ts = last_ts.replace(tzinfo=None) if last_ts.tzinfo else last_ts
+            if ts <= cmp_ts:
+                continue
+        rows.append({
+            "strategy_name": strategy_name,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": ts,
+            "open": PyDecimal(str(bar["open"])),
+            "high": PyDecimal(str(bar["high"])),
+            "low": PyDecimal(str(bar["low"])),
+            "close": PyDecimal(str(bar["close"])),
+            "volume": PyDecimal(str(bar["volume"])),
+            "source": "massive",
+        })
+
+    _bulk_insert_klines_dicts(rows)
+    _hl_logger.info("[Massive K线] %s %s 写入 %s 条", sym, iv, len(rows))
+    return {"inserted": len(rows), "source": "massive", "ticker": sym, "interval": iv}
+
+
+_US_STOCK_KLINE_SPECS: Tuple[Dict[str, str], ...] = (
+    {"strategy_name": "NVDA_KLINE", "symbol": "NVDAUSDT", "timeframe": "2H", "ticker": "NVDA", "massive_interval": "2h"},
+    {"strategy_name": "INTC_KLINE", "symbol": "INTCUSDT", "timeframe": "1H", "ticker": "INTC", "massive_interval": "1h"},
+    {"strategy_name": "CRCL_1H", "symbol": "CRCL", "timeframe": "1H", "ticker": "CRCL", "massive_interval": "1h"},
+)
+
+
+def run_scheduled_kline_sync() -> dict:
+    """定时任务：加密 HL + 美股 Massive 增量同步。"""
+    result: Dict[str, Any] = {
+        "hype_4h": sync_hype_klines_hl(),
+        "eth_2h": sync_eth_klines_hl(),
+    }
+    for spec in _US_STOCK_KLINE_SPECS:
+        key = str(spec.get("ticker") or "").lower()
+        try:
+            result[key] = sync_us_stock_klines_massive(
+                spec["strategy_name"],
+                spec["symbol"],
+                spec["timeframe"],
+                spec["ticker"],
+                spec["massive_interval"],
+            )
+        except Exception as exc:
+            result[key] = {"inserted": 0, "source": "massive", "error": str(exc)}
+    return result
+
+
 STRATEGY_NAME = "HYPE_2H_TREND"
 SYMBOL = "HYPEUSDT"
 TIMEFRAME = "4h"
@@ -389,6 +492,7 @@ def sync_eth_2h_klines():
 
 @router.get("/eth-2h/klines", response_model=List[KlinePoint], summary="获取 ETH 2H K 线")
 def get_eth_2h_klines():
+    _maybe_sync_crypto_klines()
     session = db_manager.get_session()
     try:
         q = (
@@ -558,6 +662,36 @@ ETH_ONLY_TIMEFRAME = "2h"
 ETH_ONLY_CSV_PATH = PROJECT_ROOT / "2h趋势策略_(隐藏优化版)_OKX_ETHUSDT.P_2026-03-26_325b4.csv"
 
 
+def _maybe_sync_crypto_klines() -> None:
+    """打开策略页时：数据过期则增量拉取 Hyperliquid K 线。"""
+    try:
+        if _is_kline_stale(ETH_ONLY_STRATEGY_NAME, ETH_ONLY_SYMBOL, ETH_ONLY_TIMEFRAME, 3):
+            sync_eth_klines_hl()
+        if _is_kline_stale(STRATEGY_NAME, SYMBOL, TIMEFRAME, 5):
+            sync_hype_klines_hl()
+    except Exception as exc:
+        _hl_logger.warning("加密 K 线懒同步失败: %s", exc)
+
+
+def _maybe_sync_us_stock_klines() -> None:
+    """打开美股策略页时：数据过期则从 Massive 增量更新。"""
+    stale_map = {"NVDA": 4, "INTC": 2, "CRCL": 2}
+    for spec in _US_STOCK_KLINE_SPECS:
+        ticker = str(spec.get("ticker") or "")
+        hours = stale_map.get(ticker.upper(), 4)
+        try:
+            if _is_kline_stale(spec["strategy_name"], spec["symbol"], spec["timeframe"], hours):
+                sync_us_stock_klines_massive(
+                    spec["strategy_name"],
+                    spec["symbol"],
+                    spec["timeframe"],
+                    spec["ticker"],
+                    spec["massive_interval"],
+                )
+        except Exception as exc:
+            _hl_logger.warning("美股 K 线懒同步 %s 失败: %s", ticker, exc)
+
+
 def _ensure_eth_only_trades_loaded() -> None:
     session = db_manager.get_session()
     try:
@@ -643,6 +777,7 @@ def get_eth_only_2h_trades():
 
 @router.get("/eth-only-2h/klines", response_model=List[KlinePoint], summary="ETH 独立策略 K 线")
 def get_eth_only_2h_klines():
+    _maybe_sync_crypto_klines()
     session = db_manager.get_session()
     try:
         q = (
@@ -1705,6 +1840,7 @@ def import_crcl_trades_csv():
 @router.get("/crcl-1h/klines", response_model=List[KlinePoint], summary="获取 CRCL 1H K 线")
 def get_crcl_1h_klines():
     _ensure_crcl_klines_loaded_from_csv()
+    _maybe_sync_us_stock_klines()
     session = db_manager.get_session()
     try:
         q = (
@@ -1969,6 +2105,7 @@ def import_intc_1h_klines():
 @router.get("/intc-1h/klines", response_model=List[KlinePoint], summary="获取 INTC 1H K 线")
 def get_intc_1h_klines():
     _ensure_klines_loaded(INTC_KLINE_CSV, INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME, "bats_intc")
+    _maybe_sync_us_stock_klines()
     return _query_klines(INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME)
 
 
@@ -2012,6 +2149,7 @@ def import_nvda_2h_klines():
 @router.get("/nvda-2h/klines", response_model=List[KlinePoint], summary="获取 NVDA 2H K 线")
 def get_nvda_2h_klines():
     _ensure_klines_loaded(NVDA_KLINE_CSV, NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME, "bats_nvda")
+    _maybe_sync_us_stock_klines()
     return _query_klines(NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME)
 
 
@@ -2047,12 +2185,7 @@ def get_nvda_2h_overview():
 # 手动触发全量 K 线同步（HYPE 4H + ETH 2H）
 # ──────────────────────────────────────────────────────────
 
-@router.post("/sync-all-klines", summary="手动触发 HYPE+ETH K 线同步")
+@router.post("/sync-all-klines", summary="手动触发 K 线同步（加密 HL + 美股 Massive）")
 def sync_all_klines():
-    """从 Hyperliquid 增量同步 HYPE 4H 和 ETH 2H K 线，返回各自写入条数。"""
-    hype_result = sync_hype_klines_hl()
-    eth_result = sync_eth_klines_hl()
-    return {
-        "hype_4h": hype_result,
-        "eth_2h": eth_result,
-    }
+    """增量同步 HYPE/ETH（Hyperliquid）与 NVDA/INTC/CRCL（Massive）。"""
+    return run_scheduled_kline_sync()

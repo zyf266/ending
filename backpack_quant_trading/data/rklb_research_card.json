@@ -1,0 +1,45 @@
+{
+  "code": "RKLB",
+  "name": "Rocket Lab",
+  "tagline": "垂直整合的太空发射与卫星系统",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "quote_symbol": "RKLB",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "35%",
+      "subtitle": "Neutron首飞成功",
+      "range_low": 180,
+      "range_high": 220,
+      "note": "PDF：$180-$220"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "45%",
+      "subtitle": "Neutron按计划推进",
+      "range_low": 110,
+      "range_high": 140,
+      "note": "PDF：$110-$140"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "20%",
+      "subtitle": "Neutron延误/失败",
+      "range_low": 50,
+      "range_high": 80,
+      "note": "PDF：$50-$80"
+    }
+  ],
+  "highlights": [
+    "Q1 2026 营收 $200.3M（YoY +63.5%），首次突破 $200M 大关",
+    "毛利率 38.2% 创历史新高，订单储备 Backlog $2.2B",
+    "Space Systems $136.7M（68%）+ Launch Services $63.7M（32%）",
+    "Neutron 中运力火箭目标 2026 Q4 首飞，将大幅扩大 TAM",
+    "核心风险：Neutron 执行、现金消耗、发射失败、国防预算波动"
+  ],
+  "pdf_path": "RKLB 美股分析报告.pdf"
+}

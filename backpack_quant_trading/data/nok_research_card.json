@@ -1,0 +1,45 @@
+{
+  "code": "NOK",
+  "name": "诺基亚",
+  "tagline": "AI基础设施驱动的光网络转型",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-18",
+  "quote_symbol": "NOK",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观情景",
+      "probability": "35%",
+      "subtitle": "Optical持续高增长",
+      "range_low": 18,
+      "range_high": 22,
+      "note": "PDF：$18-$22"
+    },
+    {
+      "key": "base",
+      "label": "基准情景",
+      "probability": "45%",
+      "subtitle": "网络基建12-14%增长",
+      "range_low": 13,
+      "range_high": 16,
+      "note": "PDF：$13-$16"
+    },
+    {
+      "key": "bear",
+      "label": "悲观情景",
+      "probability": "20%",
+      "subtitle": "运营商CapEx放缓",
+      "range_low": 7,
+      "range_high": 10,
+      "note": "PDF：$7-$10"
+    }
+  ],
+  "highlights": [
+    "Q1 2026 营收 €45亿（固定汇率 +4%），可比毛利率 45.5%（YoY +320bps）",
+    "Network Infrastructure +6%，AI & Cloud 净销售飙升 +49%",
+    "光通信/IP 增长指引上调至 18-20%，新增订单 €10亿",
+    "净现金 €38亿，CapEx €9-10亿 重点支持 Optical 扩张",
+    "核心风险：传统电信周期、地缘政策、AI转型执行不确定性"
+  ],
+  "pdf_path": "Nokia 美股分析报告.pdf"
+}

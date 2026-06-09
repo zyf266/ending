@@ -95,7 +95,7 @@ async def start_kline_scheduler():
 
     try_restore_from_disk()
     try_restore_polymarket()
-    _asyncio.create_task(_daily_kline_sync_loop())
+    _asyncio.create_task(_kline_sync_loop())
     _asyncio.create_task(_weekly_bubble_analyze_loop())
     _asyncio.create_task(_bootstrap_research_prices())
     _asyncio.create_task(_daily_research_price_sync_loop())
@@ -156,53 +156,57 @@ async def _hourly_uptrend_scan_loop():
         await _asyncio.sleep(interval)
 
 
-async def _daily_kline_sync_loop():
-    """每天凌晨2:00 自动从 Hyperliquid 同步 HYPE 4H 和 ETH 2H K 线。"""
-    from backpack_quant_trading.api.routers.strategy import sync_hype_klines_hl, sync_eth_klines_hl
+async def _kline_sync_loop():
+    """每 4 小时 + 启动时立即同步：加密 HL + 美股 Massive K 线。"""
+    from backpack_quant_trading.api.routers.strategy import run_scheduled_kline_sync
+
+    interval = 4 * 3600
     while True:
-        now = _dt.now()
-        target = now.replace(hour=2, minute=0, second=0, microsecond=0)
-        if target <= now:
-            target += _td(days=1)
-        wait_secs = (target - now).total_seconds()
-        _sched_logger.info(f"[K线定时] 下次同步于 {target.strftime('%Y-%m-%d %H:%M:%S')}，等待 {wait_secs/3600:.1f}h")
-        await _asyncio.sleep(wait_secs)
-        # 同步 HYPE
         try:
-            r1 = await _asyncio.to_thread(sync_hype_klines_hl)
-            _sched_logger.info(f"[K线定时] HYPE 4H 同步完成: {r1}")
+            res = await _asyncio.to_thread(run_scheduled_kline_sync)
+            _sched_logger.info("[K线定时] 同步完成: %s", res)
         except Exception as exc:
-            _sched_logger.error(f"[K线定时] HYPE 4H 同步失败: {exc}")
-        # 同步 ETH
-        try:
-            r2 = await _asyncio.to_thread(sync_eth_klines_hl)
-            _sched_logger.info(f"[K线定时] ETH 2H 同步完成: {r2}")
-        except Exception as exc:
-            _sched_logger.error(f"[K线定时] ETH 2H 同步失败: {exc}")
+            _sched_logger.error("[K线定时] 同步失败: %s", exc)
+        _sched_logger.info(f"[K线定时] 下次同步约 {interval/3600:.0f}h 后")
+        await _asyncio.sleep(interval)
+
+
+def _research_price_cache_stale_hours(cache: dict, *, max_age_hours: float = 20.0) -> bool:
+    """缓存缺失或超过 max_age_hours 视为过期，需重新拉价。"""
+    updated = cache.get("updated_at")
+    if not updated:
+        return True
+    try:
+        ts = _dt.strptime(str(updated), "%Y-%m-%d %H:%M:%S")
+        return (_dt.now() - ts).total_seconds() > max_age_hours * 3600
+    except Exception:
+        return True
 
 
 async def _bootstrap_research_prices():
-    """首次启动若尚无价格缓存，后台立即拉取一次。"""
+    """启动时：无缓存或缓存过期则后台立即拉取现价。"""
     from backpack_quant_trading.core.research_card_prices import load_price_cache, refresh_research_prices_task
 
     cache = load_price_cache()
-    if cache.get("updated_at"):
-        _sched_logger.info(f"[研究卡片价格] 使用已有缓存: {cache.get('updated_at')}")
+    if not _research_price_cache_stale_hours(cache):
+        _sched_logger.info(f"[研究卡片价格] 使用有效缓存: {cache.get('updated_at')}")
         return
+    reason = "无缓存" if not cache.get("updated_at") else f"缓存过期({cache.get('updated_at')})"
+    _sched_logger.info(f"[研究卡片价格] 启动补拉: {reason}")
     try:
         res = await _asyncio.to_thread(refresh_research_prices_task)
-        _sched_logger.info(f"[研究卡片价格] 首次拉取完成: ok={res.get('ok')} count={res.get('ok_count')}")
+        _sched_logger.info(f"[研究卡片价格] 启动拉取完成: ok={res.get('ok')} count={res.get('ok_count')}")
     except Exception as exc:
-        _sched_logger.error(f"[研究卡片价格] 首次拉取失败: {exc}")
+        _sched_logger.error(f"[研究卡片价格] 启动拉取失败: {exc}")
 
 
 async def _daily_research_price_sync_loop():
-    """每天凌晨 4:30 更新 AI 选股卡片现价（Yahoo Finance）。"""
+    """每天凌晨 5:00 批量更新 AI 选股卡片现价（Massive / HL / Stooq / Yahoo）。"""
     from backpack_quant_trading.core.research_card_prices import refresh_research_prices_task
 
     while True:
         now = _dt.now()
-        target = now.replace(hour=4, minute=30, second=0, microsecond=0)
+        target = now.replace(hour=5, minute=0, second=0, microsecond=0)
         if target <= now:
             target += _td(days=1)
         wait_secs = (target - now).total_seconds()

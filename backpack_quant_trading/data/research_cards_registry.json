@@ -2,13 +2,19 @@
   "cards": [
     { "code": "NVDA", "card_file": "nvda_research_card.json", "report_file": "nvda_research_report.json" },
     { "code": "INTC", "card_file": "intc_research_card.json", "report_file": "intc_research_report.json" },
-    { "code": "CRCL", "card_file": "crcl_research_card.json", "report_file": "crcl_research_report.json" },
+    { "code": "GOOGL", "card_file": "googl_research_card.json", "report_file": "googl_research_report.json" },
+    { "code": "MSFT", "card_file": "msft_research_card.json", "report_file": "msft_research_report.json" },
+    { "code": "MU", "card_file": "mu_research_card.json", "report_file": "mu_research_report.json" },
+    { "code": "MRVL", "card_file": "mrvl_research_card.json", "report_file": "mrvl_research_report.json" },
+    { "code": "CRDO", "card_file": "crdo_research_card.json", "report_file": "crdo_research_report.json" },
     { "code": "SNDK", "card_file": "sndk_research_card.json", "report_file": "sndk_research_report.json" },
+    { "code": "IBM", "card_file": "ibm_research_card.json", "report_file": "ibm_research_report.json" },
+    { "code": "NOK", "card_file": "nok_research_card.json", "report_file": "nok_research_report.json" },
+    { "code": "RKLB", "card_file": "rklb_research_card.json", "report_file": "rklb_research_report.json" },
+    { "code": "CRCL", "card_file": "crcl_research_card.json", "report_file": "crcl_research_report.json" },
     { "code": "ETH", "card_file": "eth_research_card.json", "report_file": "eth_research_report.json" },
     { "code": "HYPE", "card_file": "hype_research_card.json", "report_file": "hype_research_report.json" },
-    { "code": "000858", "card_file": "wuliangye_research_card.json", "report_file": "wuliangye_research_report.json" },
     { "code": "ONDO", "card_file": "ondo_research_card.json", "report_file": "ondo_research_report.json" },
-    { "code": "GOOGL", "card_file": "googl_research_card.json", "report_file": "googl_research_report.json" },
-    { "code": "CRDO", "card_file": "crdo_research_card.json", "report_file": "crdo_research_report.json" }
+    { "code": "000858", "card_file": "wuliangye_research_card.json", "report_file": "wuliangye_research_report.json" }
   ]
 }

@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AI_STOCK_REPORTS } from '../data/aiStockReports'
 import { RESEARCH_CARDS_FALLBACK } from '../data/researchCardsFallback'
-import { getResearchCard, getResearchCards, RESEARCH_CARD_CODES } from '../api/aiStockHub'
+import {
+  fetchResearchCardCodes,
+  getResearchCard,
+  getResearchCards,
+  RESEARCH_CARD_CODES_FALLBACK,
+  sortResearchCardCodes,
+} from '../api/aiStockHub'
 import ResearchCard from './ResearchCard'
 import './AiStock.css'
 
@@ -26,6 +32,7 @@ const AiStock = () => {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [hubs, setHubs] = useState({})
+  const [cardCodes, setCardCodes] = useState(RESEARCH_CARD_CODES_FALLBACK)
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState(null)
   const [refreshPulse, setRefreshPulse] = useState(0)
@@ -34,6 +41,14 @@ const AiStock = () => {
     setLoading(true)
     setLoadErr(null)
     const map = {}
+    let codes = RESEARCH_CARD_CODES_FALLBACK
+
+    try {
+      codes = await fetchResearchCardCodes()
+      setCardCodes(codes)
+    } catch {
+      /* 保持兜底列表 */
+    }
 
     try {
       const r = await getResearchCards()
@@ -41,12 +56,20 @@ const AiStock = () => {
         const code = String(item?.card?.code || '').toUpperCase()
         if (code) map[code] = item
       }
+      // 以 API 返回的卡片为准补全列表（防止 registry 新增但兜底未更新）
+      const fromItems = (r?.items || [])
+        .map((item) => String(item?.card?.code || '').toUpperCase())
+        .filter(Boolean)
+      if (fromItems.length) {
+        codes = sortResearchCardCodes([...codes, ...fromItems])
+        setCardCodes(codes)
+      }
     } catch (e) {
       setLoadErr(e?.response?.data?.detail || e?.message || '批量加载失败')
     }
 
     await Promise.all(
-      RESEARCH_CARD_CODES.map(async (code) => {
+      codes.map(async (code) => {
         if (map[code]?.card?.tagline) return
         try {
           map[code] = await getResearchCard(code)
@@ -56,7 +79,7 @@ const AiStock = () => {
       })
     )
 
-    for (const code of RESEARCH_CARD_CODES) {
+    for (const code of codes) {
       if (!map[code]) map[code] = fallbackHub(code)
     }
 
@@ -73,7 +96,7 @@ const AiStock = () => {
 
   const researchList = useMemo(() => {
     const kw = q.trim().toLowerCase()
-    const filtered = RESEARCH_CARD_CODES.filter((code) => {
+    const filtered = cardCodes.filter((code) => {
       const hub = hubs[code] || fallbackHub(code)
       const card = hub?.card || {}
       if (!kw) return true
@@ -82,14 +105,12 @@ const AiStock = () => {
       const tag = String(card.tagline || '').toLowerCase()
       return c.includes(kw) || name.includes(kw) || tag.includes(kw)
     })
-    return filtered.sort(
-      (a, b) => RESEARCH_CARD_CODES.indexOf(a) - RESEARCH_CARD_CODES.indexOf(b)
-    )
-  }, [q, hubs])
+    return sortResearchCardCodes(filtered)
+  }, [q, hubs, cardCodes])
 
   const legacyList = useMemo(() => {
     const kw = q.trim().toLowerCase()
-    const codes = new Set(RESEARCH_CARD_CODES)
+    const codes = new Set(cardCodes)
     return AI_STOCK_REPORTS.filter((x) => {
       if (codes.has(String(x.code).toUpperCase())) return false
       if (!kw) return true
@@ -97,7 +118,7 @@ const AiStock = () => {
       const name = String(x.name || '').toLowerCase()
       return code.includes(kw) || name.includes(kw)
     })
-  }, [q])
+  }, [q, cardCodes])
 
   const gridKey = `${q || 'all'}-${refreshPulse}`
 

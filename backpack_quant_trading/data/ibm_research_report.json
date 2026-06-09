@@ -1,0 +1,420 @@
+{
+  "code": "IBM",
+  "name": "IBM",
+  "tagline": "关键基础设施软件与混合云防守型价值股",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-06-02",
+  "sections": [
+    {
+      "id": "01",
+      "title": "基本面数据快照：2026 Q1全面超预期",
+      "subtitle": "软件业务巩固增长引擎地位",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "4",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "总营收",
+              "value": "$159.2亿",
+              "lines": [
+                "YoY +9%",
+                "超$156.2亿预期"
+              ]
+            },
+            {
+              "icon": "cash",
+              "title": "Non-GAAP EPS",
+              "value": "$1.91",
+              "lines": [
+                "YoY +19%"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "软件部门",
+              "value": "$70.52亿",
+              "lines": [
+                "YoY +11%",
+                "占比44.3%"
+              ]
+            },
+            {
+              "icon": "server",
+              "title": "基础设施",
+              "value": "$33.26亿",
+              "lines": [
+                "YoY +15%",
+                "大型机+51%脉冲"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "dual_footer",
+          "items": [
+            {
+              "icon": "target",
+              "title": "转型成效",
+              "text": "软件营收占比从约35%升至44.3%，完成向高附加值软件与服务战略转型。"
+            },
+            {
+              "icon": "chip",
+              "title": "自由现金流",
+              "text": "Q1 FCF $22亿极强开局，咨询业务$52.72亿（YoY +4%）提供稳健防御。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "01b",
+      "title": "基本面数据快照：资产负债表与股东回报",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "cash",
+              "title": "现金储备",
+              "text": "现金及可售证券$118亿，总债务$664亿，杠杆率<3.0x。"
+            },
+            {
+              "icon": "trend",
+              "title": "ROE/ROIC",
+              "text": "ROE ~49%，ROIC ~25-30%，资本回报强劲。"
+            },
+            {
+              "icon": "stack",
+              "title": "高股息防御",
+              "text": "股息率2.6-2.7%，十年稳步增长，科技巨头中防御核心。"
+            },
+            {
+              "icon": "rocket",
+              "title": "战略并购",
+              "text": "2025年完成含HashiCorp在内10笔收购，补强DevOps与云管理。"
+            },
+            {
+              "icon": "network",
+              "title": "RPO",
+              "text": "剩余履约义务$680亿，为未来1-2年收入提供高度可见性。"
+            },
+            {
+              "icon": "trophy",
+              "title": "评级展望",
+              "text": "信用评级展望稳定，财务结构可控。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "需求端与增长驱动：软件与AI变现",
+      "blocks": [
+        {
+          "type": "two_columns",
+          "columns": [
+            {
+              "title": "核心业务",
+              "items": [
+                {
+                  "icon": "chip",
+                  "title": "软件增长",
+                  "text": "连续多季度10%+增长，2026全年指引10%以上，订阅与RPO占比提升。"
+                },
+                {
+                  "icon": "server",
+                  "title": "咨询韧性",
+                  "text": "YoY +4%，重心转向AI生成式服务，抗周期能力强。"
+                },
+                {
+                  "icon": "network",
+                  "title": "基础设施脉冲",
+                  "text": "Q1 +15%源于大型机+51%，全年指引仍为低个位数跌幅。"
+                }
+              ]
+            },
+            {
+              "title": "AI与量子",
+              "items": [
+                {
+                  "icon": "factory",
+                  "title": "AI变现",
+                  "text": "AI相关软件与服务收入同比+40%，技术优势转化为商业价值。"
+                },
+                {
+                  "icon": "chart",
+                  "title": "政府背书",
+                  "text": "获美国联邦政府$10亿承诺支持量子晶圆厂建设。"
+                },
+                {
+                  "icon": "line",
+                  "title": "量子投入",
+                  "text": "未来五年投入超$100亿强化量子计算研发制造。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02b",
+      "title": "需求催化剂与双轮驱动",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x3",
+          "items": [
+            {
+              "icon": "chip",
+              "title": "混合云",
+              "text": "深耕企业级复杂环境自动化基建软件。"
+            },
+            {
+              "icon": "globe",
+              "title": "AI治理需求",
+              "text": "AI规模化应用催生自动化运维与可观测性软件需求。"
+            },
+            {
+              "icon": "robot",
+              "title": "合规行业",
+              "text": "金融、政府、国防领域高准入壁垒。"
+            },
+            {
+              "icon": "rocket",
+              "title": "短期叙事",
+              "text": "AI变现稳住基本盘。"
+            },
+            {
+              "icon": "trophy",
+              "title": "长期叙事",
+              "text": "量子计算打开第二增长曲线。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02c",
+      "title": "竞争格局与护城河",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "vs MSFT/ORCL",
+              "text": "不与公有云巨头争锋，深耕混合云管理与大型机生态蓝海。"
+            },
+            {
+              "icon": "server",
+              "title": "迁移成本",
+              "text": "基建软件深度嵌入业务流程，替换周期动辄数年。"
+            },
+            {
+              "icon": "network",
+              "title": "监管护城河",
+              "text": "强监管行业解决方案通过严苛认证，新进入者难以短期复制。"
+            },
+            {
+              "icon": "stack",
+              "title": "巴克莱观点",
+              "text": "AI发展增厚基建软件长期价值，而非颠覆核心业务。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "区域/地缘与风险变量",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "globe",
+              "title": "估值透支",
+              "text": "六周内估值重估，前瞻PE超越微软，为首要风险。"
+            },
+            {
+              "icon": "chip",
+              "title": "大型机回落",
+              "text": "Q1脉冲难持续，下半年基础设施业务或承压。"
+            },
+            {
+              "icon": "factory",
+              "title": "AI订单节奏",
+              "text": "企业客户或缩减AI预算，增速可能放缓。"
+            },
+            {
+              "icon": "trend",
+              "title": "内部人减持",
+              "text": "CFO在$300-318区间减持3000股，信号意义需关注。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "盈利能力与毛利率：定价权",
+      "blocks": [
+        {
+          "type": "stat_cards",
+          "layout": "3",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "Non-GAAP毛利率",
+              "value": ">60%",
+              "lines": [
+                "Q1站稳60%上方"
+              ]
+            },
+            {
+              "icon": "layers",
+              "title": "部门改善",
+              "value": "双升",
+              "lines": [
+                "基础设施+720bps",
+                "软件+60bps"
+              ]
+            },
+            {
+              "icon": "trend",
+              "title": "生产力节省",
+              "value": "$45亿",
+              "lines": [
+                "自2023年以来累计"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "管理层指引与情绪",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "calendar",
+              "title": "全年指引",
+              "text": "固定汇率营收+5%以上；软件+10%以上；FCF ~$157亿。"
+            },
+            {
+              "icon": "rocket",
+              "title": "审慎风格",
+              "text": "CFO重申全年展望「现阶段审慎为宜」，未激进上调。"
+            },
+            {
+              "icon": "trophy",
+              "title": "CEO表态",
+              "text": "Krishna称Q1开局「强劲」，预期全年增长超5%。"
+            },
+            {
+              "icon": "chart",
+              "title": "市场反应",
+              "text": "财报后盘前跌近7%，因市场期待更激进指引上调。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "估值分析与目标价模型（12–18个月）",
+      "blocks": [
+        {
+          "type": "scenarios",
+          "items": [
+            {
+              "key": "bull",
+              "label": "乐观情景",
+              "probability": "15%",
+              "subtitle": "AI持续超预期",
+              "range_low": 400,
+              "range_high": 449,
+              "note": "软件增长强劲，降息周期流动性宽松"
+            },
+            {
+              "key": "base",
+              "label": "基准情景",
+              "probability": "60%",
+              "subtitle": "中性预期",
+              "range_low": 325,
+              "range_high": 355,
+              "note": "全年营收5-6%稳健增长，符合指引"
+            },
+            {
+              "key": "bear",
+              "label": "悲观情景",
+              "probability": "25%",
+              "subtitle": "下行风险",
+              "range_low": 240,
+              "range_high": 280,
+              "note": "AI增速放缓、大型机回落、宏观下行"
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": "当前约$309，前瞻PE ~26-27x，13年来首次超越微软，估值合理偏高，追高盈亏比弱化。"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "交易策略与仓位建议",
+      "blocks": [
+        {
+          "type": "icon_cards",
+          "layout": "2x2",
+          "items": [
+            {
+              "icon": "chart",
+              "title": "观望为主",
+              "text": "当前$309不宜追高，已持有可继续持有。"
+            },
+            {
+              "icon": "target",
+              "title": "建仓区间",
+              "text": "$280-$295小仓位试错；$260-$280稳健加仓。"
+            },
+            {
+              "icon": "line",
+              "title": "止盈",
+              "text": "$355-$375止盈50%仓位。"
+            },
+            {
+              "icon": "layers",
+              "title": "仓位",
+              "text": "平衡型2-4%，保守型1-2%以股息为核心。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "宏观/行业联动与综合情景",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "IBM兼具高股息防守与AI/量子主题弹性。关注2026年7月Q2财报（软件增速与大型机订单）、10月Q3（AI收入增速）及量子晶圆厂产能里程碑。短期更多由AI叙事驱动，需警惕情绪退潮波动。"
+        }
+      ]
+    }
+  ],
+  "conclusion": "IBM软件转型与AI变现已验证阶段性成果，高股息提供安全边际；但六周内估值快速重估已超越微软，当前$309建议持有观望、等待$280-$295回调再布局。评级C，信心中等偏低。"
+}
