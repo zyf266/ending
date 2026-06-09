@@ -668,6 +668,36 @@ class DatabaseManager:
         finally:
             session.close()
 
+    # ===== MACD 金叉形态监控配置 =====
+    def get_macd_pattern_monitor_config(self) -> Optional[tuple]:
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                instance_type='macd_pattern_monitor', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
+    def save_macd_pattern_monitor_config(self, config_json: str):
+        self.delete_macd_pattern_monitor_config()
+        uid = self.get_first_user_id()
+        if uid is not None:
+            self.save_user_instance(uid, 'macd_pattern_monitor', 'singleton', config_json)
+
+    def delete_macd_pattern_monitor_config(self):
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                instance_type='macd_pattern_monitor', instance_id='singleton'
+            ).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
     def delete_user_instance(self, user_id: int, instance_type: str, instance_id: str):
         """删除用户实例归属（停止时调用）"""
         session = self.get_session()

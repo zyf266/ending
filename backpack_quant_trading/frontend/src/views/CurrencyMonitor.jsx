@@ -9,6 +9,13 @@ import {
   startMinuteAlert,
   stopMinuteAlert,
 } from '../api/currencyMonitor'
+import {
+  getOptions as getMacdOptions,
+  getStatus as getMacdStatus,
+  startMonitor as startMacdMonitor,
+  stopMonitor as stopMacdMonitor,
+  removeTask as apiRemoveMacdTask,
+} from '../api/macdPatternMonitor'
 import './CurrencyMonitor.css'
 
 /* ===== 下拉多选组件 ===== */
@@ -96,6 +103,21 @@ const TIMEFRAME_OPTIONS = [
 
 const MINUTE_INTERVALS = ['1m', '3m', '5m', '15m']
 
+const DEFAULT_MACD_TF = [
+  { label: '1小时 (60)', value: '60' },
+  { label: '2小时 (120)', value: '120' },
+  { label: '4小时 (240)', value: '240' },
+  { label: '640分钟', value: '640' },
+  { label: '日线 (D)', value: 'D' },
+]
+
+const DEFAULT_MACD_PATTERNS = [
+  { label: '水上金叉转死叉', value: 'above_golden_to_death' },
+  { label: '水下金叉转死叉', value: 'below_golden_to_death' },
+  { label: '死叉转水下金叉', value: 'death_to_below_golden' },
+  { label: '死叉转水上金叉', value: 'death_to_above_golden' },
+]
+
 const CurrencyMonitor = () => {
   const [symbolList, setSymbolList] = useState([])
   const [selectedSymbols, setSelectedSymbols] = useState([])
@@ -121,13 +143,53 @@ const CurrencyMonitor = () => {
     ob_notional_threshold: 200000,
   })
 
-  const minutePairsForPool = minuteStatus.running
-    ? (minuteStatus.symbols || []).map((s) => [String(s).toUpperCase(), `预警(${minuteStatus.interval || '1m'})`])
-    : []
-  const displayPairs = [...(status.pairs || []), ...minutePairsForPool]
-  const hasAnyAlerted = displayPairs.some((p) => alertedPairs.has(`${p[0]}|${p[1]}`))
+  const [macdLoading, setMacdLoading] = useState(false)
+  const [macdStatus, setMacdStatus] = useState({ running: false, tasks: [] })
+  const [macdTfOptions, setMacdTfOptions] = useState(DEFAULT_MACD_TF)
+  const [macdPatternOptions, setMacdPatternOptions] = useState(DEFAULT_MACD_PATTERNS)
+  const [macdForm, setMacdForm] = useState({
+    symbols: [],
+    timeframes: [],
+    patterns: [],
+  })
+  const [alertedMacdTasks, setAlertedMacdTasks] = useState(new Set())
 
-  const isAlerted = (p) => alertedPairs.has(`${p[0]}|${p[1]}`)
+  const macdTfLabelMap = Object.fromEntries(
+    macdTfOptions.map((t) => [t.value, t.label])
+  )
+  const macdPatternLabelMap = Object.fromEntries(
+    macdPatternOptions.map((p) => [p.value, p.label])
+  )
+
+  const minutePairsForPool = minuteStatus.running
+    ? (minuteStatus.symbols || []).map((s) => ({
+        type: 'minute',
+        key: `minute|${s}`,
+        symbol: String(s).toUpperCase(),
+        tf: `预警(${minuteStatus.interval || '1m'})`,
+      }))
+    : []
+  const currencyPairsForPool = (status.pairs || []).map((p) => ({
+    type: 'pair',
+    key: `pair|${p[0]}|${p[1]}`,
+    symbol: p[0],
+    tf: p[1],
+  }))
+  const macdTasksForPool = (macdStatus.tasks || []).map((t) => ({
+    type: 'macd',
+    key: `macd|${t[0]}|${t[1]}|${t[2]}`,
+    symbol: t[0],
+    tf: macdTfLabelMap[t[1]] || t[1],
+    pattern: macdPatternLabelMap[t[2]] || t[2],
+    tfValue: t[1],
+    patternValue: t[2],
+  }))
+  const displayItems = [...currencyPairsForPool, ...minutePairsForPool, ...macdTasksForPool]
+  const hasAnyAlerted =
+    displayItems.some((p) => {
+      if (p.type === 'macd') return alertedMacdTasks.has(`${p.symbol}|${p.tfValue}|${p.patternValue}`)
+      return alertedPairs.has(`${p.symbol}|${p.tf}`)
+    })
 
   const refreshStatus = async () => {
     try {
@@ -160,22 +222,45 @@ const CurrencyMonitor = () => {
     } catch (_) {}
   }
 
+  const refreshMacdStatus = async () => {
+    try {
+      const res = await getMacdStatus()
+      setMacdStatus({ running: !!res.running, tasks: res.tasks || [] })
+      setAlertedMacdTasks(new Set(res.alerted || []))
+    } catch (_) {}
+  }
+
+  const isAlerted = (item) => {
+    if (item.type === 'macd') {
+      return alertedMacdTasks.has(`${item.symbol}|${item.tfValue}|${item.patternValue}`)
+    }
+    return alertedPairs.has(`${item.symbol}|${item.tf}`)
+  }
+
   useEffect(() => {
-    let t1, t2
+    let t1, t2, t3
     const load = async () => {
       try {
         const res = await getSymbols()
         setSymbolList(res.symbols || [])
       } catch (_) {}
+      try {
+        const optRes = await getMacdOptions()
+        if (optRes.timeframes?.length) setMacdTfOptions(optRes.timeframes)
+        if (optRes.patterns?.length) setMacdPatternOptions(optRes.patterns)
+      } catch (_) {}
       await refreshStatus()
       await refreshMinuteStatus()
+      await refreshMacdStatus()
       t1 = setInterval(refreshStatus, 5000)
       t2 = setInterval(refreshMinuteStatus, 5000)
+      t3 = setInterval(refreshMacdStatus, 5000)
     }
     load()
     return () => {
       if (t1) clearInterval(t1)
       if (t2) clearInterval(t2)
+      if (t3) clearInterval(t3)
     }
   }, [])
 
@@ -208,13 +293,26 @@ const CurrencyMonitor = () => {
     }
   }
 
-  const removePair = async (symbol, timeframe) => {
-    if (String(timeframe || '').startsWith('预警(')) {
+  const removePair = async (item) => {
+    if (item.type === 'minute') {
       await handleMinuteStop()
       return
     }
+    if (item.type === 'macd') {
+      try {
+        await apiRemoveMacdTask({
+          symbol: item.symbol,
+          timeframe: item.tfValue,
+          pattern: item.patternValue,
+        })
+        await refreshMacdStatus()
+      } catch (e) {
+        alert(e?.response?.data?.detail || '移除失败')
+      }
+      return
+    }
     try {
-      await apiRemovePair({ symbol, timeframe })
+      await apiRemovePair({ symbol: item.symbol, timeframe: item.tf })
       await refreshStatus()
     } catch (e) {
       alert(e?.response?.data?.detail || '移除失败')
@@ -250,6 +348,47 @@ const CurrencyMonitor = () => {
       await stopMinuteAlert()
       alert('已停止预警')
       await refreshMinuteStatus()
+    } catch (e) {
+      alert(e?.response?.data?.detail || '停止失败')
+    }
+  }
+
+  const toggleMacdItem = (field, v) => {
+    setMacdForm((prev) => ({
+      ...prev,
+      [field]: prev[field].includes(v)
+        ? prev[field].filter((x) => x !== v)
+        : [...prev[field], v],
+    }))
+  }
+
+  const handleMacdStart = async () => {
+    if (!macdForm.symbols.length || !macdForm.timeframes.length || !macdForm.patterns.length) {
+      alert('请选择币种、K线级别和形态类型')
+      return
+    }
+    setMacdLoading(true)
+    try {
+      await startMacdMonitor({
+        symbols: macdForm.symbols,
+        timeframes: macdForm.timeframes,
+        patterns: macdForm.patterns,
+      })
+      alert('已启动 MACD 形态监控')
+      setMacdForm({ symbols: [], timeframes: [], patterns: [] })
+      await refreshMacdStatus()
+    } catch (e) {
+      alert(e?.response?.data?.detail || '启动失败')
+    } finally {
+      setMacdLoading(false)
+    }
+  }
+
+  const handleMacdStop = async () => {
+    try {
+      await stopMacdMonitor()
+      alert('已停止 MACD 形态监控')
+      await refreshMacdStatus()
     } catch (e) {
       alert(e?.response?.data?.detail || '停止失败')
     }
@@ -418,40 +557,113 @@ const CurrencyMonitor = () => {
         </div>
       </div>
 
-      {/* Card 3: 监视/预警中的币种 */}
+      {/* Card 3: MACD 形态监控 */}
+      <div className="mon-card mon-card-purple">
+        <div className="mon-card-header">
+          <div className="mon-card-title">
+            <span className="mon-icon">📈</span>
+            <span>MACD 金叉形态监控</span>
+            {macdStatus.running && (
+              <span className="mon-badge-purple">运行中</span>
+            )}
+          </div>
+        </div>
+        <div className="mon-card-body">
+          <p className="mon-hint">
+            MACD(12,26,9) 多级别趋势：K 线收线时检测四种状态转换，触发钉钉预警。
+          </p>
+          <div className="mon-grid-3">
+            <div className="mon-field-group">
+              <label className="mon-label">选择币种</label>
+              <MultiSelectDropdown
+                options={symbolList}
+                value={macdForm.symbols}
+                onChange={(vals) => setMacdForm((prev) => ({ ...prev, symbols: vals }))}
+                placeholder="搜索并选择币种..."
+              />
+              {macdForm.symbols.length > 0 && (
+                <p className="mon-hint-purple">已选择 {macdForm.symbols.length} 个币种</p>
+              )}
+            </div>
+            <div className="mon-field-group">
+              <label className="mon-label">K线级别（可多选）</label>
+              <div className="mon-checkbox-list">
+                {macdTfOptions.map((opt) => (
+                  <label key={opt.value} className="mon-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={macdForm.timeframes.includes(opt.value)}
+                      onChange={() => toggleMacdItem('timeframes', opt.value)}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="mon-field-group">
+              <label className="mon-label">形态类型（可多选）</label>
+              <div className="mon-checkbox-list">
+                {macdPatternOptions.map((opt) => (
+                  <label key={opt.value} className="mon-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={macdForm.patterns.includes(opt.value)}
+                      onChange={() => toggleMacdItem('patterns', opt.value)}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mon-btn-row">
+            <button className="mon-btn-purple" disabled={macdLoading} onClick={handleMacdStart}>
+              ▶ {macdLoading ? '启动中...' : '开始监控'}
+            </button>
+            <button className="mon-btn-outline-red" disabled={!macdStatus.running} onClick={handleMacdStop}>
+              ◻ 停止监控
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Card 4: 监视/预警中的币种 */}
       <div className="mon-card">
         <div className="mon-card-header">
           <div className="mon-card-title">
             <span className="mon-icon">📊</span>
             <span>监视/预警中的币种</span>
-            <span className="mon-badge-blue">{displayPairs.length}</span>
+            <span className="mon-badge-blue">{displayItems.length}</span>
             {hasAnyAlerted && (
               <span className="mon-badge-red">⚠ 异动提醒</span>
             )}
           </div>
         </div>
         <div className="mon-card-body">
-          {displayPairs.length > 0 && (
+          {displayItems.length > 0 && (
             <p className="mon-hint">
-              已有监视/预警时，选择更多币种/级别后点击「开始监视」可追加；点击 × 可移除该项
+              已有监视/预警/监控时，选择更多配置后点击对应「开始」可追加；点击 × 可移除该项
             </p>
           )}
-          {displayPairs.length === 0 ? (
+          {displayItems.length === 0 ? (
             <div className="mon-empty">
               <div className="mon-empty-icon">👁</div>
               <h3>暂无监视/预警</h3>
-              <p>请先启动「币种监视」或「分钟预警」</p>
+              <p>请先启动「币种监视」「分钟预警」或「MACD 形态监控」</p>
             </div>
           ) : (
             <div className="mon-chips">
-              {displayPairs.map((p) => (
+              {displayItems.map((item) => (
                 <div
-                  key={`${p[0]}-${p[1]}`}
-                  className={`mon-chip ${isAlerted(p) ? 'mon-chip-alert' : ''}`}
+                  key={item.key}
+                  className={`mon-chip ${isAlerted(item) ? 'mon-chip-alert' : ''}`}
                 >
-                  <span className="mon-chip-symbol">{p[0]}</span>
-                  <span className="mon-chip-tf">{p[1]}</span>
-                  <button className="mon-chip-x" onClick={() => removePair(p[0], p[1])}>×</button>
+                  <span className="mon-chip-symbol">{item.symbol}</span>
+                  <span className="mon-chip-tf">{item.tf}</span>
+                  {item.pattern && (
+                    <span className="mon-chip-pattern">{item.pattern}</span>
+                  )}
+                  <button className="mon-chip-x" onClick={() => removePair(item)}>×</button>
                 </div>
               ))}
             </div>

@@ -9,7 +9,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 import requests
@@ -582,6 +582,7 @@ def compute_support_resistance_levels(
     kline_limit: int = 200,
     swing_window: int = 3,
     lookback: int = 80,
+    fetch_klines_fn: Optional[Callable[[str, str, int], Optional[List[Dict[str, Any]]]]] = None,
 ) -> Dict[str, Any]:
     """
     支撑：仅信号同级周期 K 线。
@@ -624,8 +625,9 @@ def compute_support_resistance_levels(
 
     lower_tf = smaller_trading_interval(signal_tf)
     if lower_tf and lower_tf != signal_tf and hl_coin:
+        fetcher = fetch_klines_fn if fetch_klines_fn is not None else fetch_klines_crypto
         try:
-            kl = fetch_klines_crypto(hl_coin, lower_tf, total_limit=kline_limit)
+            kl = fetcher(hl_coin, lower_tf, kline_limit)
             if kl and len(kl) >= 25:
                 df_low = compute_technical_indicators(klines_to_df(kl))
                 res_low = _swing_levels_single_tf(
@@ -1006,6 +1008,24 @@ def format_dingtalk_message(
             "",
         ]
 
+    # 美股消息面（Massive/Yahoo + AI news_comment）
+    news_ctx = snapshot.get("news_context")
+    news_comment = str(st.get("news_comment") or "").strip()
+    if news_ctx or news_comment:
+        try:
+            from backpack_quant_trading.core.us_stock_news import format_news_for_dingtalk
+
+            news_lines = format_news_for_dingtalk(
+                news_ctx if isinstance(news_ctx, dict) else None,
+                ticker=symbol,
+                news_comment=news_comment,
+                max_items=6,
+            )
+        except Exception:
+            news_lines = []
+        if news_lines:
+            lines += [f"#### 📰 消息面", sep_thin, *news_lines, ""]
+
     # 支撑 / 压力位（本地计算 + AI 补充）
     sr_block = st.get("support_resistance") if isinstance(st.get("support_resistance"), dict) else {}
     sr_summary = (sr_block.get("summary") or m.get("support_resistance_comment") or "").strip()
@@ -1047,16 +1067,27 @@ def format_dingtalk_message(
         lines.append(f"- **目标参考** {sr_target}")
     lines.append("")
 
+    lines += [f"#### 📊 技术快照", sep_thin]
+    is_us_massive = snapshot.get("data_source") == "massive"
+    last_bar = snapshot.get("last_bar_time_utc")
+    latest_quote = snapshot.get("latest_quote")
+    if is_us_massive and last_bar:
+        lines.append(f"> **K线截止** {last_bar}　**{tf} 收盘** {close}")
+        if latest_quote is not None:
+            lines.append(f"> **最新昨收** {_poster_fmt_num(latest_quote, 2)}（Massive/Polygon）")
+        lines.append(f"> RSI **{rsi}**　　MACD **{macd}**　　ADX **{adx}**")
+        lines.append(f"> 量比 **{volr}**　　20K **{ret20}%**")
+    else:
+        lines.append(f"> 收盘 **{close}**　　RSI **{rsi}**")
+        lines.append(f"> MACD **{macd}**　　ADX **{adx}**")
+        lines.append(f"> 量比 **{volr}**　　20K **{ret20}%**")
     lines += [
-        f"#### 📊 技术快照",
-        sep_thin,
-        f"> 收盘 **{close}**　　RSI **{rsi}**",
-        f"> MACD **{macd}**　　ADX **{adx}**",
-        f"> 量比 **{volr}**　　20K **{ret20}%**",
         "",
         f"- **趋势扫描** {uptrend}",
-        f"- **Top50池** {top50}",
     ]
+    if not is_us_massive:
+        lines.append(f"- **Top50池** {top50}")
+    lines += [""]
 
     if strengths:
         lines += ["", f"#### ✅ 亮点", sep_thin]

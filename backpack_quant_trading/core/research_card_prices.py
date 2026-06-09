@@ -106,10 +106,18 @@ def fetch_hyperliquid_mid(coin: str) -> Optional[float]:
         return None
 
 
+def fetch_massive_price(ticker: str) -> Optional[float]:
+    from backpack_quant_trading.core.massive_klines import fetch_massive_last_price, get_massive_api_key
+
+    if not get_massive_api_key():
+        return None
+    return fetch_massive_last_price(ticker)
+
+
 def fetch_market_price(code: str, quote_symbol: str) -> Tuple[Optional[float], str]:
     """
     按标的类型选择数据源，返回 (价格, source)。
-    美股：Stooq -> Yahoo；ETH/HYPE：Hyperliquid -> Yahoo。
+    美股：Massive -> Stooq -> Yahoo；ETH/HYPE：Hyperliquid -> Yahoo。
     """
     sym = str(quote_symbol or code or "").upper().strip()
     base = sym.replace("-USD", "").replace("-USDT", "")
@@ -122,6 +130,9 @@ def fetch_market_price(code: str, quote_symbol: str) -> Tuple[Optional[float], s
         return p, "yahoo" if p is not None else "none"
 
     ticker = base.split(".")[0]
+    p = fetch_massive_price(ticker)
+    if p is not None:
+        return p, "massive"
     p = fetch_stooq_us_price(ticker)
     if p is not None:
         return p, "stooq"

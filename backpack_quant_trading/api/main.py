@@ -7,6 +7,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from backpack_quant_trading.core.env_loader import load_project_env
+
+load_project_env()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +42,7 @@ from backpack_quant_trading.api.routers.auth import router as auth_router
 from backpack_quant_trading.api.routers.trading import router as trading_router
 from backpack_quant_trading.api.routers.grid import router as grid_router
 from backpack_quant_trading.api.routers.currency_monitor import router as currency_monitor_router
+from backpack_quant_trading.api.routers.macd_pattern_monitor import router as macd_pattern_monitor_router
 from backpack_quant_trading.api.routers.dashboard import router as dashboard_router
 from backpack_quant_trading.api.routers.ai_lab import router as ai_lab_router
 from backpack_quant_trading.api.routers.stock_ai import router as stock_ai_router
@@ -54,6 +59,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["认证"])
 app.include_router(trading_router, prefix="/api/trading", tags=["实盘交易"])
 app.include_router(grid_router, prefix="/api/grid", tags=["网格交易"])
 app.include_router(currency_monitor_router, prefix="/api/currency-monitor", tags=["币种监视"])
+app.include_router(macd_pattern_monitor_router, prefix="/api/macd-pattern-monitor", tags=["MACD形态监控"])
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["数据大屏"])
 app.include_router(ai_lab_router, prefix="/api/ai-lab", tags=["AI实验室"])
 app.include_router(stock_ai_router, prefix="/api/stock-ai", tags=["A股AI选股"])

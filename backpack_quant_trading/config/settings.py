@@ -89,6 +89,13 @@ class WebhookConfig:
 
 
 @dataclass
+class MassiveConfig:
+    """Massive（原 Polygon.io）美股行情"""
+    API_BASE_URL: str = os.getenv("MASSIVE_API_BASE", "https://api.polygon.io")
+    API_KEY: str = os.getenv("MASSIVE_API_KEY", "") or os.getenv("POLYGON_API_KEY", "")
+
+
+@dataclass
 class BinanceConfig:
     """币安 USD-M 合约配置"""
     API_BASE_URL: str = "https://fapi.binance.com"  # USD-M 合约接口
@@ -122,6 +129,7 @@ class Config:
         self.ostium = OstiumConfig()
         self.deepcoin = DeepcoinConfig()
         self.binance = BinanceConfig()
+        self.massive = MassiveConfig()
         self.webhook = WebhookConfig()
         
         # 统一项目根目录，确保日志和数据目录位置一致

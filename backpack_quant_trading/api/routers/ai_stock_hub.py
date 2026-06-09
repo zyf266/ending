@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from backpack_quant_trading.api.deps import require_user
 from backpack_quant_trading.core.research_report_hub import (
@@ -136,6 +137,62 @@ def get_quote(symbol: str, user: dict = Depends(require_user)) -> Dict[str, Any]
     qsym = get_quote_symbol(sym) if sym in list_research_codes() else sym
     p, source = fetch_market_price(sym, qsym)
     return {"symbol": sym, "quote_symbol": qsym, "price": p, "currency": "USD", "source": source}
+
+
+@router.get("/klines/{symbol}")
+def get_klines(
+    symbol: str,
+    interval: str = "1d",
+    limit: int = Query(200, ge=30, le=500),
+    user: dict = Depends(require_user),
+) -> Dict[str, Any]:
+    from backpack_quant_trading.core.massive_klines import (
+        fetch_massive_bars,
+        get_massive_api_key,
+        interval_label,
+        normalize_us_ticker,
+    )
+
+    if not get_massive_api_key():
+        raise HTTPException(status_code=400, detail="未配置 MASSIVE_API_KEY")
+    ticker = normalize_us_ticker(symbol)
+    iv = interval_label(interval)
+    bars = fetch_massive_bars(ticker, interval, limit=limit)
+    if not bars:
+        raise HTTPException(status_code=502, detail=f"Massive 未返回 K 线: {ticker} {iv}")
+    return {
+        "symbol": ticker,
+        "interval": iv,
+        "count": len(bars),
+        "data_source": "massive",
+        "bars": bars[-min(limit, 60):],
+    }
+
+
+class UsScoreTestBody(BaseModel):
+    symbol: str = "NVDA"
+    action: str = "buy"
+    timeframe: str = "1d"
+
+
+@router.post("/score/test")
+def test_us_score(body: UsScoreTestBody, user: dict = Depends(require_user)) -> Dict[str, Any]:
+    import os
+
+    if not os.getenv("DEEPSEEK_API_KEY"):
+        raise HTTPException(status_code=400, detail="未配置 DEEPSEEK_API_KEY")
+    from backpack_quant_trading.core.us_stock_signal_scorer import run_us_stock_signal_score_and_push
+
+    result = run_us_stock_signal_score_and_push(
+        body.symbol,
+        body.action,
+        timeframe=body.timeframe,
+        webhook_raw={"test": True},
+        strategy_label="us_stock_test",
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "评分失败")
+    return result
 
 
 @router.get("/push-history")

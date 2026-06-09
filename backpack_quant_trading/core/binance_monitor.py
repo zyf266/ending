@@ -718,7 +718,7 @@ def run_special_k_strategy(
 
 
 def send_dingtalk_alert(symbol: str, timeframe: str, message: str = "") -> bool:
-    """发送钉钉异动预警"""
+    """发送钉钉异动预警（币种监视、MACD形态监控等共用 DINGTALK_TOKEN）"""
     token = config.webhook.DINGTALK_TOKEN
     secret = config.webhook.DINGTALK_SECRET
     if not token:
@@ -726,6 +726,8 @@ def send_dingtalk_alert(symbol: str, timeframe: str, message: str = "") -> bool:
         return False
 
     try:
+        from backpack_quant_trading.core.stock_news_alert import ensure_dingtalk_keyword
+
         url = f"https://oapi.dingtalk.com/robot/send?access_token={token}"
         if secret:
             timestamp = str(round(datetime.now().timestamp() * 1000))
@@ -734,7 +736,11 @@ def send_dingtalk_alert(symbol: str, timeframe: str, message: str = "") -> bool:
             sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
             url += f"&timestamp={timestamp}&sign={sign}"
 
-        content = f"\n{symbol} {timeframe} 异动\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{message}"
+        content = ensure_dingtalk_keyword(
+            f"{symbol} {timeframe} 异动\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"{message}"
+        )
         data = {"msgtype": "text", "text": {"content": content}}
 
         resp = requests.post(url, json=data, timeout=5)

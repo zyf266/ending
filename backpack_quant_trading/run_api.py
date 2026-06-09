@@ -11,6 +11,9 @@ if __name__ == "__main__":
     os.environ.setdefault("ENABLE_OKX_TRADE", "true")
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root))
+    from backpack_quant_trading.core.env_loader import load_project_env
+
+    load_project_env()
 
     def _on_sigint(*_):
         print("\n服务已停止")

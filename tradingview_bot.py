@@ -544,8 +544,11 @@ def main() -> None:
         try:
             from backpack_quant_trading.core.crypto_signal_scorer import (
                 push_score_to_dingtalk,
-                run_signal_score,
                 should_score_webhook_action,
+            )
+            from backpack_quant_trading.core.signal_asset_router import (
+                classify_signal_asset,
+                run_signal_score_routed,
             )
 
             symbol = (parsed.get("symbol") or raw.get("交易品种") or raw.get("symbol") or raw.get("coin") or "").strip()
@@ -570,7 +573,9 @@ def main() -> None:
                 return
 
             strategy_label = strategy_name or "live_trade"
-            res = run_signal_score(
+            asset_kind = classify_signal_asset(symbol, raw)
+            print(f"📊 资产类型: {asset_kind} | symbol={symbol}")
+            res = run_signal_score_routed(
                 symbol,
                 action,
                 timeframe=timeframe,

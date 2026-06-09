@@ -414,6 +414,17 @@ def _yahoo_rows_to_unified(news: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def fetch_yahoo_news_for_ticker(
+    ticker: str,
+    timeout: float = 12.0,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """按 ticker 搜索 Yahoo 财经新闻（供美股 AI 评分等）。"""
+    q = str(ticker or "").upper().strip()
+    if not q:
+        return [], "ticker 为空"
+    return _fetch_yahoo(timeout, search_queries=[q])
+
+
 def _fetch_yahoo(
     timeout: float,
     search_queries: Optional[List[str]] = None,
