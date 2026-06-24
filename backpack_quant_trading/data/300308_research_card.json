@@ -1,0 +1,43 @@
+{
+  "code": "300308",
+  "name": "中际旭创",
+  "tagline": "AI算力光模块全球龙头 · 戴维斯双击进行时",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-04-03",
+  "quote_symbol": "300308.SZ",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观行情",
+      "probability": "30%",
+      "subtitle": "1.6T放量，业绩持续超预期",
+      "range_low": 930,
+      "range_high": 1215,
+      "note": "报告 05 乐观情景（930-1215 元）"
+    },
+    {
+      "key": "base",
+      "label": "基准行情",
+      "probability": "50%",
+      "subtitle": "业绩逐季兑现，高景气延续",
+      "range_low": 695,
+      "range_high": 865,
+      "note": "报告 05 基准情景（695-865 元）"
+    },
+    {
+      "key": "bear",
+      "label": "悲观行情",
+      "probability": "20%",
+      "subtitle": "竞争加剧+AI资本开支放缓",
+      "range_low": 360,
+      "range_high": 486,
+      "note": "报告 05 悲观情景（360-486 元）"
+    }
+  ],
+  "highlights": [
+    "2025年营收382.4亿(+60%)，归母净利107.97亿(+109%)",
+    "800G/1.6T光模块量产领先，全球高速光模块份额第一",
+    "机构一致目标价约795元，2026年净利预期231亿(+114%)"
+  ],
+  "pdf_path": "中际旭创研报ML20260403.pdf"
+}

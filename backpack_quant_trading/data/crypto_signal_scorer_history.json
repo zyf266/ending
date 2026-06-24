@@ -1,5 +1,31 @@
 [
   {
+    "at": "2026-06-12 08:00:09 UTC",
+    "symbol": "ETH",
+    "action": "buy",
+    "timeframe": "4h",
+    "score": 66,
+    "grade": "C",
+    "recommendation": "caution",
+    "dingtalk_ok": true,
+    "dingtalk_msg": "ok",
+    "deepseek_summary": "4h信号周期站上EMA20且MACD柱为正，贴近支撑，属signal_bounce反弹结构，但大周期（周/日）仍死叉，量能极低，上行空间有限，建议谨慎。",
+    "channel": "dingtalk"
+  },
+  {
+    "at": "2026-06-12 07:51:23 UTC",
+    "symbol": "ETH",
+    "action": "buy",
+    "timeframe": "4h",
+    "score": 23,
+    "grade": "F",
+    "recommendation": "reject",
+    "dingtalk_ok": true,
+    "dingtalk_msg": "ok",
+    "deepseek_summary": "大周期周线/日线均死叉，仅8h金叉，结构弱势；MACD柱虽正但未抬升，成交量极低，硬规则强制拒绝。",
+    "channel": "dingtalk"
+  },
+  {
     "at": "2026-06-04 07:04:29 UTC",
     "symbol": "ETH",
     "action": "buy",

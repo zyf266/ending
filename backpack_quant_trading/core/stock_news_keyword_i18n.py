@@ -8,6 +8,20 @@ from typing import Dict, Iterable, List, Set, Tuple
 
 _ASCII_TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.^=-]{0,11}$")
 
+WATCH_ALL_US_ALIASES = frozenset(
+    {"*", "全美股", "all", "all_us", "美股", "美股全境", "所有美股", "全部美股"}
+)
+
+
+def is_watch_all_us_stocks(watch_names: Iterable[str]) -> bool:
+    """自选含「全美股」类通配时，不限具体 ticker，由影响面词过滤。"""
+    allow = {a.casefold() for a in WATCH_ALL_US_ALIASES}
+    for raw in watch_names:
+        name = str(raw).strip()
+        if name and name.casefold() in allow:
+            return True
+    return False
+
 # 中文/英文主键 -> 所有可命中子串（含原词，大小写不敏感）
 TERM_ALIASES: Dict[str, Tuple[str, ...]] = {
     # 默认影响面
@@ -91,8 +105,8 @@ TERM_ALIASES: Dict[str, Tuple[str, ...]] = {
     "并购重组": ("并购重组", "merger", "acquisition", "M&A", "takeover"),
     "回购股份": ("回购股份", "buyback", "share repurchase", "repurchase program"),
     "提高股息": ("提高股息", "dividend increase", "raised dividend", "hikes dividend"),
-    "机构上调评级": ("机构上调评级", "upgrade", "raised rating", "outperform", "buy rating"),
-    "目标价上调": ("目标价上调", "raised price target", "higher price target", "target raised"),
+    "机构上调评级": ("机构上调评级", "upgrade", "upgrades", "upgraded", "raised rating", "raises rating", "outperform", "buy rating"),
+    "目标价上调": ("目标价上调", "raised price target", "raises price target", "raise price target", "higher price target", "target raised", "price target raised"),
     "行业政策利好": ("行业政策利好", "policy support", "favorable policy", "subsidy", "stimulus"),
     "芯片法案": ("芯片法案", "CHIPS Act", "chip act", "semiconductor bill"),
     "产能扩张": ("产能扩张", "capacity expansion", "ramp production", "fab expansion"),
@@ -110,8 +124,8 @@ TERM_ALIASES: Dict[str, Tuple[str, ...]] = {
     "财务造假": ("财务造假", "accounting fraud", "financial fraud", "fraud"),
     "高管减持": ("高管减持", "insider selling", "executive sold", "CEO sold"),
     "大股东减持": ("大股东减持", "major shareholder sold", "stake sale", "block sale"),
-    "机构下调评级": ("机构下调评级", "downgrade", "cut rating", "underperform", "sell rating"),
-    "目标价下调": ("目标价下调", "lowered price target", "cut price target", "target cut"),
+    "机构下调评级": ("机构下调评级", "downgrade", "downgrades", "downgraded", "cut rating", "cuts rating", "underperform", "sell rating"),
+    "目标价下调": ("目标价下调", "lowered price target", "lowers price target", "lower price target", "cut price target", "target cut", "price target cut"),
     "债务违约": ("债务违约", "debt default", "default on debt"),
     "供应链中断": ("供应链中断", "supply chain disruption", "supply shortage", "supply constraint"),
     "火灾事故": ("火灾事故", "fire", "plant fire", "factory fire"),
@@ -199,8 +213,15 @@ def expand_terms(terms: Iterable[str]) -> List[str]:
 
 
 def watch_names_to_yahoo_queries(watch_names: Iterable[str], *, max_queries: int = 8) -> List[str]:
-    """自选词展开后提取适合 Yahoo search API 的代码/短词。"""
+    """自选词展开后提取适合 Yahoo search API 的代码/短词。
+
+    全美股通配时返回空列表，由 feeds 层走 RSS 宽表而非搜「全美股」。
+    """
     import re
+
+    names = [str(x).strip() for x in watch_names if str(x).strip()]
+    if is_watch_all_us_stocks(names):
+        return []
 
     out: List[str] = []
     seen: Set[str] = set()

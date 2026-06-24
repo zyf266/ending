@@ -67,27 +67,37 @@ export const RESEARCH_CARDS_FALLBACK = {
     ],
   },
 
-  ONDO: {
-    code: 'ONDO',
-    name: 'Ondo Finance',
-    tagline: 'RWA 基础设施领导者',
-    report_date: '2026-05-21',
+  '603986': {
+    code: '603986',
+    name: '兆易创新',
+    tagline: '存储超级周期 · 长鑫协同放量的业绩成长股',
+    report_date: '2026-04-09',
     scenarios: [
-      { key: 'bull', label: '乐观情景', probability: '~25–30%', range_low: 1.8, range_high: 3.0 },
-      { key: 'base', label: '基准情景', probability: '~50%', range_low: 0.85, range_high: 1.4 },
-      { key: 'bear', label: '悲观情景', probability: '~20–25%', range_low: 0.2, range_high: 0.5 },
+      { key: 'bull', label: '乐观行情', probability: '30%', range_low: 370, range_high: 485 },
+      { key: 'base', label: '基准行情', probability: '50%', range_low: 268, range_high: 370 },
+      { key: 'bear', label: '悲观行情', probability: '20%', range_low: 180, range_high: 240 },
     ],
   },
-
-  '000858': {
-    code: '000858',
-    name: '五粮液',
-    tagline: '行业筑底企稳 · 高股息逆向优选标的',
-    report_date: '2026-05-24',
+  '688146': {
+    code: '688146',
+    name: '中船特气',
+    tagline: '六氟化钨全球龙头 · 供需硬缺口的价值重估',
+    report_date: '2026-05-11',
     scenarios: [
-      { key: 'bull', label: '乐观行情', probability: '30%', range_low: 128, range_high: 145 },
-      { key: 'base', label: '基准行情', probability: '45%', range_low: 105, range_high: 118 },
-      { key: 'bear', label: '悲观行情', probability: '25%', range_low: 65, range_high: 75 },
+      { key: 'bull', label: '乐观行情', probability: '30%', range_low: 340, range_high: 415 },
+      { key: 'base', label: '基准行情', probability: '45%', range_low: 226, range_high: 302 },
+      { key: 'bear', label: '悲观行情', probability: '20%', range_low: 113, range_high: 151 },
+    ],
+  },
+  '300308': {
+    code: '300308',
+    name: '中际旭创',
+    tagline: 'AI算力光模块全球龙头 · 戴维斯双击进行时',
+    report_date: '2026-04-03',
+    scenarios: [
+      { key: 'bull', label: '乐观行情', probability: '30%', range_low: 930, range_high: 1215 },
+      { key: 'base', label: '基准行情', probability: '50%', range_low: 695, range_high: 865 },
+      { key: 'bear', label: '悲观行情', probability: '20%', range_low: 360, range_high: 486 },
     ],
   },
 

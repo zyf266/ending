@@ -1,17 +1,48 @@
 {
+
   "dingtalk_on_webhook_enabled": true,
+
   "webhook_scorer_enabled": true,
+
   "dingtalk_webhook": "https://oapi.dingtalk.com/robot/send?access_token=5dea0e1540ba7759a8dc65304552cfea54b468bba572f8a655fb71ec062c2f03",
+
   "dingtalk_keyword": "提醒",
+
   "min_deepseek_score_for_dingtalk": 0,
+
   "min_deepseek_score": 0,
+
   "kline_interval": "4h",
+
   "kline_limit": 200,
+
   "scan_top_n": 50,
+
   "only_actions": [
+
     "buy",
+
     "买入",
+
     "long"
+
   ],
-  "deepseek_temperature": 0.1
+
+  "deepseek_temperature": 0.1,
+
+  "deepseek_model": "deepseek-v4-flash",
+
+  "deepseek_score_enabled": true,
+
+  "crypto_score_enabled": false,
+
+  "us_stock_score_enabled": true,
+
+  "deepseek_score_thinking": false,
+
+  "deepseek_score_dedup_sec": 120,
+
+  "deepseek_daily_max_calls": 800
+
 }
+

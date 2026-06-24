@@ -81,14 +81,9 @@ def setup_logger(name: str = None,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # 控制台处理器（使用行缓冲，便于实时看到输出）
+    # 控制台处理器（勿包装 sys.stderr.buffer，否则 uvicorn 启动后会 closed file）
     if console:
-        try:
-            import io
-            stderr_line_buffered = io.TextIOWrapper(sys.stderr.buffer, encoding=sys.stderr.encoding, line_buffering=True)
-            console_handler = logging.StreamHandler(stderr_line_buffered)
-        except Exception:
-            console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setLevel(level)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)

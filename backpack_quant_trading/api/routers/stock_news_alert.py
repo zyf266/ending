@@ -16,11 +16,14 @@ from backpack_quant_trading.core.stock_news_feeds import (
 )
 from backpack_quant_trading.core.stock_news_alert import (
     StockNewsAlertService,
+    build_monitor_pool,
     format_dingtalk_test_body,
     get_poll_logs,
     get_stock_news_alert_instance,
     set_stock_news_alert_instance,
     load_config,
+    merge_watch_names,
+    remove_watch_name,
     resolve_dingtalk_webhook,
     save_config,
     try_restore_from_disk,
@@ -54,6 +57,10 @@ class StockNewsAlertStartBody(BaseModel):
     """启动时可选带上页面当前自选词，避免仅 UI 有值、磁盘配置为空。"""
 
     watch_names: Optional[List[str]] = None
+
+
+class StockNewsRemoveWatchBody(BaseModel):
+    watch_name: str = Field(..., min_length=1, description="要从监控池移除的自选关键词")
 
 
 @router.get("/config")
@@ -93,31 +100,10 @@ def post_config(body: StockNewsAlertConfigBody, user: dict = Depends(require_use
     return {"message": "已保存"}
 
 
-@router.get("/status")
-def get_status(user: dict = Depends(require_user)) -> Dict[str, Any]:
-    cfg = load_config()
-    if get_stock_news_alert_user_stopped():
-        return {
-            "running": False,
-            "restored": False,
-            "last_error": None,
-            "last_poll_at": None,
-            "last_push_count": 0,
-            "last_poll_summary": None,
-            "poll_logs": get_poll_logs(20),
-            "log_file": "log/stock_news_alert.log",
-            "watch_names": cfg.get("watch_names") or [],
-            "news_sources": normalize_enabled_sources(cfg),
-        }
-    inst = get_stock_news_alert_instance()
-    running = bool(inst and inst.is_running())
-    if not running and cfg.get("running"):
-        try_restore_from_disk()
-        inst = get_stock_news_alert_instance()
-        running = bool(inst and inst.is_running())
+def _status_payload(cfg: Dict[str, Any], running: bool, inst: Any, *, restored: bool = False) -> Dict[str, Any]:
     return {
         "running": running,
-        "restored": bool(cfg.get("running") and running),
+        "restored": restored,
         "last_error": getattr(inst, "last_error", None) if inst else None,
         "last_poll_at": getattr(inst, "last_poll_at", None) if inst else None,
         "last_push_count": getattr(inst, "last_push_count", 0) if inst else 0,
@@ -126,7 +112,26 @@ def get_status(user: dict = Depends(require_user)) -> Dict[str, Any]:
         "log_file": "log/stock_news_alert.log",
         "watch_names": cfg.get("watch_names") or [],
         "news_sources": normalize_enabled_sources(cfg),
+        "poll_interval_sec": int(cfg.get("poll_interval_sec") or 30),
+        "only_material": bool(cfg.get("only_material", True)),
+        "only_extra_impact_keywords": bool(cfg.get("only_extra_impact_keywords")),
+        "extra_impact_keywords": cfg.get("extra_impact_keywords") or [],
+        "monitor_pool": build_monitor_pool(cfg, running=running),
     }
+
+
+@router.get("/status")
+def get_status(user: dict = Depends(require_user)) -> Dict[str, Any]:
+    cfg = load_config()
+    if get_stock_news_alert_user_stopped():
+        return _status_payload(cfg, False, None)
+    inst = get_stock_news_alert_instance()
+    running = bool(inst and inst.is_running())
+    if not running and cfg.get("running"):
+        try_restore_from_disk()
+        inst = get_stock_news_alert_instance()
+        running = bool(inst and inst.is_running())
+    return _status_payload(cfg, running, inst, restored=bool(cfg.get("running") and running))
 
 
 @router.post("/start")
@@ -137,7 +142,11 @@ def start_alert(
     set_stock_news_alert_user_stopped(False)
     cfg = load_config()
     if body and body.watch_names:
-        cfg["watch_names"] = [str(x).strip() for x in body.watch_names if str(x).strip()]
+        existing = cfg.get("watch_names") or []
+        if isinstance(existing, str):
+            existing = [existing]
+        new_names = [str(x).strip() for x in body.watch_names if str(x).strip()]
+        cfg["watch_names"] = merge_watch_names(existing, new_names)
         save_config(cfg)
     names = cfg.get("watch_names") or []
     if isinstance(names, str):
@@ -158,7 +167,48 @@ def start_alert(
     svc.start()
     cfg["running"] = True
     save_config(cfg)
-    return {"message": "已启动", "running": True}
+    return {
+        "message": "已启动",
+        "running": True,
+        "watch_names": names,
+        "monitor_pool": build_monitor_pool(cfg, running=True),
+    }
+
+
+@router.post("/remove-watch")
+def remove_watch(body: StockNewsRemoveWatchBody, user: dict = Depends(require_user)) -> Dict[str, Any]:
+    kw = str(body.watch_name or "").strip()
+    if not kw:
+        raise HTTPException(status_code=400, detail="请指定要移除的关键词")
+    cfg = load_config()
+    before = cfg.get("watch_names") or []
+    if isinstance(before, str):
+        before = [before]
+    before_norm = {str(x).strip().casefold() for x in before if str(x).strip()}
+    if kw.casefold() not in before_norm:
+        raise HTTPException(status_code=404, detail=f"监控池中不存在关键词：{kw}")
+    remaining = remove_watch_name(kw)
+    cfg = load_config()
+    if not remaining:
+        set_stock_news_alert_user_stopped(True)
+        inst = get_stock_news_alert_instance()
+        if inst:
+            inst.stop()
+        set_stock_news_alert_instance(None)
+        cfg["running"] = False
+        save_config(cfg)
+        return {
+            "message": "已移除全部关键词，监控已停止",
+            "running": False,
+            "watch_names": [],
+            "monitor_pool": [],
+        }
+    return {
+        "message": f"已移除 {kw}",
+        "running": bool(get_stock_news_alert_instance() and get_stock_news_alert_instance().is_running()),
+        "watch_names": remaining,
+        "monitor_pool": build_monitor_pool(cfg, running=bool(cfg.get("running"))),
+    }
 
 
 @router.post("/stop")

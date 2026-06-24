@@ -32,6 +32,7 @@ from backpack_quant_trading.core.stock_news_feeds import (
 )
 from backpack_quant_trading.core.stock_news_keyword_i18n import (
     expand_terms,
+    is_watch_all_us_stocks,
     text_matches_any_term,
     text_matches_watch_terms,
     watch_names_to_yahoo_queries,
@@ -311,6 +312,8 @@ def is_material_news(
 
 
 def matches_watch(text: str, watch_names: List[str], item: Optional[Dict[str, Any]] = None) -> bool:
+    if is_watch_all_us_stocks(watch_names):
+        return True
     if not watch_names:
         return False
     expanded = expand_terms(watch_names)
@@ -664,10 +667,13 @@ class StockNewsAlertService:
         )
         yahoo_q_note = ""
         if "yahoo" in enabled_list:
-            yq = watch_names_to_yahoo_queries(watch)
-            if not yq:
-                yq = _normalize_yahoo_search_queries(None)
-            yahoo_q_note = f" | 雅虎搜索词: {', '.join(yq)}"
+            if is_watch_all_us_stocks(watch):
+                yahoo_q_note = " | 雅虎: 全美股 RSS 宽表"
+            else:
+                yq = watch_names_to_yahoo_queries(watch)
+                if not yq:
+                    yq = _normalize_yahoo_search_queries(None)
+                yahoo_q_note = f" | 雅虎搜索词: {', '.join(yq)}"
         fresh_note = ""
         if bootstrap:
             fresh_note = f" | 首轮已标记 {stats['skipped_bootstrap_seed']} 条为已见(不推送)"
@@ -732,6 +738,116 @@ class StockNewsAlertService:
                 "recent_similarity_norms": recent_norms,
             }
         )
+
+
+def merge_watch_names(existing: List[str], new_names: List[str]) -> List[str]:
+    """合并自选关键词（去重，保留顺序）。"""
+    merged: List[str] = []
+    seen: Set[str] = set()
+    for raw in list(existing or []) + list(new_names or []):
+        name = str(raw).strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(name)
+    return merged
+
+
+def _last_push_for_keyword(
+    keyword: str,
+    history: List[Dict[str, Any]],
+    *,
+    impact_keywords: Optional[List[str]] = None,
+    only_material: bool = True,
+) -> Optional[Dict[str, str]]:
+    kw = str(keyword).strip()
+    if not kw:
+        return None
+    all_us = is_watch_all_us_stocks([kw])
+    for row in history:
+        text = str(row.get("text") or "")
+        if all_us:
+            if only_material and impact_keywords:
+                if not text_matches_any_term(text, impact_keywords):
+                    continue
+        elif not matches_watch(text, [kw]):
+            continue
+        return {
+            "at": str(row.get("pushed_at") or row.get("time") or ""),
+            "feed": str(row.get("feed") or ""),
+            "text": text[:160],
+        }
+    return None
+
+
+def build_monitor_pool(cfg: Dict[str, Any], *, running: bool) -> List[Dict[str, Any]]:
+    """运行中的监控池：每个自选关键词一条，含数据源与最近命中摘要。"""
+    if not running:
+        return []
+    watch = cfg.get("watch_names") or []
+    if isinstance(watch, str):
+        watch = [watch]
+    watch = [str(x).strip() for x in watch if str(x).strip()]
+    if is_watch_all_us_stocks(watch):
+        watch = ["全美股"]
+    if not watch:
+        return []
+
+    enabled = normalize_enabled_sources(cfg)
+    source_labels = [SOURCE_LABELS.get(k, k) for k in enabled]
+    extra = cfg.get("extra_impact_keywords") or []
+    if isinstance(extra, str):
+        extra = [extra]
+    extra = [str(x).strip() for x in extra if str(x).strip()]
+    poll = int(cfg.get("poll_interval_sec") or 30)
+    only_material = bool(cfg.get("only_material", True))
+    only_extra = bool(cfg.get("only_extra_impact_keywords"))
+
+    try:
+        from backpack_quant_trading.core.dingtalk_push_history import list_history
+
+        history = list_history(limit=120, kinds=["stock_news"])
+    except Exception:
+        history = []
+
+    pool: List[Dict[str, Any]] = []
+    for kw in watch:
+        pool.append(
+            {
+                "keyword": kw,
+                "sources": enabled,
+                "source_labels": source_labels,
+                "poll_interval_sec": poll,
+                "only_material": only_material,
+                "only_extra_impact_keywords": only_extra,
+                "extra_impact_keywords": extra,
+                "last_push": _last_push_for_keyword(
+                    kw,
+                    history,
+                    impact_keywords=extra if only_extra else _impact_keyword_list(cfg),
+                    only_material=only_material,
+                ),
+            }
+        )
+    return pool
+
+
+def remove_watch_name(keyword: str) -> List[str]:
+    """从配置移除一个自选关键词，返回剩余列表。"""
+    kw = str(keyword or "").strip()
+    if not kw:
+        return []
+    cfg = load_config()
+    names = cfg.get("watch_names") or []
+    if isinstance(names, str):
+        names = [names]
+    remaining = [str(x).strip() for x in names if str(x).strip() and str(x).strip().casefold() != kw.casefold()]
+    cfg["watch_names"] = remaining
+    save_config(cfg)
+    return remaining
 
 
 def try_restore_from_disk() -> None:

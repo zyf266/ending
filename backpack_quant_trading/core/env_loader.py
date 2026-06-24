@@ -17,4 +17,10 @@ def load_project_env(*, override: bool = False) -> None:
         return
     if _ENV_PATH.is_file():
         load_dotenv(_ENV_PATH, override=override)
+    secrets_path = _ENV_PATH.parent / ".env.secrets"
+    if secrets_path.is_file():
+        load_dotenv(secrets_path, override=False)
+    from backpack_quant_trading.utils.env_secrets import resolve_encrypted_env_vars
+
+    resolve_encrypted_env_vars()
     _LOADED = True

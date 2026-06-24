@@ -158,5 +158,35 @@
     "text": "[GuruFocus.com] AMD Target Raised as AI CPU Demand Builds (AMD NVDA INTC)",
     "url": "https://finance.yahoo.com/sectors/technology/articles/amd-target-raised-ai-cpu-183554961.html",
     "pushed_at": "2026-06-01 18:37:18"
+  },
+  {
+    "id": "yahoo:b14b9108-9c5b-3abc-ab9d-e01003b0edc4",
+    "kind": "stock_news",
+    "feed": "雅虎财经",
+    "feed_key": "yahoo",
+    "time": "2026-06-11 14:03:35",
+    "text": "[GuruFocus.com] Intel Stock Jumps After BofA Surprise Double Upgrade (INTC)",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/intel-stock-jumps-bofa-surprise-140335965.html",
+    "pushed_at": "2026-06-11 14:04:42"
+  },
+  {
+    "id": "yahoo:3ee391e6-f164-32b8-afa3-778c49d66e58",
+    "kind": "stock_news",
+    "feed": "雅虎财经",
+    "feed_key": "yahoo",
+    "time": "2026-06-11 15:00:51",
+    "text": "[GuruFocus.com] Intel Rises on BofA Upgrade (INTC)",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/intel-rises-bofa-upgrade-150051848.html",
+    "pushed_at": "2026-06-11 15:02:28"
+  },
+  {
+    "id": "yahoo:c8ce20ec-ebb1-34a5-918d-bb07b8cd0d6c",
+    "kind": "stock_news",
+    "feed": "雅虎财经",
+    "feed_key": "yahoo",
+    "time": "2026-06-11 16:25:00",
+    "text": "[GuruFocus.com] BofA Double-Upgrades Intel as Foundry and CPU Bets Come Into Focus (INTC)",
+    "url": "https://finance.yahoo.com/markets/stocks/articles/bofa-double-upgrades-intel-foundry-162500367.html",
+    "pushed_at": "2026-06-11 16:25:47"
   }
 ]

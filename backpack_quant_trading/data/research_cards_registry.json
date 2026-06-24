@@ -14,7 +14,8 @@
     { "code": "CRCL", "card_file": "crcl_research_card.json", "report_file": "crcl_research_report.json" },
     { "code": "ETH", "card_file": "eth_research_card.json", "report_file": "eth_research_report.json" },
     { "code": "HYPE", "card_file": "hype_research_card.json", "report_file": "hype_research_report.json" },
-    { "code": "ONDO", "card_file": "ondo_research_card.json", "report_file": "ondo_research_report.json" },
-    { "code": "000858", "card_file": "wuliangye_research_card.json", "report_file": "wuliangye_research_report.json" }
+    { "code": "603986", "card_file": "603986_research_card.json", "report_file": "603986_research_report.json" },
+    { "code": "688146", "card_file": "688146_research_card.json", "report_file": "688146_research_report.json" },
+    { "code": "300308", "card_file": "300308_research_card.json", "report_file": "300308_research_report.json" }
   ]
 }

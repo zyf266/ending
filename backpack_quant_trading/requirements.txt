@@ -58,3 +58,6 @@ eth-account>=0.10.0
 
 # 日志
 loguru
+
+# 钉钉 Stream 机器人（群内 @ 手动评分）
+dingtalk-stream>=0.20.0

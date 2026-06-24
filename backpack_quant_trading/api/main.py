@@ -84,8 +84,66 @@ def health():
 import asyncio as _asyncio
 import logging as _sched_logging
 from datetime import datetime as _dt, timedelta as _td
+from zoneinfo import ZoneInfo
 
 _sched_logger = _sched_logging.getLogger("kline_scheduler")
+_CN_TZ = ZoneInfo("Asia/Shanghai")
+_PRICE_SYNC_HOUR = 5
+
+
+def _cn_now() -> _dt:
+    return _dt.now(_CN_TZ)
+
+
+def _today_cn_price_sync_at() -> _dt:
+    now = _cn_now()
+    return now.replace(hour=_PRICE_SYNC_HOUR, minute=0, second=0, microsecond=0)
+
+
+def _parse_cache_updated_at(raw) -> _dt | None:
+    if not raw:
+        return None
+    try:
+        return _dt.strptime(str(raw), "%Y-%m-%d %H:%M:%S").replace(tzinfo=_CN_TZ)
+    except Exception:
+        return None
+
+
+def _research_price_cache_stale_hours(cache: dict, *, max_age_hours: float = 20.0) -> bool:
+    """缓存缺失或超过 max_age_hours 视为过期，需重新拉价。"""
+    updated = _parse_cache_updated_at(cache.get("updated_at"))
+    if not updated:
+        return True
+    return (_cn_now() - updated).total_seconds() > max_age_hours * 3600
+
+
+def _missed_today_cn_price_sync(cache: dict) -> bool:
+    """北京时间已过今日 5:00，但缓存更新时间仍早于今日 5:00 → 今日定时任务未成功。"""
+    now = _cn_now()
+    today_5 = _today_cn_price_sync_at()
+    if now < today_5:
+        return False
+    updated = _parse_cache_updated_at(cache.get("updated_at"))
+    if not updated:
+        return True
+    return updated < today_5
+
+
+async def _run_research_price_sync(reason: str) -> None:
+    from backpack_quant_trading.core.research_card_prices import refresh_research_prices_task
+
+    try:
+        res = await _asyncio.to_thread(refresh_research_prices_task)
+        _sched_logger.info(
+            "[研究卡片价格] %s: ok=%s 成功=%s/%s updated=%s",
+            reason,
+            res.get("ok"),
+            res.get("ok_count"),
+            res.get("count"),
+            res.get("updated_at"),
+        )
+    except Exception as exc:
+        _sched_logger.error("[研究卡片价格] %s 失败: %s", reason, exc)
 
 
 @app.on_event("startup")
@@ -171,57 +229,47 @@ async def _kline_sync_loop():
         await _asyncio.sleep(interval)
 
 
-def _research_price_cache_stale_hours(cache: dict, *, max_age_hours: float = 20.0) -> bool:
-    """缓存缺失或超过 max_age_hours 视为过期，需重新拉价。"""
-    updated = cache.get("updated_at")
-    if not updated:
-        return True
-    try:
-        ts = _dt.strptime(str(updated), "%Y-%m-%d %H:%M:%S")
-        return (_dt.now() - ts).total_seconds() > max_age_hours * 3600
-    except Exception:
-        return True
-
-
 async def _bootstrap_research_prices():
-    """启动时：无缓存或缓存过期则后台立即拉取现价。"""
-    from backpack_quant_trading.core.research_card_prices import load_price_cache, refresh_research_prices_task
+    """启动时：缓存过期或错过今日 5:00 定时更新则立即补拉。"""
+    from backpack_quant_trading.core.research_card_prices import load_price_cache
 
     cache = load_price_cache()
-    if not _research_price_cache_stale_hours(cache):
-        _sched_logger.info(f"[研究卡片价格] 使用有效缓存: {cache.get('updated_at')}")
+    if _missed_today_cn_price_sync(cache):
+        _sched_logger.info(
+            "[研究卡片价格] 启动补拉: 今日 %02d:00 定时更新尚未完成（缓存 %s）",
+            _PRICE_SYNC_HOUR,
+            cache.get("updated_at"),
+        )
+        await _run_research_price_sync("启动补拉")
         return
-    reason = "无缓存" if not cache.get("updated_at") else f"缓存过期({cache.get('updated_at')})"
-    _sched_logger.info(f"[研究卡片价格] 启动补拉: {reason}")
-    try:
-        res = await _asyncio.to_thread(refresh_research_prices_task)
-        _sched_logger.info(f"[研究卡片价格] 启动拉取完成: ok={res.get('ok')} count={res.get('ok_count')}")
-    except Exception as exc:
-        _sched_logger.error(f"[研究卡片价格] 启动拉取失败: {exc}")
+    if _research_price_cache_stale_hours(cache):
+        _sched_logger.info("[研究卡片价格] 启动补拉: 缓存过期(%s)", cache.get("updated_at"))
+        await _run_research_price_sync("启动补拉(过期)")
+        return
+    _sched_logger.info("[研究卡片价格] 使用有效缓存: %s", cache.get("updated_at"))
 
 
 async def _daily_research_price_sync_loop():
-    """每天凌晨 5:00 批量更新 AI 选股卡片现价（Massive / HL / Stooq / Yahoo）。"""
-    from backpack_quant_trading.core.research_card_prices import refresh_research_prices_task
+    """每天北京时间 5:00 更新 AI 选股卡片现价；若启动时已错过当日 5:00 会先补跑。"""
+    from backpack_quant_trading.core.research_card_prices import load_price_cache
 
     while True:
-        now = _dt.now()
-        target = now.replace(hour=5, minute=0, second=0, microsecond=0)
+        cache = load_price_cache()
+        if _missed_today_cn_price_sync(cache):
+            await _run_research_price_sync("今日定时补跑")
+
+        now = _cn_now()
+        target = _today_cn_price_sync_at()
         if target <= now:
             target += _td(days=1)
         wait_secs = (target - now).total_seconds()
         _sched_logger.info(
-            f"[研究卡片价格] 下次更新：{target.strftime('%Y-%m-%d %H:%M:%S')}（{wait_secs/3600:.1f}h 后）"
+            "[研究卡片价格] 下次更新(北京时间)：%s（%.1fh 后）",
+            target.strftime("%Y-%m-%d %H:%M:%S"),
+            wait_secs / 3600,
         )
         await _asyncio.sleep(wait_secs)
-        try:
-            res = await _asyncio.to_thread(refresh_research_prices_task)
-            _sched_logger.info(
-                f"[研究卡片价格] 定时更新完成: ok={res.get('ok')} "
-                f"成功={res.get('ok_count')}/{res.get('count')}"
-            )
-        except Exception as exc:
-            _sched_logger.error(f"[研究卡片价格] 定时更新失败: {exc}")
+        await _run_research_price_sync("每日定时")
 
 
 # ── HYPE 策略 Webhook 快捷入口（无需 /api/trading 前缀，供 TradingView 直接调用）──

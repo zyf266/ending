@@ -2342,11 +2342,21 @@ async def adaptive_long_webhook(request: Request):
 
     logger.info(f"📥 adaptive-long 收到信号: {str(data)[:200]}")
 
+    try:
+        from backpack_quant_trading.core.crypto_signal_scorer import (
+            schedule_live_trade_score_from_webhook,
+        )
+
+        schedule_live_trade_score_from_webhook(data)
+    except Exception as _sc_err:
+        logger.warning("adaptive-long 评分调度失败(忽略): %s", _sc_err)
+
     # 解析信号字段（兼容中文字段名 + 英文字段名）
     action = (data.get("方向") or data.get("操作") or data.get("action") or data.get("signal") or "").lower().strip()
     symbol_raw = str(data.get("交易品种") or data.get("symbol") or data.get("coin") or "")
     strategy_name = str(
         data.get("策略名称")
+        or data.get("策略名")
         or data.get("strategy_name")
         or data.get("strategyName")
         or data.get("strategy")
@@ -2382,12 +2392,8 @@ async def adaptive_long_webhook(request: Request):
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
 
     from backpack_quant_trading.core.crypto_signal_scorer import (
-        dingtalk_webhook_enabled,
-        extract_ai_sr_tpsl_plan,
         is_buy_action,
         is_sell_action,
-        push_score_to_dingtalk,
-        run_signal_score,
     )
 
     if is_sell_action(action):
@@ -2451,7 +2457,6 @@ async def adaptive_long_webhook(request: Request):
     use_ai_sr = bool(getattr(strategy, "use_ai_sr_tpsl", False))
     min_trade_score = max(0, int(getattr(strategy, "min_ai_score_for_trade", 0) or 0))
     ai_sr_plan = None
-    score_res: dict = {}
 
     if is_buy_action(action):
         logger.info(
@@ -2490,108 +2495,6 @@ async def adaptive_long_webhook(request: Request):
                     f"忽略{signal_timeframe or '本次'}买入"
                 ),
             }
-
-    # 买入：先同步完成 AI 评分，再决定是否开单（避免后台钉钉评分未结束就已开仓）
-    if is_buy_action(action):
-        need_score = min_trade_score > 0 or use_ai_sr or dingtalk_webhook_enabled()
-        logger.info(
-            "🤖 AI评分（同步，开单前）| %s %s | 开单门槛=%s%s%s",
-            signal_symbol,
-            signal_timeframe or "默认周期",
-            min_trade_score,
-            "（未启用拦截）" if min_trade_score <= 0 else "（低于门槛将拒绝开仓）",
-            " | 将提取支撑/压力挂止盈止损" if use_ai_sr else "",
-        )
-        if not need_score:
-            score_res = {"ok": False, "error": "skip"}
-        else:
-            score_res = run_signal_score(
-                signal_symbol,
-                action,
-                timeframe=signal_timeframe,
-                webhook_raw=data,
-                strategy_label="adaptive_long",
-            )
-        if need_score and not score_res.get("ok"):
-            err_detail = score_res.get("error") or "未知错误"
-            logger.info(
-                "⛔ AI评分失败 | %s | 开单门槛=%s | 原因=%s",
-                signal_symbol, min_trade_score, err_detail,
-            )
-            if min_trade_score > 0:
-                return {
-                    "ok": True,
-                    "skipped": True,
-                    "instance_id": target_id,
-                    "symbol": signal_symbol,
-                    "action": action,
-                    "ai_score_filter": True,
-                    "min_ai_score_required": min_trade_score,
-                    "message": (
-                        f"AI评分为—（评分失败），开单门槛为{min_trade_score}，未达门槛，拒绝交易：{err_detail}"
-                    ),
-                }
-        elif need_score:
-            got_score = int(score_res.get("score") or 0)
-            grade = score_res.get("grade") or "—"
-            rec = score_res.get("recommendation") or "—"
-            if min_trade_score > 0 and got_score < min_trade_score:
-                logger.info(
-                    "⛔ 拒绝交易 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=%s | 未达门槛，拒绝开仓",
-                    signal_symbol, got_score, grade, rec, min_trade_score,
-                )
-                return {
-                    "ok": True,
-                    "skipped": True,
-                    "instance_id": target_id,
-                    "symbol": signal_symbol,
-                    "action": action,
-                    "ai_score": got_score,
-                    "min_ai_score_required": min_trade_score,
-                    "grade": grade,
-                    "recommendation": rec,
-                    "message": (
-                        f"AI评分为{got_score}，开单门槛为{min_trade_score}，未达门槛，拒绝交易"
-                    ),
-                }
-            if min_trade_score > 0:
-                logger.info(
-                    "✅ 允许开单 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=%s | 已达门槛",
-                    signal_symbol, got_score, grade, rec, min_trade_score,
-                )
-            else:
-                logger.info(
-                    "📋 允许开单 | %s | AI评分=%s（等级%s 建议%s）| 开单门槛=0（仅记录，不拦截）",
-                    signal_symbol, got_score, grade, rec,
-                )
-
-            if use_ai_sr and score_res.get("ok"):
-                metrics = (score_res.get("snapshot") or {}).get("metrics") or {}
-                entry_est = float(metrics.get("close") or metrics.get("sr_close") or 0)
-                ai_sr_plan = extract_ai_sr_tpsl_plan(metrics, entry_est)
-                if ai_sr_plan:
-                    logger.info(
-                        "📐 AI位阶止盈止损方案 | 止损支撑=%.4f | 止盈1(50%%)小级=%s | 止盈2(50%%)同级=%s",
-                        ai_sr_plan["support"],
-                        f"{ai_sr_plan['tp_lower_tf']:.4f}" if ai_sr_plan.get("tp_lower_tf") else "—",
-                        f"{ai_sr_plan['tp_same_tf']:.4f}" if ai_sr_plan.get("tp_same_tf") else "—",
-                    )
-                else:
-                    logger.info("⚠️ AI位阶止盈止损: 支撑/压力数据不足，开仓后将使用百分比止盈止损")
-
-            if dingtalk_webhook_enabled() and score_res.get("ok"):
-
-                def _push_dingtalk_cached(res: dict = score_res):
-                    try:
-                        push_score_to_dingtalk(res)
-                    except Exception as e:
-                        logger.warning("钉钉 AI 评分推送失败(忽略): %s", e)
-
-                threading.Thread(
-                    target=_push_dingtalk_cached,
-                    daemon=True,
-                    name=f"dingtalk-push-{signal_symbol}",
-                ).start()
 
     loop = ADAPTIVE_LONG_TASKS.get(target_id)
     if not loop or not loop.is_running():
@@ -2857,32 +2760,6 @@ async def adaptive_short_webhook(request: Request):
         raise HTTPException(status_code=400, detail="信号缺少 symbol 字段")
 
     logger.info(f"📡 Webhook 信号解析: action={action}  symbol={signal_symbol}  timeframe={signal_timeframe or '未指定'}")
-
-    from backpack_quant_trading.core.crypto_signal_scorer import (
-        is_buy_action,
-        is_sell_action,
-        schedule_webhook_dingtalk_score,
-    )
-
-    # 路径2：钉钉 AI 评分（仅卖出开空；买入=平空，不评分）
-    if is_sell_action(action):
-        try:
-            schedule_webhook_dingtalk_score(
-                signal_symbol,
-                action,
-                timeframe=signal_timeframe,
-                webhook_raw=data,
-                strategy_label="adaptive_short",
-                strategy_name=strategy_name or "自适应做空",
-                strategy_side="short",
-            )
-        except Exception as _sc_err:
-            logger.warning("钉钉 AI 评分调度失败(忽略): %s", _sc_err)
-    elif is_buy_action(action):
-        logger.info(
-            "📋 做空策略买入=平仓 | %s %s | 跳过 AI 评分（钉钉）",
-            signal_symbol, signal_timeframe or "默认周期",
-        )
 
     dead_ids = []
     for iid, th in list(ADAPTIVE_SHORT_THREADS.items()):

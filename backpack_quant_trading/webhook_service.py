@@ -8,6 +8,10 @@ import hmac
 import hashlib
 from datetime import datetime
 
+from backpack_quant_trading.core.env_loader import load_project_env
+
+load_project_env()
+
 from backpack_quant_trading.config.settings import config
 from backpack_quant_trading.engine.webhook_trading import WebhookTradingEngine, TradingViewSignal
 
@@ -39,21 +43,19 @@ def _append_recent_event(evt: Dict[str, Any]) -> None:
 
 
 def _get_filter_id(payload: dict) -> str:
-    return str(
-        payload.get("筛选ID")
-        or payload.get("filter_id")
-        or payload.get("filterId")
-        or payload.get("filterID")
-        or payload.get("id")
-        or payload.get("ID")
-        or ""
-    ).strip()
+    from backpack_quant_trading.core.crypto_signal_scorer import get_webhook_filter_id
+
+    return get_webhook_filter_id(payload)
 
 
 def _is_live_trade_payload(payload: dict) -> bool:
-    """仅对筛选ID=实盘交易的信号做评分推送。"""
-    fid = _get_filter_id(payload)
-    return fid == "实盘交易" or fid.lower() == "live_trade"
+    """仅对筛选ID=实盘交易的美股买入信号做评分推送。"""
+    from backpack_quant_trading.core.crypto_signal_scorer import is_live_trade_us_stock_buy_signal
+
+    symbol, action, _, _ = _extract_tv_fields(payload)
+    if not symbol or not action:
+        return False
+    return is_live_trade_us_stock_buy_signal(symbol, action, payload)
 
 
 def _extract_tv_fields(payload: dict) -> tuple[str, str, str, str]:
@@ -76,6 +78,7 @@ def _extract_tv_fields(payload: dict) -> tuple[str, str, str, str]:
     ).strip()
     strategy_name = str(
         payload.get("策略名称")
+        or payload.get("策略名")
         or payload.get("strategy_name")
         or payload.get("strategyName")
         or payload.get("strategy")
@@ -87,22 +90,12 @@ def _extract_tv_fields(payload: dict) -> tuple[str, str, str, str]:
 
 def _maybe_schedule_live_trade_score(payload: dict) -> None:
     """后台调度评分与钉钉推送（不影响交易路由）。"""
-    if not _is_live_trade_payload(payload):
-        return
     try:
-        from backpack_quant_trading.core.crypto_signal_scorer import schedule_webhook_dingtalk_score
-
-        symbol, action, tf, strategy_name = _extract_tv_fields(payload)
-        if not symbol or not action:
-            return
-        schedule_webhook_dingtalk_score(
-            symbol,
-            action,
-            timeframe=tf,
-            webhook_raw=payload,
-            strategy_label=strategy_name or "live_trade",
-            strategy_name=strategy_name,
+        from backpack_quant_trading.core.crypto_signal_scorer import (
+            schedule_live_trade_score_from_webhook,
         )
+
+        schedule_live_trade_score_from_webhook(payload)
     except Exception as e:
         logger.warning("实盘筛选评分调度失败(忽略): %s", e)
 
@@ -135,6 +128,14 @@ def verify_signature(payload: bytes, signature: str) -> bool:
 @app.on_event("startup")
 async def startup_event():
     """启动后台监控任务"""
+    os.environ.setdefault("DEEPSEEK_SCORE_MODEL", "deepseek-v4-flash")
+    os.environ.setdefault("DEEPSEEK_SCORE_THINKING", "0")
+    try:
+        from backpack_quant_trading.core.crypto_signal_scorer import log_score_runtime_config
+
+        log_score_runtime_config()
+    except Exception as exc:
+        logger.warning("DeepSeek 评分配置日志失败: %s", exc)
     logger.info("🚀 Webhook 服务已启动 (v1.1 - 修正 Hyperliquid 响应解析)")
     logger.info("✅ 等待注册引擎实例...")
 
@@ -905,6 +906,14 @@ async def adaptive_long_webhook_proxy(request: Request):
     try:
         data = await request.json()
         logger.info(f"📥 adaptive-long 收到 Webhook: {data}")
+        try:
+            from backpack_quant_trading.core.crypto_signal_scorer import (
+                schedule_live_trade_score_from_webhook,
+            )
+
+            schedule_live_trade_score_from_webhook(data)
+        except Exception as _sc_err:
+            logger.warning("adaptive-long 评分调度失败(忽略): %s", _sc_err)
     except Exception as e:
         logger.error(f"📥 adaptive-long JSON 解析失败: {e}, 原始: {body[:200]}")
         raise HTTPException(status_code=400, detail=str(e))

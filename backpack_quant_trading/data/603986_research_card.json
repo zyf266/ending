@@ -1,0 +1,43 @@
+{
+  "code": "603986",
+  "name": "兆易创新",
+  "tagline": "存储超级周期 · 长鑫协同放量的业绩成长股",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-04-09",
+  "quote_symbol": "603986.SH",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观行情",
+      "probability": "30%",
+      "subtitle": "存储涨价贯穿全年+长鑫超额扩产",
+      "range_low": 370,
+      "range_high": 485,
+      "note": "报告 04 情景模式（乐观 370-485 元）"
+    },
+    {
+      "key": "base",
+      "label": "基准行情",
+      "probability": "50%",
+      "subtitle": "H1涨价陡峭、H2趋稳，龙头地位稳固",
+      "range_low": 268,
+      "range_high": 370,
+      "note": "报告 04 情景模式（基准 268-370 元）"
+    },
+    {
+      "key": "bear",
+      "label": "悲观行情",
+      "probability": "20%",
+      "subtitle": "存储涨价周期提前见顶",
+      "range_low": 180,
+      "range_high": 240,
+      "note": "报告 05 风险：周期见顶+技术回调"
+    }
+  ],
+  "highlights": [
+    "2026年与长鑫存储关联交易额度57亿元（较2025年+187%）",
+    "NOR Flash全球第二，利基DRAM/NAND共振存储超级周期",
+    "32位MCU国内领先，AI端侧+车规国产替代打开第二曲线"
+  ],
+  "pdf_path": "兆易创新投研报告20260409.pdf"
+}

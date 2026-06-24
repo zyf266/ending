@@ -1,7 +1,10 @@
 backpack_quant_trading/data/kline_cache/
 backpack_quant_trading/log/
-backpack_quant_trading/data/kline_cache/
-backpack_quant_trading/log/
 # 含钉钉 Webhook 与自选词，勿入库
 backpack_quant_trading/data/stock_news_alert_config.json
 backpack_quant_trading/data/stock_news_alert_state.json
+# 密钥与口令（勿提交 Git）
+backpack_quant_trading/.env
+backpack_quant_trading/.env.secrets
+.env
+**/.env.secrets

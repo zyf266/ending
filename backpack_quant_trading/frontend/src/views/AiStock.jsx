@@ -4,8 +4,9 @@ import { AI_STOCK_REPORTS } from '../data/aiStockReports'
 import { RESEARCH_CARDS_FALLBACK } from '../data/researchCardsFallback'
 import {
   fetchResearchCardCodes,
-  getResearchCard,
   getResearchCards,
+  getResearchPrices,
+  refreshResearchPrices,
   RESEARCH_CARD_CODES_FALLBACK,
   sortResearchCardCodes,
 } from '../api/aiStockHub'
@@ -28,6 +29,26 @@ const fallbackHub = (code) => ({
   signal_summary: null,
 })
 
+const mergePricesIntoMap = (map, pricePayload) => {
+  const rows = pricePayload?.prices || {}
+  for (const [rawCode, row] of Object.entries(rows)) {
+    const code = String(rawCode || '').toUpperCase()
+    if (!map[code] || !row || row.price == null) continue
+    map[code] = {
+      ...map[code],
+      price: row.price,
+      currency: row.currency || 'USD',
+      price_updated_at: row.price_updated_at || row.fetched_at || pricePayload?.updated_at,
+    }
+  }
+}
+
+const countMissingPrices = (map, codes) =>
+  codes.filter((c) => {
+    const p = map[c]?.price
+    return p == null || !Number.isFinite(Number(p))
+  }).length
+
 const AiStock = () => {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
@@ -38,9 +59,7 @@ const AiStock = () => {
   const [refreshPulse, setRefreshPulse] = useState(0)
 
   const loadCards = useCallback(async () => {
-    setLoading(true)
     setLoadErr(null)
-    const map = {}
     let codes = RESEARCH_CARD_CODES_FALLBACK
 
     try {
@@ -50,42 +69,75 @@ const AiStock = () => {
       /* 保持兜底列表 */
     }
 
+    // 先用本地兜底立即渲染，避免批量接口慢时整页卡在「加载 xxx…」
+    const map = {}
+    for (const code of codes) {
+      map[code] = fallbackHub(code)
+    }
+    setHubs(map)
+    setLoading(false)
+    setRefreshPulse((n) => n + 1)
+
     try {
-      const r = await getResearchCards()
-      for (const item of r?.items || []) {
-        const code = String(item?.card?.code || '').toUpperCase()
-        if (code) map[code] = item
+      const [cardsRes, pricesRes] = await Promise.all([
+        getResearchCards().catch(() => null),
+        getResearchPrices().catch(() => null),
+      ])
+
+      if (cardsRes?.items) {
+        for (const item of cardsRes.items) {
+          const code = String(item?.card?.code || '').toUpperCase()
+          if (code) map[code] = item
+        }
+        const fromItems = cardsRes.items
+          .map((item) => String(item?.card?.code || '').toUpperCase())
+          .filter(Boolean)
+        if (fromItems.length) {
+          codes = sortResearchCardCodes([...codes, ...fromItems])
+          setCardCodes(codes)
+          for (const code of codes) {
+            if (!map[code]) map[code] = fallbackHub(code)
+          }
+        }
       }
-      // 以 API 返回的卡片为准补全列表（防止 registry 新增但兜底未更新）
-      const fromItems = (r?.items || [])
-        .map((item) => String(item?.card?.code || '').toUpperCase())
-        .filter(Boolean)
-      if (fromItems.length) {
-        codes = sortResearchCardCodes([...codes, ...fromItems])
-        setCardCodes(codes)
+
+      if (pricesRes) {
+        mergePricesIntoMap(map, pricesRes)
+      }
+
+      setHubs({ ...map })
+      setRefreshPulse((n) => n + 1)
+
+      if (!cardsRes) {
+        setLoadErr('卡片加载失败')
+      }
+
+      // 缓存为空时后台补拉一次（不阻塞页面）
+      const missing = countMissingPrices(map, codes)
+      if (missing > 0 && !window.__aisPriceRefreshRunning) {
+        window.__aisPriceRefreshRunning = true
+        refreshResearchPrices()
+          .then(async () => {
+            const fresh = await getResearchPrices().catch(() => null)
+            if (!fresh) return
+            setHubs((prev) => {
+              const next = { ...prev }
+              for (const code of codes) {
+                next[code] = next[code] ? { ...next[code] } : fallbackHub(code)
+              }
+              mergePricesIntoMap(next, fresh)
+              return next
+            })
+            setRefreshPulse((n) => n + 1)
+          })
+          .catch(() => {})
+          .finally(() => {
+            window.__aisPriceRefreshRunning = false
+          })
       }
     } catch (e) {
       setLoadErr(e?.response?.data?.detail || e?.message || '批量加载失败')
     }
-
-    await Promise.all(
-      codes.map(async (code) => {
-        if (map[code]?.card?.tagline) return
-        try {
-          map[code] = await getResearchCard(code)
-        } catch {
-          if (!map[code]) map[code] = fallbackHub(code)
-        }
-      })
-    )
-
-    for (const code of codes) {
-      if (!map[code]) map[code] = fallbackHub(code)
-    }
-
-    setHubs(map)
-    setRefreshPulse((n) => n + 1)
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -150,7 +202,7 @@ const AiStock = () => {
               index={index}
               code={code}
               hub={hubs[code] || fallbackHub(code)}
-              loading={loading && !hubs[code]}
+              loading={false}
               onOpenNews={() => navigate(`/ai-stock/${code}/news`)}
               onOpenSignals={() => navigate(`/ai-stock/${code}/signals`)}
               onOpenDetail={() => navigate(`/ai-stock/${code}?tab=fullreport`)}

@@ -92,12 +92,6 @@ def interval_label(interval: str) -> str:
     return "1d"
 
 
-def _session() -> requests.Session:
-    s = requests.Session()
-    s.trust_env = os.getenv("MASSIVE_TRUST_PROXY", "").lower() in ("1", "true", "yes")
-    return s
-
-
 def _massive_get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
     key = get_massive_api_key()
     if not key:
@@ -105,8 +99,8 @@ def _massive_get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
     p = dict(params or {})
     p["apiKey"] = key
     url = f"{MASSIVE_API_BASE.rstrip('/')}{path}"
-    with _session() as sess:
-        r = sess.get(url, params=p, timeout=30)
+    # 与原先一致：requests 默认 trust_env，load_project_env 后自动读 .env / shell 的 HTTP(S)_PROXY
+    r = requests.get(url, params=p, timeout=30)
     if r.status_code != 200:
         try:
             detail = r.json()

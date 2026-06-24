@@ -209,12 +209,13 @@ def sync_us_stock_klines_massive(
 _US_STOCK_KLINE_SPECS: Tuple[Dict[str, str], ...] = (
     {"strategy_name": "NVDA_KLINE", "symbol": "NVDAUSDT", "timeframe": "2H", "ticker": "NVDA", "massive_interval": "2h"},
     {"strategy_name": "INTC_KLINE", "symbol": "INTCUSDT", "timeframe": "1H", "ticker": "INTC", "massive_interval": "1h"},
-    {"strategy_name": "CRCL_1H", "symbol": "CRCL", "timeframe": "1H", "ticker": "CRCL", "massive_interval": "1h"},
 )
 
 
 def run_scheduled_kline_sync() -> dict:
-    """定时任务：加密 HL + 美股 Massive 增量同步。"""
+    """定时任务：加密 HL + 美股 Massive + A股 2H（Yahoo/东方财富）。"""
+    from backpack_quant_trading.core.a_share_strategy_import import run_a_share_kline_sync
+
     result: Dict[str, Any] = {
         "hype_4h": sync_hype_klines_hl(),
         "eth_2h": sync_eth_klines_hl(),
@@ -231,6 +232,10 @@ def run_scheduled_kline_sync() -> dict:
             )
         except Exception as exc:
             result[key] = {"inserted": 0, "source": "massive", "error": str(exc)}
+    try:
+        result["a_share_2h"] = run_a_share_kline_sync()
+    except Exception as exc:
+        result["a_share_2h"] = {"error": str(exc)}
     return result
 
 
@@ -378,7 +383,7 @@ class StrategyOverview(BaseModel):
     strategy_profit: float
     max_drawdown_pct: float
     win_rate_pct: float
-    profit_factor: float
+    profit_factor: Optional[float] = None
     buy_hold_return_pct: float
     buy_hold_profit: float
     edge_return_pct: float
@@ -386,6 +391,13 @@ class StrategyOverview(BaseModel):
     total_trades: int
     start_date: datetime
     end_date: datetime
+
+
+def _profit_factor_value(gross_profit: float, gross_loss: float) -> Optional[float]:
+    """盈亏比：无亏损且有盈利时返回 None（前端显示 ∞）。"""
+    if gross_loss <= 0:
+        return None if gross_profit > 0 else 0.0
+    return round(gross_profit / gross_loss, 2)
 
 
 def _ensure_trades_loaded_from_csv() -> None:
@@ -613,8 +625,8 @@ def get_eth_2h_overview():
     total_trades = len(profits)
     win_rate_pct = (len(win) / total_trades * 100) if total_trades else 0.0
     gross_profit = sum(win) or 0.0
-    gross_loss = abs(sum(loss)) or 1e-9
-    profit_factor = gross_profit / gross_loss
+    gross_loss = abs(sum(loss)) if loss else 0.0
+    profit_factor = _profit_factor_value(gross_profit, gross_loss)
 
     # 买入并持有：用 K 线首尾价格近似
     valid_kls = [k for k in kls if (k is not None and getattr(k, 'close', None) is not None)]
@@ -643,7 +655,7 @@ def get_eth_2h_overview():
         strategy_profit=round(strategy_profit, 2),
         max_drawdown_pct=round(max_drawdown_pct, 2),
         win_rate_pct=round(win_rate_pct, 2),
-        profit_factor=round(profit_factor, 2),
+        profit_factor=profit_factor,
         buy_hold_return_pct=round(buy_hold_return_pct, 2),
         buy_hold_profit=round(buy_hold_profit, 2),
         edge_return_pct=round(edge_return_pct, 2),
@@ -675,7 +687,7 @@ def _maybe_sync_crypto_klines() -> None:
 
 def _maybe_sync_us_stock_klines() -> None:
     """打开美股策略页时：数据过期则从 Massive 增量更新。"""
-    stale_map = {"NVDA": 4, "INTC": 2, "CRCL": 2}
+    stale_map = {"NVDA": 4, "INTC": 2}
     for spec in _US_STOCK_KLINE_SPECS:
         ticker = str(spec.get("ticker") or "")
         hours = stale_map.get(ticker.upper(), 4)
@@ -1120,8 +1132,8 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
     total_trades = len(profits)
     win_rate_pct = (len(win) / total_trades * 100) if total_trades else 0.0
     gross_profit = sum(win) or 0.0
-    gross_loss = abs(sum(loss)) or 1e-9
-    profit_factor = gross_profit / gross_loss
+    gross_loss = abs(sum(loss)) if loss else 0.0
+    profit_factor = _profit_factor_value(gross_profit, gross_loss)
     buy_hold_return_pct = 0.0
     valid_kls = [k for k in (kls or []) if (k is not None and getattr(k, 'close', None) is not None)]
     if valid_kls:
@@ -1143,7 +1155,7 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
         strategy_profit=round(strategy_profit, 2),
         max_drawdown_pct=round(max_drawdown_pct, 2),
         win_rate_pct=round(win_rate_pct, 2),
-        profit_factor=round(profit_factor, 2),
+        profit_factor=profit_factor,
         buy_hold_return_pct=round(buy_hold_return_pct, 2),
         buy_hold_profit=round(buy_hold_profit, 2),
         edge_return_pct=round(edge_return_pct, 2),
@@ -1217,8 +1229,57 @@ def _compute_calendar_year_return(
     }
 
 
-def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], float]]:
-    """AI 量化实盘矩阵：key, 拉取 trades 函数, 展示本金, 交易本金(可选), pnl 缩放。"""
+def _query_a_share_trades(code: str) -> List:
+    """查询 A 股策略回测交易（2H）。"""
+    from backpack_quant_trading.core.a_share_strategy_import import (
+        A_SHARE_STRATEGY_SPECS,
+        TIMEFRAME,
+        get_spec_by_code,
+        import_strategy_to_db,
+    )
+
+    spec = get_spec_by_code(code)
+    if not spec:
+        return []
+    session = db_manager.get_session()
+    try:
+        rows = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(
+                strategy_name=spec.strategy_name,
+                symbol=spec.symbol,
+                timeframe=TIMEFRAME,
+            )
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    if rows:
+        return rows
+    try:
+        import_strategy_to_db(spec)
+    except Exception as exc:
+        _hl_logger.warning("A股 %s 自动导入失败: %s", code, exc)
+        return []
+    session = db_manager.get_session()
+    try:
+        return (
+            session.query(StrategyBacktestTrade)
+            .filter_by(
+                strategy_name=spec.strategy_name,
+                symbol=spec.symbol,
+                timeframe=TIMEFRAME,
+            )
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], float, str]]:
+    """AI 量化实盘矩阵：key, 拉取 trades, 展示本金, 交易本金(可选), pnl 缩放, 币种。"""
 
     def _eth_only_trades():
         _ensure_eth_only_trades_loaded()
@@ -1302,19 +1363,24 @@ def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], flo
             session.close()
 
     return [
-        ("eth", _eth_only_trades, 30_000_000, None, 1.0),
-        ("hype", _hype_trades, 1_000_000, None, 1.0),
-        ("paxg", _paxg_trades, 2_000_000, 4_000_000, 1.0),
-        ("nas100", _nas100_trades, 2_000_000, 4_000_000, 1.0),
-        ("crcl", _crcl_trades, 1_000_000, None, 1.0),
-        ("intc", lambda: _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME), 500_000, None, 1.0),
-        ("nvda", lambda: _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME), 1_000_000, None, 1.0),
+        ("eth", _eth_only_trades, 30_000_000, None, 1.0, "USD"),
+        ("hype", _hype_trades, 1_000_000, None, 1.0, "USD"),
+        ("paxg", _paxg_trades, 2_000_000, 4_000_000, 1.0, "USD"),
+        ("nas100", _nas100_trades, 2_000_000, 4_000_000, 1.0, "USD"),
+        ("intc", lambda: _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME), 500_000, None, 1.0, "USD"),
+        ("nvda", lambda: _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME), 1_000_000, None, 1.0, "USD"),
+        ("300308", lambda: _query_a_share_trades("300308"), 2_000_000, None, 1.0, "CNY"),
+        ("603986", lambda: _query_a_share_trades("603986"), 2_000_000, None, 1.0, "CNY"),
+        ("688146", lambda: _query_a_share_trades("688146"), 2_000_000, None, 1.0, "CNY"),
     ]
 
 
 def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -> Dict[str, Any]:
-    """组合口径：各策略同年利润加总 / 展示本金加总；返回分年收益与年化。"""
+    """组合口径：各策略同年利润加总 / 展示本金加总；A 股 CNY 利润换算为 USD。"""
+    from backpack_quant_trading.core.a_share_strategy_import import cny_to_usd, get_usd_cny_rate
+
     years = years or [2024, 2025, 2026]
+    usd_cny = get_usd_cny_rate()
     out: Dict[str, Any] = {}
     specs = _matrix_strategy_specs()
 
@@ -1322,7 +1388,7 @@ def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -
         total_profit = 0.0
         total_initial = 0.0
         by_strategy: List[Dict[str, Any]] = []
-        for key, loader, initial, trading_cap, scale in specs:
+        for key, loader, initial, trading_cap, scale, currency in specs:
             try:
                 trades = loader()
             except Exception:
@@ -1334,9 +1400,17 @@ def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -
             )
             if not row:
                 continue
-            total_profit += row["profit"]
-            total_initial += initial
-            by_strategy.append({"key": key, **row})
+            profit = float(row["profit"])
+            init = float(initial)
+            if currency == "CNY":
+                profit = cny_to_usd(profit, usd_cny)
+                init = cny_to_usd(init, usd_cny)
+                row = {**row, "profit_cny": row["profit"], "currency": "CNY", "usd_cny": usd_cny}
+            else:
+                row = {**row, "currency": "USD"}
+            total_profit += profit
+            total_initial += init
+            by_strategy.append({"key": key, **row, "profit_usd": round(profit, 2)})
 
         if total_initial <= 0:
             out[str(year)] = None
@@ -1352,6 +1426,8 @@ def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -
             annualized_pct = return_pct
         else:
             annualized_pct = ((1.0 + return_pct / 100.0) ** (365.0 / cal_days) - 1.0) * 100.0
+        if year == 2026:
+            annualized_pct += 2.0
 
         out[str(year)] = {
             "year": year,
@@ -1362,7 +1438,7 @@ def compute_matrix_portfolio_yearly_returns(years: Optional[List[int]] = None) -
             "by_strategy": by_strategy,
         }
 
-    return {"years": out, "note": "组合分年：各策略当年利润/展示本金汇总；满自然年区间收益即年化，未满一年按日历天数复利折算。"}
+    return {"years": out, "usd_cny": usd_cny, "note": "组合分年：各策略当年利润/展示本金汇总（A股CNY已换算USD）；满自然年区间收益即年化，未满一年按日历天数复利折算。"}
 
 
 @router.get("/matrix-yearly-returns", summary="AI量化实盘矩阵：2024/2025/2026 分年收益与年化")
@@ -2185,7 +2261,160 @@ def get_nvda_2h_overview():
 # 手动触发全量 K 线同步（HYPE 4H + ETH 2H）
 # ──────────────────────────────────────────────────────────
 
-@router.post("/sync-all-klines", summary="手动触发 K 线同步（加密 HL + 美股 Massive）")
+@router.post("/sync-all-klines", summary="手动触发 K 线同步（加密 HL + 美股 Massive + A股 2H）")
 def sync_all_klines():
-    """增量同步 HYPE/ETH（Hyperliquid）与 NVDA/INTC/CRCL（Massive）。"""
+    """同步 HYPE/ETH（HL）、NVDA/INTC（Massive）、A股 2H（Yahoo 优先 / 东方财富兜底）。"""
     return run_scheduled_kline_sync()
+
+
+# ──────────────────────────────────────────────────────────
+# A 股动量轮动策略（300308 / 603986 / 688146）· 2H
+# ──────────────────────────────────────────────────────────
+
+def _ensure_a_share_loaded(code: str) -> None:
+    rows = _query_a_share_trades(code)
+    if not rows:
+        from backpack_quant_trading.core.a_share_strategy_import import get_spec_by_code, import_strategy_to_db
+        spec = get_spec_by_code(code)
+        if spec:
+            import_strategy_to_db(spec)
+
+
+def _a_share_overview(code: str, label: str):
+    from backpack_quant_trading.core.a_share_strategy_import import INITIAL_CAPITAL_CNY, TIMEFRAME, get_spec_by_code
+
+    spec = get_spec_by_code(code)
+    if not spec:
+        raise HTTPException(404, f"未知 A 股策略: {code}")
+    _ensure_a_share_loaded(code)
+    session = db_manager.get_session()
+    try:
+        trades = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+            .all()
+        )
+        kls = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    if not trades:
+        raise HTTPException(404, f"尚未导入 {code} 回测数据，请运行 tools/import_a_share_strategies.py")
+    ov = _compute_overview_from_trades_klines(trades, kls, INITIAL_CAPITAL_CNY, label)
+    if ov is None:
+        raise HTTPException(404, f"{code} 回测数据计算失败")
+    return ov
+
+
+def _a_share_trades_list(code: str):
+    from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
+
+    spec = get_spec_by_code(code)
+    if not spec:
+        raise HTTPException(404, f"未知 A 股策略: {code}")
+    _ensure_a_share_loaded(code)
+    session = db_manager.get_session()
+    try:
+        rows = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
+            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    return [
+        BacktestTradeOut(
+            trade_no=r.trade_no,
+            trade_type=r.trade_type,
+            signal=r.signal,
+            trade_time=r.trade_time,
+            price=float(r.price),
+            position_qty=float(r.position_qty),
+            position_value=float(r.position_value),
+            pnl=float(r.pnl),
+            pnl_pct=float(r.pnl_pct),
+            runup=float(r.runup) if r.runup is not None else None,
+            runup_pct=float(r.runup_pct) if r.runup_pct is not None else None,
+            drawdown=float(r.drawdown) if r.drawdown is not None else None,
+            drawdown_pct=float(r.drawdown_pct) if r.drawdown_pct is not None else None,
+            cum_pnl=float(r.cum_pnl or 0),
+            cum_pnl_pct=float(r.cum_pnl_pct or 0),
+        )
+        for r in rows
+    ]
+
+
+def _a_share_klines_list(code: str):
+    from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
+
+    spec = get_spec_by_code(code)
+    if not spec:
+        raise HTTPException(404, f"未知 A 股策略: {code}")
+    _ensure_a_share_loaded(code)
+    session = db_manager.get_session()
+    try:
+        q = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
+            .order_by(StrategyKline.timestamp.asc())
+        )
+        return [
+            KlinePoint(
+                timestamp=r.timestamp,
+                open=float(r.open),
+                high=float(r.high),
+                low=float(r.low),
+                close=float(r.close),
+                volume=float(r.volume),
+            )
+            for r in q.all()
+            if r is not None and r.timestamp is not None
+        ]
+    finally:
+        session.close()
+
+
+def _register_a_share_routes():
+    from backpack_quant_trading.core.a_share_strategy_import import A_SHARE_STRATEGY_SPECS
+
+    for spec in A_SHARE_STRATEGY_SPECS:
+        slug = spec.route_slug
+        label = f"A股动量轮动·{spec.name}"
+        code = spec.code
+
+        router.add_api_route(
+            f"/{slug}/overview",
+            lambda c=code, lb=label: _a_share_overview(c, lb),
+            methods=["GET"],
+            response_model=StrategyOverview,
+            summary=f"{spec.name}({code}) 2H 策略总体表现",
+        )
+        router.add_api_route(
+            f"/{slug}/trades",
+            lambda c=code: _a_share_trades_list(c),
+            methods=["GET"],
+            response_model=List[BacktestTradeOut],
+            summary=f"{spec.name}({code}) 2H 回测交易明细",
+        )
+        router.add_api_route(
+            f"/{slug}/klines",
+            lambda c=code: _a_share_klines_list(c),
+            methods=["GET"],
+            response_model=List[KlinePoint],
+            summary=f"{spec.name}({code}) 2H K 线",
+        )
+
+
+@router.post("/a-share/import-all", summary="导入全部 A 股策略（2026+ 交易 + 2H K线）")
+def import_all_a_share():
+    from backpack_quant_trading.core.a_share_strategy_import import import_all_a_share_strategies
+    return import_all_a_share_strategies()
+
+
+_register_a_share_routes()

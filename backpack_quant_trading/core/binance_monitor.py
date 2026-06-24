@@ -13,7 +13,7 @@ import urllib.parse
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Set, Tuple
+from typing import List, Dict, Optional, Set, Tuple, Any
 ALERT_RED_DURATION_SEC = 600  # 异动变红持续 10 分钟
 import requests
 import math
@@ -31,7 +31,20 @@ MINUTE_ALERT_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=3bedcc
 # 币安 REST API
 # 【修复】改用合约 API，获取更多币种（包括 1000SHIB、PEPE 等）
 BINANCE_API_BASE = "https://fapi.binance.com"  # 合约 API
+BINANCE_SPOT_API_BASE = "https://api.binance.com"  # 现货 API
 # BINANCE_API_BASE = "https://api.binance.com"  # 现货 API（已弃用）
+
+
+def _binance_api_base(market: str = "futures") -> str:
+    return BINANCE_SPOT_API_BASE if (market or "futures").lower() == "spot" else BINANCE_API_BASE
+
+
+def _klines_path(market: str = "futures") -> str:
+    return "/api/v3/klines" if (market or "futures").lower() == "spot" else "/fapi/v1/klines"
+
+
+def _depth_path(market: str = "futures") -> str:
+    return "/api/v3/depth" if (market or "futures").lower() == "spot" else "/fapi/v1/depth"
 
 
 def _requests_proxies() -> Optional[Dict[str, str]]:
@@ -281,20 +294,27 @@ def fetch_binance_klines_batch(
     return result
 
 
-def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Optional[List[Dict]]:
+def fetch_binance_klines(
+    symbol: str,
+    interval: str,
+    limit: int = 500,
+    *,
+    market: str = "futures",
+) -> Optional[List[Dict]]:
     """
-    从币安获取K线数据（永续合约）。
+    从币安获取K线数据（永续合约或现货）。
     symbol: 如 ETHUSDT, BTCUSDT, 1000SHIBUSDT
     interval: 如 2h, 4h, 1d, 1w
+    market: futures | spot
     返回: [{"open_time": ts, "open": float, "high": float, "low": float, "close": float, ...}, ...]
     """
     try:
-        # 【修复】使用合约 API 的 klines endpoint
-        url = f"{BINANCE_API_BASE}/fapi/v1/klines"
+        base = _binance_api_base(market)
+        url = f"{base}{_klines_path(market)}"
         params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
         data = _http_get_json_sync(url, params=params, timeout_sec=15)
         if not isinstance(data, list):
-            logger.error(f"获取币安K线返回异常（非数组） {symbol} {interval}: {data}")
+            logger.error(f"获取币安K线返回异常（非数组） {market} {symbol} {interval}: {data}")
             return None
         result = []
         for bar in data:
@@ -309,23 +329,27 @@ def fetch_binance_klines(symbol: str, interval: str, limit: int = 500) -> Option
             })
         return result
     except Exception as e:
-        logger.error(f"获取币安K线失败 {symbol} {interval}: {e}")
+        logger.error(f"获取币安K线失败 {market} {symbol} {interval}: {e}")
         return None
 
 
-def fetch_binance_depth(symbol: str, limit: int = 50) -> Optional[Dict]:
-    """获取币安合约订单簿深度（Top N）。
-    返回示例：{"lastUpdateId":..., "bids":[[price, qty],...], "asks":[[price, qty],...]}
-    """
+def fetch_binance_depth(
+    symbol: str,
+    limit: int = 50,
+    *,
+    market: str = "futures",
+) -> Optional[Dict]:
+    """获取币安订单簿深度（合约或现货）。"""
     try:
-        url = f"{BINANCE_API_BASE}/fapi/v1/depth"
+        base = _binance_api_base(market)
+        url = f"{base}{_depth_path(market)}"
         params = {"symbol": symbol.upper(), "limit": int(limit)}
         data = _http_get_json_sync(url, params=params, timeout_sec=10)
         if not isinstance(data, dict):
             return None
         return data
     except Exception as e:
-        logger.error(f"获取币安深度失败 {symbol}: {e}")
+        logger.error(f"获取币安深度失败 {market} {symbol}: {e}")
         return None
 
 
@@ -444,9 +468,11 @@ class BinanceMinuteAlertService:
         ob_distance_pct: float = 0.003,
         depth_levels: int = 50,
         cooldown_sec: int = 300,
+        market: str = "futures",
     ):
         self.symbols = [str(s).upper() for s in (symbols or []) if str(s).strip()]
         self.interval = (interval or "1m").strip()
+        self.market = (market or "futures").lower()
         self.vol_pct_threshold = float(vol_pct_threshold)
         self.volume_mult_threshold = float(volume_mult_threshold)
         self.ob_notional_threshold = float(ob_notional_threshold)
@@ -477,14 +503,14 @@ class BinanceMinuteAlertService:
                 for sym in self.symbols:
                     if self._stop_event.is_set():
                         break
-                    kl = fetch_binance_klines(sym, self.interval, limit=2)
+                    kl = fetch_binance_klines(sym, self.interval, limit=2, market=self.market)
                     if kl and len(kl) >= 1:
                         ct = int(kl[-1].get("close_time") or 0)
                         if ct and self._last_bar_close_time.get(sym) == ct:
                             continue
                         if ct:
                             self._last_bar_close_time[sym] = ct
-                    depth = fetch_binance_depth(sym, limit=max(5, self.depth_levels))
+                    depth = fetch_binance_depth(sym, limit=max(5, self.depth_levels), market=self.market)
                     reasons = detect_minute_alerts(
                         sym,
                         kl or [],
@@ -512,8 +538,12 @@ class BinanceMinuteAlertService:
                         if self._cooldown_ok(sym, key):
                             msg_lines.append(text)
                     if msg_lines:
-                        # 分钟预警使用专用 Webhook，不走全局 DINGTALK_TOKEN
-                        send_dingtalk_alert_for_minute(sym, f"{self.interval}预警", "\n".join(msg_lines))
+                        label = "现货" if self.market == "spot" else "合约"
+                        send_dingtalk_alert_for_minute(
+                            sym,
+                            f"{label}{self.interval}预警",
+                            "\n".join(msg_lines),
+                        )
             except Exception as e:
                 logger.error(f"1分钟预警循环异常: {e}")
 
@@ -531,7 +561,7 @@ class BinanceMinuteAlertService:
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        logger.info(f"✅ 1分钟预警已启动: {self.symbols}")
+        logger.info(f"✅ {self.market}分钟预警已启动: {self.symbols}")
 
     def stop(self):
         self._running = False
@@ -539,10 +569,11 @@ class BinanceMinuteAlertService:
         if self._thread:
             self._thread.join(timeout=2)
         self._thread = None
-        logger.info("🛑 1分钟预警已停止")
+        logger.info(f"🛑 {self.market}分钟预警已停止")
 
 
 _minute_alert_instance: Optional[BinanceMinuteAlertService] = None
+_spot_minute_alert_instance: Optional[BinanceMinuteAlertService] = None
 
 
 def get_minute_alert_instance() -> Optional[BinanceMinuteAlertService]:
@@ -554,11 +585,98 @@ def set_minute_alert_instance(instance: Optional[BinanceMinuteAlertService]):
     _minute_alert_instance = instance
 
 
+def get_spot_minute_alert_instance() -> Optional[BinanceMinuteAlertService]:
+    return _spot_minute_alert_instance
+
+
+def set_spot_minute_alert_instance(instance: Optional[BinanceMinuteAlertService]):
+    global _spot_minute_alert_instance
+    _spot_minute_alert_instance = instance
+
+
+def probe_spot_minute_alert(
+    symbol: str,
+    *,
+    interval: str = "1m",
+    vol_pct_threshold: float = 5.0,
+    volume_mult_threshold: float = 20.0,
+    ob_notional_threshold: float = 200000.0,
+) -> Dict[str, Any]:
+    """单次探测现货分钟预警数据源（不触发钉钉）。"""
+    sym = str(symbol or "BTCUSDT").upper().strip()
+    kl = fetch_binance_klines(sym, interval, limit=2, market="spot")
+    depth = fetch_binance_depth(sym, limit=50, market="spot")
+    proxy = (
+        os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or ""
+    )
+    out: Dict[str, Any] = {
+        "ok": kl is not None and len(kl or []) >= 1,
+        "symbol": sym,
+        "market": "spot",
+        "interval": interval,
+        "proxy_configured": bool(proxy),
+        "proxy": proxy or None,
+        "klines_ok": kl is not None and len(kl or []) >= 1,
+        "klines_count": len(kl or []),
+        "depth_ok": depth is not None,
+        "latest_bar": None,
+        "would_alert": [],
+    }
+    if not out["klines_ok"]:
+        out["error"] = "无法拉取现货 K 线"
+        out["hint"] = (
+            "若环境变量设置了 HTTP_PROXY/HTTPS_PROXY 但本地代理未启动，会连接失败；"
+            "请启动代理或临时 unset 代理后重试"
+        )
+        return out
+    bar = kl[-1]
+    out["latest_bar"] = {
+        "open": bar.get("open"),
+        "high": bar.get("high"),
+        "low": bar.get("low"),
+        "close": bar.get("close"),
+        "volume": bar.get("volume"),
+        "close_time": bar.get("close_time"),
+    }
+    reasons = detect_minute_alerts(
+        sym,
+        kl,
+        depth,
+        interval_label=interval,
+        vol_pct_threshold=vol_pct_threshold,
+        volume_mult_threshold=volume_mult_threshold,
+        ob_notional_threshold=ob_notional_threshold,
+    )
+    out["would_alert"] = [r.get("text") for r in reasons if r.get("text")]
+    out["message"] = (
+        f"现货数据正常；当前 K 线未触发预警"
+        if not out["would_alert"]
+        else f"若在生产环境会触发 {len(out['would_alert'])} 条预警"
+    )
+    return out
+
+
+def send_spot_minute_test_dingtalk(symbol: str = "BTCUSDT") -> Tuple[bool, str]:
+    ok = send_dingtalk_alert_for_minute(
+        symbol.upper(),
+        "现货连通性测试",
+        "这是一条现货分钟预警的测试消息。若收到说明钉钉 Webhook 配置正常。",
+    )
+    return ok, "已发送测试消息" if ok else "发送失败，请检查分钟预警 Webhook"
+
+
 # 币种列表缓存：避免每次从交易所拉取 exchangeInfo（约 300KB）
 _SYMBOLS_CACHE: Optional[List[str]] = None
 _SYMBOLS_CACHE_TIME: float = 0
 SYMBOLS_CACHE_TTL_SEC = 24 * 3600  # 缓存 24 小时，交易所上新不频繁
 _SYMBOLS_CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "symbols_cache.json"
+_SPOT_SYMBOLS_CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "symbols_spot_cache.json"
+_SPOT_SYMBOLS_CACHE: Optional[List[str]] = None
+_SPOT_SYMBOLS_CACHE_TIME: float = 0
 
 
 def _load_symbols_from_file() -> Optional[List[str]]:
@@ -625,6 +743,50 @@ def fetch_binance_symbols_usdt() -> List[str]:
         if loaded is not None:
             return loaded
         return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "1000SHIBUSDT", "1000PEPEUSDT", "DOGEUSDT"]
+
+
+def fetch_binance_spot_symbols_usdt() -> List[str]:
+    """获取币安现货 USDT 交易对列表。"""
+    global _SPOT_SYMBOLS_CACHE, _SPOT_SYMBOLS_CACHE_TIME
+    now = time.time()
+    if _SPOT_SYMBOLS_CACHE is not None and (now - _SPOT_SYMBOLS_CACHE_TIME) < SYMBOLS_CACHE_TTL_SEC:
+        return _SPOT_SYMBOLS_CACHE
+    if _SPOT_SYMBOLS_CACHE_FILE.exists():
+        try:
+            data = json.loads(_SPOT_SYMBOLS_CACHE_FILE.read_text(encoding="utf-8"))
+            symbols = data.get("symbols")
+            updated_at = float(data.get("updated_at", 0))
+            if isinstance(symbols, list) and symbols and (now - updated_at) < SYMBOLS_CACHE_TTL_SEC:
+                _SPOT_SYMBOLS_CACHE = symbols
+                _SPOT_SYMBOLS_CACHE_TIME = updated_at
+                return symbols
+        except Exception:
+            pass
+    try:
+        url = f"{BINANCE_SPOT_API_BASE}/api/v3/exchangeInfo"
+        data = _http_get_json_sync(url, params={}, timeout_sec=20)
+        symbols = []
+        for s in (data or {}).get("symbols", []):
+            if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
+                symbols.append(s["symbol"])
+        result = sorted(symbols)
+        _SPOT_SYMBOLS_CACHE = result
+        _SPOT_SYMBOLS_CACHE_TIME = now
+        try:
+            _SPOT_SYMBOLS_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            _SPOT_SYMBOLS_CACHE_FILE.write_text(
+                json.dumps({"symbols": result, "updated_at": now}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+        logger.info(f"现货币种列表已缓存，共 {len(result)} 个")
+        return result
+    except Exception as e:
+        logger.error(f"获取币安现货交易对失败: {e}")
+        if _SPOT_SYMBOLS_CACHE:
+            return _SPOT_SYMBOLS_CACHE
+        return ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "LINKUSDT"]
 
 
 def macd(close_prices: List[float], fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[List[float], List[float]]:

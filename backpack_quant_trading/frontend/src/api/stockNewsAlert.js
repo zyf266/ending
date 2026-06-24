@@ -13,3 +13,5 @@ export const getFeedsPreview = (params) =>
   request.get('/stock-news-alert/feeds-preview', { params })
 export const getPollLogs = (params) =>
   request.get('/stock-news-alert/poll-logs', { params })
+export const removeStockNewsWatch = (watch_name) =>
+  request.post('/stock-news-alert/remove-watch', { watch_name })

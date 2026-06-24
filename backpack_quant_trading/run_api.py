@@ -9,11 +9,25 @@ from pathlib import Path
 if __name__ == "__main__":
     # 开启 OKX 操作台交易能力（下单/撤单等）；不设则仅允许查询
     os.environ.setdefault("ENABLE_OKX_TRADE", "true")
+    os.environ.setdefault("DEEPSEEK_SCORE_MODEL", "deepseek-v4-flash")
+    os.environ.setdefault("DEEPSEEK_SCORE_THINKING", "0")
     root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(root))
     from backpack_quant_trading.core.env_loader import load_project_env
 
     load_project_env()
+    # 本机开发默认关闭加密评分，避免与服务器共用 Key；服务器 export TRADING_SERVER=1
+    if os.getenv("TRADING_SERVER", "").strip().lower() not in ("1", "true", "yes"):
+        os.environ.setdefault("CRYPTO_SCORE_ENABLED", "0")
+
+    import logging
+    from backpack_quant_trading.config.settings import config
+    from backpack_quant_trading.utils.logger import setup_logger
+
+    setup_logger(log_dir=config.log_dir, level=logging.INFO)
+    from backpack_quant_trading.core.crypto_signal_scorer import log_score_runtime_config
+
+    log_score_runtime_config()
 
     def _on_sigint(*_):
         print("\n服务已停止")

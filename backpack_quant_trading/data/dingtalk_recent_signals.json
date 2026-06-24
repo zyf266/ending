@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "at": 1782206750.567004,
+      "at_iso": "2026-06-23 17:25:50",
+      "source": "tradingview_bot",
+      "symbol": "BTCUSDT",
+      "action": "卖出",
+      "timeframe": "8h",
+      "strategy": "8h 进8h出",
+      "price": null,
+      "raw_text": ""
+    }
+  ]
+}

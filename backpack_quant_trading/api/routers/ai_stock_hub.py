@@ -56,10 +56,10 @@ def _build_card_hub(code: str, *, fetch_price: bool = True) -> Dict[str, Any]:
     currency = (cached.get("currency") if cached else None) or "USD"
     if price is None and fetch_price:
         qsym = get_quote_symbol(sym)
-        live, _src = fetch_market_price(sym, qsym)
+        live, _src, live_currency = fetch_market_price(sym, qsym)
         if live is not None:
             price = live
-            currency = "USD"
+            currency = live_currency or "USD"
     news = get_latest_news_for_symbol(sym)
     signal = get_latest_signal_for_symbol(sym)
     news_summary = (news or {}).get("summary")
@@ -82,11 +82,14 @@ def research_codes(user: dict = Depends(require_user)) -> Dict[str, Any]:
 
 
 @router.get("/cards")
-def get_all_cards(user: dict = Depends(require_user)) -> Dict[str, Any]:
+def get_all_cards(
+    fetch_price: bool = Query(False, description="是否实时拉价；列表页默认仅用缓存，避免批量超时"),
+    user: dict = Depends(require_user),
+) -> Dict[str, Any]:
     items: List[Dict[str, Any]] = []
     for code in list_research_codes():
         try:
-            items.append(_build_card_hub(code, fetch_price=True))
+            items.append(_build_card_hub(code, fetch_price=fetch_price))
         except FileNotFoundError:
             continue
     return {"items": items, "count": len(items)}
@@ -99,10 +102,22 @@ def refresh_prices(user: dict = Depends(require_user)) -> Dict[str, Any]:
     return refresh_research_prices_task()
 
 
+@router.get("/prices")
+def get_cached_prices(user: dict = Depends(require_user)) -> Dict[str, Any]:
+    """读取本地价格缓存（毫秒级），列表页与 /cards 并行调用。"""
+    from backpack_quant_trading.core.research_card_prices import list_cached_prices_payload
+
+    return list_cached_prices_payload()
+
+
 @router.get("/card/{symbol}")
-def get_card(symbol: str, user: dict = Depends(require_user)) -> Dict[str, Any]:
+def get_card(
+    symbol: str,
+    fetch_price: bool = Query(False, description="是否实时拉价；默认读缓存"),
+    user: dict = Depends(require_user),
+) -> Dict[str, Any]:
     try:
-        return _build_card_hub(symbol)
+        return _build_card_hub(symbol, fetch_price=fetch_price)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -135,8 +150,8 @@ def get_quote(symbol: str, user: dict = Depends(require_user)) -> Dict[str, Any]
 
     sym = symbol.upper()
     qsym = get_quote_symbol(sym) if sym in list_research_codes() else sym
-    p, source = fetch_market_price(sym, qsym)
-    return {"symbol": sym, "quote_symbol": qsym, "price": p, "currency": "USD", "source": source}
+    p, source, currency = fetch_market_price(sym, qsym)
+    return {"symbol": sym, "quote_symbol": qsym, "price": p, "currency": currency or "USD", "source": source}
 
 
 @router.get("/klines/{symbol}")
@@ -187,7 +202,7 @@ def test_us_score(body: UsScoreTestBody, user: dict = Depends(require_user)) -> 
         body.symbol,
         body.action,
         timeframe=body.timeframe,
-        webhook_raw={"test": True},
+        webhook_raw={"test": True, "manual_test": True},
         strategy_label="us_stock_test",
     )
     if not result.get("ok"):

@@ -7,7 +7,37 @@
       "text": "英伟达(NVDA.O)盘初跌幅扩大至3.7%，为4月30日以来最大跌幅。",
       "summary": "2026-05-15 21:34:03 英伟达(NVDA.O)盘初跌幅扩大至3.7%，为4月30日以来最大跌幅。",
       "raw": "【提醒】【自选快讯】富途牛牛\n2026-05-15 21:34:03\n英伟达(NVDA.O)盘初跌幅扩大至3.7%，为4月30日以来最大跌幅。\n链接: https://news.futunn.com/flash/20317114\nid: futu:b337c4353c84d09ab4d5",
-      "saved_at": "2026-06-09 08:46:13"
+      "saved_at": "2026-06-24 07:53:55"
+    },
+    {
+      "id": "yahoo:c8ce20ec-ebb1-34a5-918d-bb07b8cd0d6c",
+      "feed": "雅虎财经",
+      "feed_key": "yahoo",
+      "time": "2026-06-11 16:25:00",
+      "text": "[GuruFocus.com] BofA Double-Upgrades Intel as Foundry and CPU Bets Come Into Focus (INTC)",
+      "summary": "2026-06-11 16:25:00 [GuruFocus.com] BofA Double-Upgrades Intel as Foundry and CPU Bets Come Into Focus (INTC)",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/bofa-double-upgrades-intel-foundry-162500367.html",
+      "source": "stock_news_alert"
+    },
+    {
+      "id": "yahoo:3ee391e6-f164-32b8-afa3-778c49d66e58",
+      "feed": "雅虎财经",
+      "feed_key": "yahoo",
+      "time": "2026-06-11 15:00:51",
+      "text": "[GuruFocus.com] Intel Rises on BofA Upgrade (INTC)",
+      "summary": "2026-06-11 15:00:51 [GuruFocus.com] Intel Rises on BofA Upgrade (INTC)",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/intel-rises-bofa-upgrade-150051848.html",
+      "source": "stock_news_alert"
+    },
+    {
+      "id": "yahoo:b14b9108-9c5b-3abc-ab9d-e01003b0edc4",
+      "feed": "雅虎财经",
+      "feed_key": "yahoo",
+      "time": "2026-06-11 14:03:35",
+      "text": "[GuruFocus.com] Intel Stock Jumps After BofA Surprise Double Upgrade (INTC)",
+      "summary": "2026-06-11 14:03:35 [GuruFocus.com] Intel Stock Jumps After BofA Surprise Double Upgrade (INTC)",
+      "url": "https://finance.yahoo.com/markets/stocks/articles/intel-stock-jumps-bofa-surprise-140335965.html",
+      "source": "stock_news_alert"
     }
   ]
 }

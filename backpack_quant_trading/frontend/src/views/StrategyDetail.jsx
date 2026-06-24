@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as echarts from 'echarts'
 import TradingViewWidget from '../components/TradingViewWidget'
+import { formatProfitFactor } from '../utils/formatProfitFactor'
 import './StrategyDetail.css'
 
 const DEFAULT_INITIAL_CAPITAL = 2000000
@@ -72,15 +73,16 @@ function computeOverviewFromTrades(tradesArray, initial = DEFAULT_INITIAL_CAPITA
   const totalTrades = pnls.length
   const winRatePct = totalTrades ? (wins.length / totalTrades) * 100 : 0
   const grossProfit = wins.reduce((s, p) => s + p, 0) || 0
-  const grossLossAbs = Math.abs(losses.reduce((s, p) => s + p, 0)) || 1e-9
-  const profitFactor = grossProfit / grossLossAbs
+  const grossLossAbs = Math.abs(losses.reduce((s, p) => s + p, 0))
+  const profitFactor =
+    grossLossAbs > 0 ? grossProfit / grossLossAbs : grossProfit > 0 ? null : 0
 
   return {
     strategy_profit: running,
     total_return_pct: Number(totalReturnPct.toFixed(2)),
     max_drawdown_pct: Number(Math.abs(maxDd).toFixed(2)),
     win_rate_pct: Number(winRatePct.toFixed(2)),
-    profit_factor: Number(profitFactor.toFixed(2)),
+    profit_factor: profitFactor == null ? null : Number(Number(profitFactor).toFixed(2)),
     total_trades: totalTrades,
   }
 }
@@ -163,7 +165,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
 
     const netProfit = Number(ov.strategy_profit ?? 0)
     const unrealized = 0
-    const profitFactor = Number(fixedProfitFactor ?? ov.profit_factor ?? 0)
+    const profitFactor = fixedProfitFactor ?? ov.profit_factor
     const totalTradesVal = Number(ov.total_trades ?? 0)
     const expectedPayoff = totalTradesVal ? netProfit / totalTradesVal : 0
 
@@ -208,8 +210,8 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
       },
       {
         name: '盈利因子',
-        all: profitFactor.toFixed(2),
-        long: profitFactor.toFixed(2),
+        all: formatProfitFactor(profitFactor),
+        long: formatProfitFactor(profitFactor),
         short: '—',
       },
       {
@@ -1049,7 +1051,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
           </div>
           <div className="summary-card">
             <p>⚖️ 盈亏比</p>
-            <h3>{Number(fixedProfitFactor ?? currentOverviewForSimpleCards.profit_factor ?? 0).toFixed(2)}</h3>
+            <h3>{formatProfitFactor(fixedProfitFactor ?? currentOverviewForSimpleCards.profit_factor)}</h3>
           </div>
         </div>
       )}

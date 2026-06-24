@@ -1,0 +1,43 @@
+{
+  "code": "688146",
+  "name": "中船特气",
+  "tagline": "六氟化钨全球龙头 · 供需硬缺口的价值重估",
+  "institution": "香港沐龙资产管理有限公司",
+  "report_date": "2026-05-11",
+  "quote_symbol": "688146.SH",
+  "scenarios": [
+    {
+      "key": "bull",
+      "label": "乐观行情",
+      "probability": "30%",
+      "subtitle": "均价250万/吨+，新产能提前放量",
+      "range_low": 340,
+      "range_high": 415,
+      "note": "报告 03 三档目标价（乐观 340-415 元）"
+    },
+    {
+      "key": "base",
+      "label": "基准行情",
+      "probability": "45%",
+      "subtitle": "均价200万/吨，供需紧平衡",
+      "range_low": 226,
+      "range_high": 302,
+      "note": "报告 03 三档目标价（基准 226-302 元）"
+    },
+    {
+      "key": "bear",
+      "label": "悲观行情",
+      "probability": "20%",
+      "subtitle": "均价150万/吨，新产能延迟",
+      "range_low": 113,
+      "range_high": 151,
+      "note": "报告 03 三档目标价（悲观 113-151 元）"
+    }
+  ],
+  "highlights": [
+    "六氟化钨全球市占率超50%，6N级报价200-250万元/吨",
+    "2026年净利润情景中枢约19-25亿元，涨价弹性显著",
+    "1000吨新产能+光刻气ASML认证，第二增长曲线清晰"
+  ],
+  "pdf_path": "中船特气投研报告.pdf"
+}

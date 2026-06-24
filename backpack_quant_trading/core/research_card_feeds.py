@@ -41,6 +41,9 @@ _SYMBOL_ALIASES: Dict[str, List[str]] = {
     "IBM": ["ibm", "国际商业机器"],
     "GOOGL": ["googl", "goog", "google", "谷歌", "alphabet"],
     "CRDO": ["crdo", "credo"],
+    "603986": ["603986", "兆易创新", "gigadevice"],
+    "688146": ["688146", "中船特气"],
+    "300308": ["300308", "中际旭创", "innolight"],
     "AAPL": ["aapl", "apple", "苹果"],
 }
 

@@ -199,6 +199,80 @@
 .mon-btn-purple:hover { background: #6d28d9; }
 .mon-btn-purple:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.mon-card-blue {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.mon-card-header-blue {
+  border-bottom-color: #bfdbfe;
+}
+
+.mon-badge-blue-card {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.mon-hint-blue-card { color: #2563eb; font-size: 13px; margin-top: 6px; }
+
+.mon-btn-blue {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mon-btn-blue:hover { background: #1d4ed8; }
+.mon-btn-blue:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mon-card-teal {
+  border-color: #99f6e4;
+  background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%);
+}
+
+.mon-card-header-teal {
+  border-bottom-color: #99f6e4;
+}
+
+.mon-badge-teal {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-size: 12px;
+}
+
+.mon-hint-teal { color: #0d9488; font-size: 13px; margin-top: 6px; }
+
+.mon-btn-teal {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #0d9488;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mon-btn-teal:hover { background: #0f766e; }
+.mon-btn-teal:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mon-checkbox-list-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
 .mon-btn-outline-red {
   padding: 9px 18px;
   border-radius: 8px;
@@ -212,6 +286,18 @@
 
 .mon-btn-outline-red:hover { background: #fef2f2; }
 .mon-btn-outline-red:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mon-btn-outline {
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mon-btn-outline:hover { background: #f9fafb; }
 
 /* ===== Badges ===== */
 .mon-badge-blue {

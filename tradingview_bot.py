@@ -31,16 +31,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# --- 关键：确保能读到 DEEPSEEK_API_KEY（与 run_api.py 同源 .env） ---
+# --- 关键：加载 .env 并解密 DEEPSEEK_API_KEY_ENC ---
 try:
-    from dotenv import load_dotenv  # type: ignore
+    from backpack_quant_trading.core.env_loader import load_project_env
 
-    # 优先加载 backpack_quant_trading/.env（项目内约定的位置）
-    load_dotenv(PROJECT_ROOT / "backpack_quant_trading" / ".env", override=False)
-    # 兼容：如果有人把 .env 放在项目根，也加载一下
-    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    load_project_env()
 except Exception:
-    # dotenv 非必需；若没装可用环境变量方式提供 DEEPSEEK_API_KEY
     pass
 
 
@@ -634,6 +630,14 @@ class TradingViewBot:
             result = response.json()
             if result.get("errcode") == 0:
                 print(f"✅ 信号发送成功: {signal_data.get('symbol', '未知')}")
+                try:
+                    from backpack_quant_trading.core.dingtalk_signal_cache import cache_dingtalk_signal
+
+                    payload = dict(signal_data)
+                    payload.setdefault("raw_message", message)
+                    cache_dingtalk_signal(payload, source="tradingview_bot")
+                except Exception:
+                    pass
                 return True
             print(f"❌ 钉钉发送失败: {result.get('errmsg')}")
             return False
@@ -647,6 +651,24 @@ def main() -> None:
     print("🚀 TradingView钉钉推送机器人（含实盘交易评分旁路）")
     print("=" * 60)
 
+    os.environ.setdefault("DEEPSEEK_SCORE_MODEL", "deepseek-v4-flash")
+    os.environ.setdefault("DEEPSEEK_SCORE_THINKING", "0")
+    if os.getenv("TRADING_SERVER", "").strip().lower() in ("1", "true", "yes"):
+        os.environ.setdefault("CRYPTO_SCORE_ENABLED", "0")
+        os.environ.setdefault("US_STOCK_SCORE_ENABLED", "1")
+    else:
+        os.environ.setdefault("CRYPTO_SCORE_ENABLED", "0")
+    try:
+        import logging
+        from backpack_quant_trading.config.settings import config
+        from backpack_quant_trading.utils.logger import setup_logger
+        from backpack_quant_trading.core.crypto_signal_scorer import log_score_runtime_config
+
+        setup_logger(log_dir=config.log_dir, level=logging.INFO)
+        log_score_runtime_config()
+    except Exception as exc:
+        print(f"⚠️ DeepSeek 评分日志初始化失败(继续运行): {exc}")
+
     install_requirements()
     print("\n🔍 检查端口可用性...")
     if not check_port_available(CONFIG["preferred_port"]):
@@ -659,18 +681,26 @@ def main() -> None:
     bot = TradingViewBot(CONFIG)
 
     def _get_filter_id(raw: dict, parsed: dict) -> str:
-        return str(
-            raw.get("筛选ID")
-            or raw.get("ID")
-            or raw.get("id")
-            or parsed.get("id")
-            or parsed.get("alert_id")
-            or ""
-        ).strip()
+        from backpack_quant_trading.core.crypto_signal_scorer import get_webhook_filter_id
+
+        fid = get_webhook_filter_id(raw)
+        if fid:
+            return fid
+        return str(parsed.get("id") or parsed.get("alert_id") or "").strip()
 
     def _should_score_live_trade(raw: dict, parsed: dict) -> bool:
-        fid = _get_filter_id(raw, parsed)
-        return fid == "实盘交易" or fid.lower() == "live_trade"
+        from backpack_quant_trading.core.crypto_signal_scorer import (
+            enrich_webhook_raw_for_scoring,
+            is_live_trade_us_stock_buy_signal,
+            extract_webhook_tv_fields,
+        )
+
+        merged = enrich_webhook_raw_for_scoring(raw, parsed)
+        sym, action, _, _ = extract_webhook_tv_fields(merged)
+        action = _action_to_buy_sell(
+            parsed.get("signal") or parsed.get("action") or raw.get("方向") or raw.get("action") or action
+        )
+        return is_live_trade_us_stock_buy_signal(sym, action, merged)
 
     def _action_to_buy_sell(sig: str) -> str:
         s = (sig or "").strip().lower()
@@ -683,16 +713,10 @@ def main() -> None:
     def _score_and_push_live_trade(raw: dict, parsed: dict) -> None:
         try:
             from backpack_quant_trading.core.crypto_signal_scorer import (
-                push_score_to_dingtalk,
-                should_score_webhook_action,
-            )
-            from backpack_quant_trading.core.signal_asset_router import (
-                classify_signal_asset,
-                run_signal_score_routed,
+                run_signal_score_and_push_dingtalk,
             )
 
             symbol = (parsed.get("symbol") or raw.get("交易品种") or raw.get("symbol") or raw.get("coin") or "").strip()
-            # 周期优先级：信号字段 > K线级别字段 > 文本解析出的周期
             tf_raw = (raw.get("周期") or raw.get("K线级别") or raw.get("timeframe") or parsed.get("timeframe") or "").strip()
             timeframe = _normalize_tv_timeframe(tf_raw) or ""
             action = _action_to_buy_sell(parsed.get("signal") or parsed.get("action") or raw.get("方向") or raw.get("action") or "")
@@ -703,37 +727,43 @@ def main() -> None:
             strategy_name = str(
                 parsed.get("strategy")
                 or raw.get("策略名称")
+                or raw.get("策略名")
                 or raw.get("strategy_name")
                 or ""
             ).strip()
-            if not should_score_webhook_action(action, strategy_name=strategy_name or None):
-                print(
-                    f"⏭️ 平仓信号跳过 AI 评分: strategy={strategy_name or '—'} action={action}"
-                )
-                return
 
-            strategy_label = strategy_name or "live_trade"
-            asset_kind = classify_signal_asset(symbol, raw)
-            print(f"📊 资产类型: {asset_kind} | symbol={symbol}")
-            res = run_signal_score_routed(
+            merged_raw = raw
+            try:
+                from backpack_quant_trading.core.crypto_signal_scorer import (
+                    enrich_webhook_raw_for_scoring,
+                )
+
+                merged_raw = enrich_webhook_raw_for_scoring(raw, parsed)
+            except Exception:
+                pass
+
+            print(f"📊 实盘交易评分旁路 | symbol={symbol} action={action} tf={timeframe or '—'}")
+            res = run_signal_score_and_push_dingtalk(
                 symbol,
                 action,
                 timeframe=timeframe,
-                webhook_raw=raw,
-                strategy_label=strategy_label,
+                webhook_raw=merged_raw,
+                strategy_label=strategy_name or "live_trade",
+                strategy_name=strategy_name or None,
+                dingtalk_webhook_url=CONFIG.get("live_trade_score_webhook"),
             )
+            if res.get("skipped"):
+                print(f"⏭️ 实盘交易评分预检跳过: {res.get('error')}")
+                return
             if not res.get("ok"):
                 print(f"❌ 实盘交易评分失败: {res.get('error')}")
                 return
-
-            ok, msg = push_score_to_dingtalk(
-                res,
-                webhook_url=CONFIG.get("live_trade_score_webhook"),
-            )
-            if ok:
+            if res.get("dingtalk_ok"):
                 print("✅ 实盘交易评分已推送钉钉")
+            elif res.get("deduped"):
+                print(f"♻️ 去重命中，钉钉: {res.get('dingtalk_msg')}")
             else:
-                print(f"❌ 实盘交易评分钉钉发送失败: {msg}")
+                print(f"❌ 实盘交易评分钉钉发送失败: {res.get('dingtalk_msg')}")
         except Exception as e:
             print(f"❌ 实盘交易评分线程异常: {e}")
 
@@ -754,7 +784,19 @@ def main() -> None:
 
             parsed_data = bot.parse_tradingview_message(signal_data)
 
-            # 新增旁路：仅实盘交易触发评分推送（后台线程，不阻塞）
+            if isinstance(signal_data, dict):
+                from backpack_quant_trading.core.crypto_signal_scorer import (
+                    enrich_webhook_raw_for_scoring,
+                    get_webhook_filter_id,
+                )
+
+                signal_data = enrich_webhook_raw_for_scoring(signal_data, parsed_data)
+                print(
+                    f"📥 Webhook入站 filter_id={get_webhook_filter_id(signal_data) or '—'} "
+                    f"keys={sorted(signal_data.keys())} body={json.dumps(signal_data, ensure_ascii=False)[:800]}"
+                )
+
+            # 新增旁路：实盘交易+美股+买入 → 评分推送（后台线程，不阻塞）
             if isinstance(signal_data, dict) and _should_score_live_trade(signal_data, parsed_data):
                 threading.Thread(
                     target=_score_and_push_live_trade,

@@ -106,6 +106,10 @@ class ConfigUpdate(BaseModel):
     scan_top_n: Optional[int] = None
     only_actions: Optional[list] = None
     deepseek_temperature: Optional[float] = None
+    deepseek_model: Optional[str] = None
+    deepseek_score_thinking: Optional[bool] = None
+    deepseek_score_dedup_sec: Optional[int] = None
+    deepseek_daily_max_calls: Optional[int] = None
 
 
 class TestScoreRequest(BaseModel):
@@ -120,8 +124,14 @@ class TestDingtalkRequest(BaseModel):
 
 @router.get("/config")
 def get_config(user: dict = Depends(require_user)) -> Dict[str, Any]:
+    from backpack_quant_trading.core.crypto_signal_scorer import get_deepseek_score_usage_stats
+
     cfg = load_config()
-    return {"config": cfg, "deepseek_configured": bool(__import__("os").getenv("DEEPSEEK_API_KEY"))}
+    return {
+        "config": cfg,
+        "deepseek_configured": bool(__import__("os").getenv("DEEPSEEK_API_KEY")),
+        "deepseek_usage_today": get_deepseek_score_usage_stats(),
+    }
 
 
 @router.put("/config")
@@ -168,8 +178,9 @@ def test_score(body: TestScoreRequest, user: dict = Depends(require_user)) -> Di
         body.symbol,
         body.action,
         timeframe=body.timeframe or "",
-        webhook_raw={"test": True},
+        webhook_raw={"test": True, "manual_test": True},
         strategy_label="manual_test",
+        skip_live_trade_gate=True,
     )
     if not result.get("ok"):
         err = result.get("error") or "评分失败"

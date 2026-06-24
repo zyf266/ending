@@ -1,6 +1,7 @@
 """
 多源财经快讯：金十、同花顺、东方财富、新浪、富途、雅虎财经等（免费公开接口，仅供个人研究）。
-请求默认不走系统代理，与 stock_news_alert 一致（STOCK_NEWS_FORCE_SYSTEM_PROXY=1 时恢复）。
+雅虎默认直连（与本地一致，走 query1 Search）；仅直连失败且配置了 HTTP_PROXY 时才自动改用代理。
+国内云可设 STOCK_NEWS_FORCE_SYSTEM_PROXY=1 跳过直连；金十/钉钉等仍默认不走代理。
 """
 from __future__ import annotations
 
@@ -8,13 +9,18 @@ import hashlib
 import logging
 import os
 import re
+import xml.etree.ElementTree as ET
 from difflib import SequenceMatcher
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 
-from backpack_quant_trading.core.stock_news_keyword_i18n import watch_names_to_yahoo_queries
+from backpack_quant_trading.core.stock_news_keyword_i18n import (
+    is_watch_all_us_stocks,
+    watch_names_to_yahoo_queries,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +39,11 @@ YAHOO_SEARCH_BASES: Tuple[str, ...] = (
     "https://query2.finance.yahoo.com/v1/finance/search",
 )
 DEFAULT_YAHOO_NEWS_QUERY = os.environ.get("YAHOO_NEWS_SEARCH_Q") or "finance"
+_YAHOO_WARMUP_URL = "https://finance.yahoo.com/"
+_YAHOO_NCP_URL = "https://finance.yahoo.com/xhr/ncp?queryRef=latestNews&serviceKey=ncp_fin"
+_YAHOO_RSS_HEADLINE = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+_YAHOO_RSS_INDEX = "https://finance.yahoo.com/news/rssindex"
+_YAHOO_TICKER_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.^=-]{0,11}$")
 
 JIN10_FLASH_URL = "https://flash-api.jin10.com/get_flash_list"
 DEFAULT_JIN10_APP_ID = os.environ.get("JIN10_X_APP_ID") or "fiXF2nOnDycGutVA"
@@ -40,14 +51,135 @@ DEFAULT_JIN10_APP_ID = os.environ.get("JIN10_X_APP_ID") or "fiXF2nOnDycGutVA"
 _HTML_RE = re.compile(r"<[^>]+>")
 
 
+def _proxy_env_value() -> str:
+    for key in (
+        "HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+        "https_proxy", "http_proxy", "all_proxy",
+    ):
+        val = os.environ.get(key, "").strip()
+        if val:
+            return val
+    return ""
+
+
 def _trust_env() -> bool:
     return os.environ.get("STOCK_NEWS_FORCE_SYSTEM_PROXY", "").lower() in ("1", "true", "yes")
+
+
+def _yahoo_proxy_disabled() -> bool:
+    return os.environ.get("STOCK_NEWS_DISABLE_PROXY", "").lower() in ("1", "true", "yes")
+
+
+def _yahoo_force_proxy() -> bool:
+    if os.environ.get("STOCK_NEWS_FORCE_SYSTEM_PROXY", "").lower() in ("1", "true", "yes"):
+        return True
+    # 云服务器直连雅虎必 403，跳过直连避免每 30s 白打一轮
+    return os.environ.get("TRADING_SERVER", "").strip().lower() in ("1", "true", "yes")
 
 
 def _session() -> requests.Session:
     s = requests.Session()
     s.trust_env = _trust_env()
     return s
+
+
+def _yahoo_session(*, use_proxy: bool) -> requests.Session:
+    s = requests.Session()
+    s.trust_env = use_proxy
+    return s
+
+
+def _yahoo_headers() -> Dict[str, str]:
+    return {
+        **_ua_headers(),
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://finance.yahoo.com/",
+        "Origin": "https://finance.yahoo.com",
+    }
+
+
+def _yahoo_warmup(sess: requests.Session, *, use_proxy: bool) -> None:
+    try:
+        _yahoo_request(
+            sess, "GET", _YAHOO_WARMUP_URL,
+            headers=_yahoo_headers(), timeout=10, use_proxy=use_proxy,
+        )
+    except Exception:
+        pass
+
+
+def _yahoo_timeout(timeout: float, *, use_proxy: bool) -> Tuple[float, float]:
+    t = max(5.0, float(timeout or 12.0))
+    if use_proxy:
+        return (min(5.0, t * 0.25), min(t, 15.0))
+    return (min(8.0, t * 0.35), t)
+
+
+def _yahoo_proxies_for(use_proxy: bool) -> Optional[Dict[str, str]]:
+    if not use_proxy or _yahoo_proxy_disabled():
+        return None
+    p = _proxy_env_value()
+    if not p:
+        return None
+    return {"http": p, "https": p}
+
+
+def _yahoo_request(
+    sess: requests.Session,
+    method: str,
+    url: str,
+    *,
+    timeout: float,
+    use_proxy: bool = False,
+    **kwargs: Any,
+) -> requests.Response:
+    kw = dict(kwargs)
+    proxies = _yahoo_proxies_for(use_proxy)
+    if proxies:
+        kw["proxies"] = proxies
+    kw.setdefault("timeout", _yahoo_timeout(timeout, use_proxy=use_proxy))
+    return sess.request(method, url, **kw)
+
+
+def _parse_pub_ts(raw: Any) -> Optional[int]:
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        pass
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return int(datetime.fromisoformat(s).timestamp())
+    except (TypeError, ValueError, OSError):
+        pass
+    try:
+        return int(parsedate_to_datetime(s).timestamp())
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _yahoo_ticker_symbols(queries: List[str]) -> List[str]:
+    out: List[str] = []
+    seen: Set[str] = set()
+    for raw in queries:
+        s = str(raw).strip()
+        if not s or s.casefold() == "finance":
+            continue
+        if not _YAHOO_TICKER_RE.fullmatch(s):
+            continue
+        key = s.upper() if s.isalpha() and len(s) <= 6 else s
+        kf = key.casefold()
+        if kf in seen:
+            continue
+        seen.add(kf)
+        out.append(key)
+    return out[:8]
 
 
 def _strip_html(s: str) -> str:
@@ -345,23 +477,157 @@ def _normalize_yahoo_search_queries(search_queries: Optional[List[str]]) -> List
     return out[:8]
 
 
-def _yahoo_fetch_raw_news(q: str, timeout: float) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+def _yahoo_ncp_fetch(
+    symbols: List[str],
+    timeout: float,
+    *,
+    sess: requests.Session,
+    use_proxy: bool,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    if not symbols:
+        return [], "无 ticker"
+    body = {"serviceConfig": {"snippetCount": 50, "s": symbols}}
+    h = {**_yahoo_headers(), "Content-Type": "application/json"}
+    try:
+        r = _yahoo_request(
+            sess, "POST", _YAHOO_NCP_URL, json=body, headers=h,
+            timeout=timeout, use_proxy=use_proxy,
+        )
+        if r.status_code != 200:
+            return [], f"NCP HTTP {r.status_code}"
+        stream = (
+            (((r.json().get("data") or {}).get("tickerStream") or {}).get("stream")) or []
+        )
+        rows: List[Dict[str, Any]] = []
+        for item in stream:
+            if not isinstance(item, dict) or item.get("ad"):
+                continue
+            content = item.get("content") or {}
+            title = _strip_html(str(content.get("title") or ""))
+            if not title:
+                continue
+            provider = str((content.get("provider") or {}).get("displayName") or "")
+            link = str((content.get("canonicalUrl") or {}).get("url") or "")
+            pub_ts = _parse_pub_ts(content.get("pubDate"))
+            rows.append(
+                {
+                    "title": title,
+                    "publisher": provider,
+                    "link": link,
+                    "uuid": str(item.get("id") or ""),
+                    "providerPublishTime": pub_ts,
+                    "relatedTickers": list(symbols),
+                }
+            )
+        if rows:
+            return rows, None
+        return [], "NCP 无新闻"
+    except Exception as exc:
+        return [], f"NCP {exc}"
+
+
+def _yahoo_rss_parse(xml_bytes: bytes) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    try:
+        root = ET.fromstring(xml_bytes)
+    except ET.ParseError:
+        return []
+    for item in root.findall(".//item"):
+        title = _strip_html(item.findtext("title") or "")
+        if not title:
+            continue
+        link = item.findtext("link") or ""
+        pub_ts = _parse_pub_ts(item.findtext("pubDate") or "")
+        guid = item.findtext("guid") or ""
+        rows.append(
+            {
+                "title": title,
+                "publisher": "",
+                "link": link,
+                "uuid": guid,
+                "providerPublishTime": pub_ts,
+                "relatedTickers": [],
+            }
+        )
+    return rows
+
+
+def _yahoo_rss_fetch(
+    symbols: Optional[List[str]],
+    timeout: float,
+    *,
+    sess: requests.Session,
+    use_proxy: bool,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    h = {**_yahoo_headers(), "Accept": "application/rss+xml, application/xml, text/xml, */*"}
+    last_err: Optional[str] = None
+    merged: List[Dict[str, Any]] = []
+    if symbols:
+        for sym in symbols[:4]:
+            try:
+                r = _yahoo_request(
+                    sess,
+                    "GET",
+                    _YAHOO_RSS_HEADLINE,
+                    params={"s": sym, "region": "US", "lang": "en-US"},
+                    headers=h,
+                    timeout=timeout,
+                    use_proxy=use_proxy,
+                )
+                if r.status_code == 429:
+                    last_err = "RSS HTTP 429"
+                    break
+                if r.status_code != 200:
+                    last_err = f"RSS HTTP {r.status_code}"
+                    continue
+                chunk = _yahoo_rss_parse(r.content)
+                for row in chunk:
+                    row["relatedTickers"] = [sym]
+                merged.extend(chunk)
+            except Exception as exc:
+                last_err = f"RSS {exc}"
+        if merged:
+            return merged, None
+        return [], last_err or "RSS 无条目"
+    try:
+        r = _yahoo_request(
+            sess, "GET", _YAHOO_RSS_INDEX, headers=h,
+            timeout=timeout, use_proxy=use_proxy,
+        )
+        if r.status_code != 200:
+            return [], f"RSS HTTP {r.status_code}"
+        rows = _yahoo_rss_parse(r.content)
+        if rows:
+            return rows, None
+        return [], "RSS 无条目"
+    except Exception as exc:
+        return [], f"RSS {exc}"
+
+
+def _yahoo_search_fetch(
+    q: str,
+    timeout: float,
+    *,
+    sess: requests.Session,
+    use_proxy: bool,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """v1 finance/search（本地直连通常走这条即可）。"""
     params = {"q": q, "quotesCount": "0", "newsCount": "50", "enableFuzzyQuery": "false"}
-    h = {
-        **_ua_headers(),
-        "Accept": "application/json",
-        "Referer": "https://finance.yahoo.com/",
-    }
+    h = _yahoo_headers()
     last_err: Optional[str] = None
     for base in YAHOO_SEARCH_BASES:
         try:
-            with _session() as sess:
-                r = sess.get(base, params=params, headers=h, timeout=timeout)
-            if r.status_code != 200:
-                last_err = f"HTTP {r.status_code}"
+            r = _yahoo_request(
+                sess, "GET", base, params=params, headers=h,
+                timeout=timeout, use_proxy=use_proxy,
+            )
+            if r.status_code == 403:
+                last_err = "Search HTTP 403"
                 continue
-            data_json = r.json()
-            chunk = data_json.get("news")
+            if r.status_code != 200:
+                last_err = f"Search HTTP {r.status_code}"
+                continue
+            chunk = r.json().get("news")
             if isinstance(chunk, list) and chunk:
                 return chunk, None
             last_err = "news 为空"
@@ -425,32 +691,121 @@ def fetch_yahoo_news_for_ticker(
     return _fetch_yahoo(timeout, search_queries=[q])
 
 
+def _yahoo_merge_rows(
+    merged: List[Dict[str, Any]],
+    seen_ids: Set[str],
+    news: List[Dict[str, Any]],
+) -> None:
+    for it in _yahoo_rows_to_unified(news):
+        did = str(it.get("dedupe_id") or "")
+        if did and did not in seen_ids:
+            seen_ids.add(did)
+            merged.append(it)
+
+
+def _yahoo_fetch_attempt(
+    queries: List[str],
+    tickers: List[str],
+    timeout: float,
+    *,
+    use_proxy: bool,
+    search_first: bool,
+) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """单次拉取：search_first=True 时与本地一致（Search 优先）。"""
+    merged: List[Dict[str, Any]] = []
+    seen_ids: Set[str] = set()
+    errors: List[str] = []
+    sess = _yahoo_session(use_proxy=use_proxy)
+    _yahoo_warmup(sess, use_proxy=use_proxy)
+
+    if search_first:
+        for q in queries:
+            news, err = _yahoo_search_fetch(q, timeout, sess=sess, use_proxy=use_proxy)
+            if err:
+                errors.append(f"{q}: {err}")
+                continue
+            _yahoo_merge_rows(merged, seen_ids, news)
+        if merged:
+            return merged, errors
+
+    if tickers:
+        news, err = _yahoo_ncp_fetch(tickers, timeout, sess=sess, use_proxy=use_proxy)
+        if news:
+            _yahoo_merge_rows(merged, seen_ids, news)
+        elif err:
+            errors.append(err)
+
+    if len(merged) < 5:
+        rss_syms = tickers if tickers else None
+        news, err = _yahoo_rss_fetch(
+            rss_syms, timeout, sess=sess, use_proxy=use_proxy,
+        )
+        if news:
+            _yahoo_merge_rows(merged, seen_ids, news)
+        elif err and not merged:
+            errors.append(err)
+
+    if not merged and not search_first:
+        for q in queries:
+            news, err = _yahoo_search_fetch(q, timeout, sess=sess, use_proxy=use_proxy)
+            if err:
+                errors.append(f"{q}: {err}")
+                continue
+            _yahoo_merge_rows(merged, seen_ids, news)
+
+    return merged, errors
+
+
 def _fetch_yahoo(
     timeout: float,
     search_queries: Optional[List[str]] = None,
+    *,
+    broad_us: bool = False,
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
-    """Yahoo Finance v1 search API（非官方）。
+    """雅虎：先直连 Search（本地路径）→ 失败再用代理 NCP/RSS。
 
-    监控时按「自选关键词」逐条搜索（如 NVDA），与网页搜索一致；
-    未配置自选时退化为 q=finance 通用头条。
+    broad_us=True（全美股监控）时优先 RSS 宽表，避免搜「全美股」或 finance 少量结果即返回。
     """
-    queries = _normalize_yahoo_search_queries(search_queries)
-    merged: List[Dict[str, Any]] = []
-    seen_ids: Set[str] = set()
-    last_err: Optional[str] = None
-    for q in queries:
-        news, err = _yahoo_fetch_raw_news(q, timeout)
-        if err:
-            last_err = f"{q}: {err}"
-            continue
-        for it in _yahoo_rows_to_unified(news):
-            did = str(it.get("dedupe_id") or "")
-            if did and did not in seen_ids:
-                seen_ids.add(did)
-                merged.append(it)
-    if not merged and last_err:
-        return [], last_err
-    return merged, None
+    if broad_us:
+        queries: List[str] = []
+        tickers: List[str] = []
+        search_first = False
+    else:
+        queries = _normalize_yahoo_search_queries(search_queries)
+        tickers = _yahoo_ticker_symbols(queries)
+        search_first = True
+    proxy = _proxy_env_value()
+    force_proxy = _yahoo_force_proxy() and not _yahoo_proxy_disabled()
+    errors: List[str] = []
+
+    if not force_proxy:
+        merged, errors = _yahoo_fetch_attempt(
+            queries, tickers, timeout, use_proxy=False, search_first=search_first,
+        )
+        if merged:
+            logger.debug("[雅虎财经] 直连 Search 获取 %s 条", len(merged))
+            return merged, None
+
+    if not proxy:
+        if force_proxy:
+            return [], "已设 STOCK_NEWS_FORCE_SYSTEM_PROXY 但未配置 HTTP_PROXY"
+        if errors:
+            return [], "; ".join(errors[:3])
+        return [], "雅虎无数据"
+
+    if force_proxy:
+        logger.info("[雅虎财经] 强制走代理: %s", proxy)
+    else:
+        logger.info("[雅虎财经] 直连失败，改用代理: %s", proxy)
+    merged, errors = _yahoo_fetch_attempt(
+        queries, tickers, timeout, use_proxy=True, search_first=False,
+    )
+    if merged:
+        logger.info("[雅虎财经] 代理模式获取 %s 条", len(merged))
+        return merged, None
+    if errors:
+        return [], "; ".join(errors[:3])
+    return [], "雅虎无数据"
 
 
 def fetch_unified_for_source(
@@ -459,6 +814,7 @@ def fetch_unified_for_source(
     jin10_x_app_id: str,
     timeout: float = 12.0,
     yahoo_search_queries: Optional[List[str]] = None,
+    yahoo_broad_us: bool = False,
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     if key == "jin10":
         rows, err = fetch_jin10_flash_rows(jin10_x_app_id, timeout=timeout)
@@ -479,7 +835,11 @@ def fetch_unified_for_source(
     if key == "futu":
         return _fetch_futu(timeout)
     if key == "yahoo":
-        return _fetch_yahoo(timeout, search_queries=yahoo_search_queries)
+        return _fetch_yahoo(
+            timeout,
+            search_queries=yahoo_search_queries,
+            broad_us=yahoo_broad_us,
+        )
     return [], "未知数据源"
 
 
@@ -498,6 +858,7 @@ def fetch_unified_news_items(
     watch_raw = cfg.get("watch_names") or []
     if isinstance(watch_raw, str):
         watch_raw = [watch_raw]
+    yahoo_broad_us = is_watch_all_us_stocks(watch_raw)
     yahoo_q = watch_names_to_yahoo_queries(watch_raw) if "yahoo" in enabled else None
     all_items: List[Dict[str, Any]] = []
     errors: Dict[str, Optional[str]] = {}
@@ -507,6 +868,7 @@ def fetch_unified_news_items(
             jin10_x_app_id=x_app,
             timeout=timeout_per_source,
             yahoo_search_queries=yahoo_q,
+            yahoo_broad_us=yahoo_broad_us,
         )
         errors[key] = err
         if items:
@@ -532,8 +894,9 @@ def probe_sources_status(cfg: Dict[str, Any], *, timeout: float = 8.0) -> Dict[s
             if isinstance(wr, str):
                 wr = [wr]
             yahoo_q = watch_names_to_yahoo_queries(wr) or None
+        yahoo_timeout = max(timeout, 18.0) if key == "yahoo" else timeout
         items, err = fetch_unified_for_source(
-            key, jin10_x_app_id=x_app, timeout=timeout, yahoo_search_queries=yahoo_q
+            key, jin10_x_app_id=x_app, timeout=yahoo_timeout, yahoo_search_queries=yahoo_q
         )
         probe_extra: Dict[str, Any] = {}
         if key == "yahoo":

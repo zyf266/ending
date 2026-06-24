@@ -5,8 +5,8 @@ import request from './request'
 const US_STOCK_CODES = [
   'NVDA', 'INTC', 'GOOGL', 'MSFT', 'MU', 'MRVL', 'CRDO', 'SNDK', 'IBM', 'NOK', 'RKLB', 'CRCL',
 ]
-const CRYPTO_CODES = ['ETH', 'HYPE', 'ONDO']
-const A_SHARE_CODES = ['000858']
+const CRYPTO_CODES = ['ETH', 'HYPE']
+const A_SHARE_CODES = ['603986', '688146', '300308']
 
 export const RESEARCH_CARD_CODES_FALLBACK = [...US_STOCK_CODES, ...CRYPTO_CODES, ...A_SHARE_CODES]
 
@@ -51,6 +51,19 @@ export async function fetchResearchCardCodes() {
   return [...RESEARCH_CARD_CODES_FALLBACK]
 }
 export const getResearchCards = () => request.get('/ai-stock-hub/cards')
+export const getResearchPrices = () => request.get('/ai-stock-hub/prices')
+
+/** 后台批量拉价（耗时可至 1–2 分钟），勿与列表接口串行阻塞 */
+export const refreshResearchPrices = () =>
+  axios.post('/api/ai-stock-hub/refresh-prices', null, {
+    timeout: 120000,
+    withCredentials: true,
+    headers: (() => {
+      const token = localStorage.getItem('token')
+      return token ? { Authorization: `Bearer ${token}` } : {}
+    })(),
+  }).then((res) => res.data)
+
 export const getResearchCard = (symbol) =>
   request.get(`/ai-stock-hub/card/${encodeURIComponent(symbol)}`)
 export const getResearchReport = (symbol) =>

@@ -10,6 +10,7 @@ import {
   getSourceCatalog,
   getProbeSources,
   getFeedsPreview,
+  removeStockNewsWatch,
 } from '../api/stockNewsAlert'
 import AisPageShell from '../components/AisPageShell'
 import './StockNewsAlert.css'
@@ -44,6 +45,7 @@ const StockNewsAlert = () => {
     last_poll_summary: null,
     poll_logs: [],
     log_file: 'log/stock_news_alert.log',
+    monitor_pool: [],
   })
 
   const buildPayload = useCallback(
@@ -65,7 +67,11 @@ const StockNewsAlert = () => {
         getSourceCatalog().catch(() => ({})),
       ])
       const names = c.watch_names || []
-      setWatchText(Array.isArray(names) ? names.join('\n') : String(names))
+      if (!c.running) {
+        setWatchText(Array.isArray(names) ? names.join('\n') : String(names))
+      } else {
+        setWatchText('')
+      }
       setPollSec(Number(c.poll_interval_sec) || 30)
       setOnlyMaterial(c.only_material !== false)
       setOnlyExtraImpact(!!c.only_extra_impact_keywords)
@@ -95,6 +101,7 @@ const StockNewsAlert = () => {
         last_poll_summary: s.last_poll_summary || null,
         poll_logs: Array.isArray(s.poll_logs) ? s.poll_logs : [],
         log_file: s.log_file || 'log/stock_news_alert.log',
+        monitor_pool: Array.isArray(s.monitor_pool) ? s.monitor_pool : [],
       })
     } catch (_) {}
   }, [])
@@ -169,14 +176,32 @@ const StockNewsAlert = () => {
     }
   }
 
+  const formatMonitorRules = (item) => {
+    const parts = []
+    parts.push(`轮询 ${item.poll_interval_sec || pollSec}s`)
+    if (item.only_material !== false) parts.push('仅重要快讯')
+    if (item.only_extra_impact_keywords) parts.push('影响面仅自定义词')
+    const extra = item.extra_impact_keywords || []
+    if (extra.length) parts.push(`自定义影响词 ${extra.join('、')}`)
+    return parts.join(' · ')
+  }
+
   const onStart = async () => {
     setLoading(true)
     setMsg('')
     try {
       const payload = buildPayload()
+      const names = payload.watch_names
+      const poolCount = (status.monitor_pool || []).length
+      if (!names.length && poolCount === 0) {
+        setMsg('请先填写自选关键词')
+        setLoading(false)
+        return
+      }
       await saveStockNewsConfig(payload)
-      await startStockNewsAlert({ watch_names: payload.watch_names })
-      setMsg('已启动监控')
+      await startStockNewsAlert({ watch_names: names })
+      setWatchText('')
+      setMsg(status.running && names.length ? '已追加监控关键词' : '已启动监控')
       await refreshStatus()
     } catch (e) {
       setMsg(
@@ -188,6 +213,30 @@ const StockNewsAlert = () => {
       setLoading(false)
     }
   }
+
+  const onRemoveWatch = async (keyword) => {
+    if (!keyword) return
+    setLoading(true)
+    setMsg('')
+    try {
+      const r = await removeStockNewsWatch(keyword)
+      setMsg(r?.message || `已移除 ${keyword}`)
+      await refreshStatus()
+    } catch (e) {
+      setMsg(
+        typeof e?.response?.data?.detail === 'string'
+          ? e.response.data.detail
+          : e?.message || '移除失败'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const poolItems = status.monitor_pool || []
+  const recentHitKeywords = new Set(
+    poolItems.filter((item) => item.last_push?.at).map((item) => item.keyword)
+  )
 
   const onStop = async () => {
     setLoading(true)
@@ -361,8 +410,12 @@ const StockNewsAlert = () => {
           <textarea
             value={watchText}
             onChange={(e) => setWatchText(e.target.value)}
-            placeholder={'英伟达\nNVDA\n纳斯达克'}
+            placeholder={'NVDA\n英伟达\n或填 全美股（不限代码，仅按下方影响面词推送）'}
           />
+          <div className="qpt-hint">
+            监控<strong>所有美股</strong>的评级/目标价变动：自选填 <code className="qpt-code">全美股</code> 或{' '}
+            <code className="qpt-code">*</code>，勾选下方两项「影响面仅自定义词」「仅重要快讯」，并在影响面框填入评级/目标价关键词；数据源建议只勾选雅虎、富途。
+          </div>
         </div>
         <div className="qpt-hint" style={{ marginBottom: '14px' }}>
           钉钉 Webhook 已在服务端配置（{dingtalkConfigured ? '已检测到' : '未检测到，请在 data/stock_news_alert_config.json 配置'}）。
@@ -436,13 +489,82 @@ const StockNewsAlert = () => {
           )}
         </div>
         <div className="qpt-actions">
-          <button type="button" className="qpt-btn primary" disabled={loading || status.running} onClick={onStart}>
-            保存并启动
+          <button type="button" className="qpt-btn primary" disabled={loading} onClick={onStart}>
+            {status.running ? '保存并追加' : '保存并启动'}
           </button>
           <button type="button" className="qpt-btn danger" disabled={loading || !status.running} onClick={onStop}>
             停止
           </button>
         </div>
+      </section>
+
+      <section className="qpt-panel sna-pool-panel">
+        <h2>
+          监控池
+          {poolItems.length > 0 && <span className="sna-pool-count">{poolItems.length}</span>}
+          {status.running && poolItems.length > 0 && (
+            <span className="sna-pool-badge">运行中</span>
+          )}
+        </h2>
+        {poolItems.length > 0 && (
+          <div className="qpt-hint">
+            已启动的新闻监控会显示在下方；填写新关键词后再次「保存并启动」可追加；点击 × 可移除单项（全部移除后自动停止）。
+          </div>
+        )}
+        {poolItems.length === 0 ? (
+          <div className="sna-pool-empty">
+            <div className="sna-pool-empty-icon">📰</div>
+            <h3>暂无运行中的新闻监控</h3>
+            <p>填写自选关键词并点击「保存并启动」后，监控项会出现在此处</p>
+          </div>
+        ) : (
+          <div className="sna-pool-grid">
+            {poolItems.map((item) => (
+              <div
+                key={item.keyword}
+                className={`sna-pool-card ${recentHitKeywords.has(item.keyword) ? 'hit' : ''}`}
+              >
+                <div className="sna-pool-card-head">
+                  <span className="sna-pool-keyword">{item.keyword}</span>
+                  <button
+                    type="button"
+                    className="sna-pool-remove"
+                    disabled={loading}
+                    onClick={() => onRemoveWatch(item.keyword)}
+                    aria-label={`移除 ${item.keyword}`}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="sna-pool-meta">
+                  <span className="sna-pool-label">数据源</span>
+                  <span>{(item.source_labels || item.sources || []).join('、') || '—'}</span>
+                </div>
+                <div className="sna-pool-meta">
+                  <span className="sna-pool-label">规则</span>
+                  <span>{formatMonitorRules(item)}</span>
+                </div>
+                {item.last_push ? (
+                  <div className="sna-pool-last">
+                    <span className="sna-pool-label">最近命中</span>
+                    <div className="sna-pool-last-body">
+                      <span className="sna-pool-last-time">{item.last_push.at}</span>
+                      {item.last_push.feed && (
+                        <span className="sna-pool-last-feed">{item.last_push.feed}</span>
+                      )}
+                      <p className="sna-pool-last-text">{item.last_push.text}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sna-pool-meta muted">
+                    <span className="sna-pool-label">最近命中</span>
+                    <span>暂无推送记录</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="qpt-panel">

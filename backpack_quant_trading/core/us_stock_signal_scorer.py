@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from backpack_quant_trading.core.crypto_uptrend_scanner import (
     analyze_uptrend,
@@ -11,10 +14,14 @@ from backpack_quant_trading.core.crypto_uptrend_scanner import (
     klines_to_df,
 )
 from backpack_quant_trading.core.crypto_signal_scorer import (
-    calibrate_deepseek_structured,
+    compose_final_score,
     compute_support_resistance_levels,
+    compute_local_buy_score,
+    evaluate_hard_gates,
+    evaluate_rebound_strength,
     load_config,
     push_score_to_dingtalk,
+    score_to_grade,
 )
 from backpack_quant_trading.core.massive_klines import (
     fetch_klines_us,
@@ -47,8 +54,11 @@ _US_STOCK_SYSTEM_PROMPT = """你是美股量化风控分析师，对「买入/�
   "score_breakdown": {"structure":0-30,"momentum":0-25,"volume":0-20,"risk_penalty":0-25}
 }
 
-## 技术面（与加密相同）
-structure / momentum / volume / risk_penalty 四维，须遵守 scoring_guidance.hard_gates。
+## 技术面（美股专用校准，见 scoring_guidance.projected_score）
+structure / momentum / volume / risk_penalty 四维；**rebound_strength.strength_score** 为 0–100 动能刻度。
+综合 score 以 scoring_guidance.projected_score 为准（本地公式计算，勿盲跟模型 95+）。
+公式：0.50×动能 + 0.32×锚分 − 0.50×execution_penalty + 微调；**无固定封顶**，靠动能/锚分/penalty/微调拉开差距。
+强修复+放量 82–92；强反弹但缩量/贴压/RSI高 68–82 caution；弱修复 52–65。
 
 ## 消息面（美股必看 recent_news）
 - 业绩 beat/miss、指引上下调、回购/拆股、重大合同 → 调整 momentum 或 risk_penalty
@@ -64,6 +74,225 @@ structure / momentum / volume / risk_penalty 四维，须遵守 scoring_guidance
 """
 
 
+def _f_us(x: Any, default: float = 0.0) -> float:
+    try:
+        if x is None:
+            return default
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+
+def _us_stock_differentiation_nudge(metrics: Dict[str, Any]) -> float:
+    """个股微调：recent/vol/adx/trend 连续拉开差距（非封顶）。"""
+    m = metrics or {}
+    recent = _f_us(m.get("recent_change_pct"))
+    vol = _f_us(m.get("vol_ratio"), 1.0)
+    adx = _f_us(m.get("adx14"))
+    trend = _f_us(m.get("trend_score"))
+    ret20 = _f_us(m.get("return_20_bars_pct"))
+    n = min(12.0, max(-8.0, recent * 0.85))
+    if vol < 0.35:
+        n *= max(0.45, vol / 0.35)
+    n += min(8.0, max(-7.0, (vol - 1.0) * 14.0))
+    n += min(6.0, max(-5.0, (adx - 22.0) * 0.50))
+    n += min(6.0, max(-6.0, (trend - 50.0) * 0.18))
+    n += min(5.0, max(-5.0, ret20 * 0.12))
+    gc_vol = m.get("last_golden_cross_vol_vs_prev_avg")
+    if gc_vol is not None:
+        n += min(5.0, max(-5.0, (_f_us(gc_vol) - 1.0) * 10.0))
+    return n
+
+
+def _us_stock_execution_penalty(
+    metrics: Dict[str, Any],
+    gates: Dict[str, Any],
+    rebound: Dict[str, Any],
+    news_ctx: Optional[Dict[str, Any]] = None,
+) -> float:
+    """美股可执行性扣分（0–32）：极度缩量/贴压/RSI 过高等。"""
+    m = metrics or {}
+    penalty = 0.0
+    vol_ratio = _f_us(m.get("vol_ratio"), 1.0)
+
+    if vol_ratio < 0.12:
+        penalty += 18.0 + max(0.0, (0.12 - vol_ratio) * 90.0)
+    elif vol_ratio < 0.25:
+        penalty += 12.0 + (0.25 - vol_ratio) * 28.0
+    elif vol_ratio < 0.35:
+        penalty += 6.0 + (0.35 - vol_ratio) * 30.0
+    elif vol_ratio < 0.55:
+        penalty += (0.55 - vol_ratio) * 12.0
+    elif vol_ratio < 0.80:
+        penalty += max(0.0, (0.80 - vol_ratio) * 3.0)
+
+    res_dist = m.get("resistance_dist_pct")
+    try:
+        rd = float(res_dist) if res_dist is not None else None
+    except (TypeError, ValueError):
+        rd = None
+    if rd is not None and 0 < rd < 0.6:
+        penalty += 8.0 if vol_ratio >= 0.12 else 4.0
+    elif rd is not None and rd < 1.2:
+        penalty += 4.0 if vol_ratio >= 0.12 else 2.0
+
+    rsi = _f_us(m.get("rsi14"), 50.0)
+    if rsi > 72:
+        penalty += 5.0 if rsi > 78 else 3.0
+
+    if gates.get("force_caution_only"):
+        penalty += 6.0
+    elif not gates.get("execute_eligible"):
+        penalty += 3.0
+
+    gc_vol = m.get("last_golden_cross_vol_vs_prev_avg")
+    if gc_vol is not None and _f_us(gc_vol) < 0.75:
+        penalty += 3.0
+    elif vol_ratio >= 1.15:
+        penalty = max(0.0, penalty - 3.0)
+
+    if int((gates.get("mtf_boost") or {}).get("count") or 0) >= 2:
+        penalty = max(0.0, penalty - 2.0)
+
+    news = news_ctx or {}
+    summary = str(news.get("summary_text") or "").lower()
+    if any(k in summary for k in ("investigation", "lawsuit", "sec ", "下调", "miss", "cut guidance", "warning")):
+        penalty += 8.0
+    elif any(k in summary for k in ("beat", "上调", "raise", "buyback", "超预期")):
+        penalty = max(0.0, penalty - 4.0)
+
+    return min(32.0, max(0.0, penalty))
+
+
+def _us_stock_project_score(
+    anchor: int,
+    rb: int,
+    penalty: float,
+    metrics: Dict[str, Any],
+    *,
+    raw: Optional[int] = None,
+) -> int:
+    raw_cap = min(
+        float(raw if raw is not None else anchor),
+        float(anchor) + 6.0,
+        float(rb) + 6.0,
+    )
+    return compose_final_score(
+        rb,
+        anchor,
+        raw_cap,
+        penalty,
+        _us_stock_differentiation_nudge(metrics),
+    )
+
+
+def build_us_stock_score_guidance(
+    snapshot: Dict[str, Any],
+    news_ctx: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """美股 scoring_guidance（独立于加密 build_score_guidance）。"""
+    from backpack_quant_trading.core.crypto_signal_scorer import (
+        _pick_recovery_context,
+        evaluate_mtf_boost_signals,
+        evaluate_signal_tf_bounce,
+        evaluate_strong_recovery,
+    )
+
+    m = snapshot.get("metrics") or {}
+    anchor = compute_local_buy_score(m)
+    gates = evaluate_hard_gates(m)
+    rebound = evaluate_rebound_strength(m)
+    recovery_ctx = gates.get("recovery_context") or _pick_recovery_context(m)
+    recovery = gates.get("strong_recovery") or evaluate_strong_recovery(m)
+    signal_bounce = gates.get("signal_bounce") or evaluate_signal_tf_bounce(m)
+    mtf = gates.get("mtf_boost") or evaluate_mtf_boost_signals(m)
+    rb = rebound["strength_score"]
+    penalty = _us_stock_execution_penalty(m, gates, rebound, news_ctx)
+    proj = _us_stock_project_score(anchor, rb, penalty, m)
+
+    if gates["force_reject"]:
+        hint_rec, band = "reject", "35-48"
+    elif gates["force_caution_only"]:
+        hint_rec, band = "caution", f"{max(50, proj - 10)}-{min(82, proj + 8)}"
+    elif rebound["tier"] == "strong":
+        hint_rec = "caution" if rebound.get("volume_limited") or not gates["execute_eligible"] else "execute"
+        band = f"{max(58, proj - 12)}-{min(94, proj + 10)}"
+    elif rebound["tier"] == "moderate":
+        hint_rec = "caution" if not gates["execute_eligible"] else "execute"
+        band = f"{max(52, proj - 14)}-{min(88, proj + 8)}"
+    else:
+        hint_rec = "caution"
+        band = f"{max(48, proj - 14)}-{min(84, proj + 10)}"
+
+    return {
+        "local_anchor_score": anchor,
+        "hard_gates": gates,
+        "recovery_context": recovery_ctx,
+        "strong_recovery": recovery,
+        "signal_bounce": signal_bounce,
+        "mtf_boost": mtf,
+        "rebound_strength": rebound,
+        "execution_penalty": round(penalty, 1),
+        "projected_score": proj,
+        "hint_recommendation": hint_rec,
+        "hint_score_band": band,
+        "trend_score_local": m.get("trend_score"),
+        "us_stock_news_required": True,
+    }
+
+
+def calibrate_us_stock_structured(
+    structured: Dict[str, Any],
+    metrics: Dict[str, Any],
+    news_ctx: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """美股 DeepSeek 输出校准（独立于 calibrate_deepseek_structured）。"""
+    st = dict(structured or {})
+    anchor = compute_local_buy_score(metrics)
+    gates = evaluate_hard_gates(metrics)
+    try:
+        raw = int(float(st.get("score", anchor)))
+    except (TypeError, ValueError):
+        raw = anchor
+
+    rebound = evaluate_rebound_strength(metrics)
+    rb = rebound["strength_score"]
+    penalty = _us_stock_execution_penalty(metrics, gates, rebound, news_ctx)
+
+    if gates["force_reject"]:
+        final, rec = min(raw, anchor, 40), "reject"
+    elif gates["force_caution_only"]:
+        final = max(52, min(72, int(round(0.25 * raw + 0.75 * anchor))))
+        rec = "caution"
+    else:
+        vol_limited = rebound.get("volume_limited")
+        final = _us_stock_project_score(anchor, rb, penalty, metrics, raw=raw)
+        final = max(0, min(100, final))
+        recovery = gates.get("recovery_context") or gates.get("strong_recovery") or {}
+        min_anchor_exec = 58 if recovery.get("tier") == "strong" else 62 if recovery.get("detected") else 68
+        if (
+            final >= 76
+            and anchor >= min_anchor_exec
+            and gates["execute_eligible"]
+            and not vol_limited
+            and penalty < 12
+        ):
+            rec = "execute"
+        elif final >= 52:
+            rec = "caution"
+        else:
+            rec = "reject"
+
+    st["score"] = final
+    st["grade"] = score_to_grade(final)
+    st["recommendation"] = rec
+    st["local_anchor_score"] = anchor
+    st["execution_penalty"] = round(penalty, 1)
+    st["rebound_strength_score"] = rb
+    st["model_raw_score"] = raw
+    return st
+
+
 def build_us_stock_deepseek_user_prompt(
     symbol: str,
     action: str,
@@ -75,10 +304,7 @@ def build_us_stock_deepseek_user_prompt(
     strategy_label: str = "us_stock",
     signal_note: str = "",
 ) -> str:
-    from backpack_quant_trading.core.crypto_signal_scorer import (
-        build_deepseek_user_prompt,
-        build_score_guidance,
-    )
+    from backpack_quant_trading.core.crypto_signal_scorer import build_deepseek_user_prompt
 
     base = build_deepseek_user_prompt(
         symbol,
@@ -118,8 +344,7 @@ def build_us_stock_deepseek_user_prompt(
         "10) 美股无加密 Top50 池概念，勿因 in_cached_top50 或类似字段加减分",
     ])
     payload["analysis_tasks"] = tasks
-    guidance = build_score_guidance(snapshot)
-    guidance["us_stock_news_required"] = True
+    guidance = build_us_stock_score_guidance(snapshot, news_ctx)
     payload["scoring_guidance"] = guidance
 
     return (
@@ -129,41 +354,12 @@ def build_us_stock_deepseek_user_prompt(
 
 
 def call_deepseek_score_us_stock(user_prompt: str, temperature: float = 0.2) -> Dict[str, Any]:
-    import os
-    import re
+    from backpack_quant_trading.core.crypto_signal_scorer import call_deepseek_json_score
 
-    import requests
-
-    from backpack_quant_trading.core.crypto_signal_scorer import _extract_json_block
-
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-    if not api_key:
-        return {"ok": False, "error": "未配置 DEEPSEEK_API_KEY"}
-
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "system", "content": _US_STOCK_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": temperature,
-    }
-    try:
-        s = requests.Session()
-        s.trust_env = False
-        r = s.post(
-            "https://api.deepseek.com/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=90,
-        )
-        r.raise_for_status()
-        content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content") or ""
-        structured = _extract_json_block(content)
-        return {"ok": True, "raw": content, "structured": structured}
-    except Exception as exc:
-        return {"ok": False, "error": str(exc)}
+    ds = call_deepseek_json_score(_US_STOCK_SYSTEM_PROMPT, user_prompt, temperature)
+    if not ds.get("ok"):
+        return ds
+    return {"ok": True, "raw": ds.get("markdown"), "structured": ds.get("structured"), "model": ds.get("model")}
 
 
 def build_us_stock_indicator_snapshot(
@@ -199,6 +395,19 @@ def build_us_stock_indicator_snapshot(
     )
     if sr:
         metrics.update(sr)
+
+    try:
+        from backpack_quant_trading.core.crypto_signal_scorer import compute_mtf_scoring_metrics
+
+        mtf = compute_mtf_scoring_metrics(
+            ticker,
+            kline_limit=limit,
+            fetch_klines_fn=lambda sym, iv, lim: fetch_klines_us(sym, iv, total_limit=lim),
+        )
+        if mtf:
+            metrics.update(mtf)
+    except Exception as e:
+        logger.debug("us mtf metrics failed %s: %s", ticker, e)
 
     import pandas as pd
 
@@ -247,10 +456,62 @@ def run_us_stock_signal_score(
     webhook_raw: Optional[Dict[str, Any]] = None,
     strategy_label: str = "us_stock",
 ) -> Dict[str, Any]:
+    from backpack_quant_trading.core.crypto_signal_scorer import (
+        _get_cached_score_result,
+        _get_cross_process_cached_score,
+        _resolve_score_dedupe_key,
+        _score_dedupe_sec,
+        _set_cached_score_result,
+        _set_cross_process_cached_score,
+        is_live_trade_us_stock_buy_signal,
+        is_manual_score_webhook,
+        us_stock_score_enabled,
+    )
+
+    if not us_stock_score_enabled():
+        ticker = normalize_us_ticker(symbol)
+        logger.info("[DeepSeek评分] 美股评分已关闭，跳过 %s", ticker)
+        return {
+            "ok": False,
+            "skipped": True,
+            "error": "美股 AI 评分已关闭",
+            "symbol": ticker,
+            "asset_kind": "us_stock",
+        }
+
+    if webhook_raw and not is_manual_score_webhook(webhook_raw):
+        if not is_live_trade_us_stock_buy_signal(symbol, action, webhook_raw):
+            ticker = normalize_us_ticker(symbol)
+            logger.info("[DeepSeek评分] 非实盘交易美股买入，跳过 %s", ticker)
+            return {
+                "ok": False,
+                "skipped": True,
+                "error": "仅筛选ID=实盘交易的美股买入信号可调用 AI 评分",
+                "symbol": ticker,
+                "action": (action or "buy").lower().strip(),
+                "asset_kind": "us_stock",
+            }
+
     cfg = load_config()
     ticker = normalize_us_ticker(symbol)
     action_l = (action or "buy").lower().strip()
     iv = interval_label(timeframe) if timeframe else interval_label(cfg.get("us_kline_interval") or "1d")
+
+    dedupe_key = _resolve_score_dedupe_key(ticker, action_l, iv, asset_kind="us_stock")
+    cached = _get_cached_score_result(dedupe_key)
+    if cached is not None:
+        logger.info(
+            "[DeepSeek评分] 美股去重命中(内存) %s %s %s（%ss 内不重复调 API）",
+            ticker, action_l, iv, _score_dedupe_sec(),
+        )
+        return cached
+    cached = _get_cross_process_cached_score(dedupe_key)
+    if cached is not None:
+        logger.info(
+            "[DeepSeek评分] 美股去重命中(跨进程) %s %s %s（%ss 内不重复调 API）",
+            ticker, action_l, iv, _score_dedupe_sec(),
+        )
+        return cached
 
     snapshot, err = build_us_stock_indicator_snapshot(ticker, interval=iv, kline_limit=cfg.get("kline_limit"))
     if not snapshot:
@@ -275,12 +536,13 @@ def run_us_stock_signal_score(
     if not ds.get("ok"):
         return {"ok": False, "error": ds.get("error"), "interval": iv, "user_prompt": user_prompt}
 
-    structured = calibrate_deepseek_structured(
+    structured = calibrate_us_stock_structured(
         ds.get("structured") or {},
         snapshot.get("metrics") or {},
+        news_ctx,
     )
     score_val = int(structured.get("score") or 0)
-    return {
+    result = {
         "ok": True,
         "symbol": ticker,
         "action": action_l,
@@ -296,6 +558,9 @@ def run_us_stock_signal_score(
         "asset_kind": "us_stock",
         "news_count": news_ctx.get("count", 0),
     }
+    _set_cached_score_result(dedupe_key, result)
+    _set_cross_process_cached_score(dedupe_key, result)
+    return result
 
 
 def run_us_stock_signal_score_and_push(

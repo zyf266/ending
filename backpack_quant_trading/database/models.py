@@ -668,6 +668,66 @@ class DatabaseManager:
         finally:
             session.close()
 
+    # ===== 现货分钟预警配置 =====
+    def get_spot_minute_alert_config(self) -> Optional[tuple]:
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                instance_type='spot_minute_alert', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
+    def save_spot_minute_alert_config(self, config_json: str):
+        self.delete_spot_minute_alert_config()
+        uid = self.get_first_user_id()
+        if uid is not None:
+            self.save_user_instance(uid, 'spot_minute_alert', 'singleton', config_json)
+
+    def delete_spot_minute_alert_config(self):
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                instance_type='spot_minute_alert', instance_id='singleton'
+            ).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    # ===== 链上活跃度监控配置 =====
+    def get_chain_activity_config(self) -> Optional[tuple]:
+        session = self.get_session()
+        try:
+            row = session.query(UserInstance).filter_by(
+                instance_type='chain_activity_monitor', instance_id='singleton'
+            ).first()
+            return (row.instance_id, row.config_json) if row and row.config_json else None
+        finally:
+            session.close()
+
+    def save_chain_activity_config(self, config_json: str):
+        self.delete_chain_activity_config()
+        uid = self.get_first_user_id()
+        if uid is not None:
+            self.save_user_instance(uid, 'chain_activity_monitor', 'singleton', config_json)
+
+    def delete_chain_activity_config(self):
+        session = self.get_session()
+        try:
+            session.query(UserInstance).filter_by(
+                instance_type='chain_activity_monitor', instance_id='singleton'
+            ).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
     # ===== MACD 金叉形态监控配置 =====
     def get_macd_pattern_monitor_config(self) -> Optional[tuple]:
         session = self.get_session()

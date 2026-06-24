@@ -18,9 +18,9 @@ import PaxgTrendStrategy from './views/PaxgTrendStrategy'
 import Nas100TrendStrategy from './views/Nas100TrendStrategy'
 import EthOnlyStrategy from './views/EthOnlyStrategy'
 import OkxConsole from './views/OkxConsole'
-import UsMomentumCrclStrategy from './views/UsMomentumCrclStrategy'
 import UsMomentumIntcStrategy from './views/UsMomentumIntcStrategy'
 import UsMomentumNvdaStrategy from './views/UsMomentumNvdaStrategy'
+import AShareMomentumStrategy from './views/AShareMomentumStrategy'
 import UsWeeklyReport from './views/UsWeeklyReport'
 import StockNewsAlert from './views/StockNewsAlert'
 import PolymarketAlert from './views/PolymarketAlert'
@@ -79,7 +79,9 @@ function App() {
           <Route path="strategies/eth-only" element={<EthOnlyStrategy />} />
           <Route path="strategies/paxg-trend" element={<PaxgTrendStrategy />} />
           <Route path="strategies/nas100-trend" element={<Nas100TrendStrategy />} />
-          <Route path="strategies/us-momentum-crcl" element={<UsMomentumCrclStrategy />} />
+          <Route path="strategies/a-share-300308" element={<AShareMomentumStrategy code="300308" />} />
+          <Route path="strategies/a-share-603986" element={<AShareMomentumStrategy code="603986" />} />
+          <Route path="strategies/a-share-688146" element={<AShareMomentumStrategy code="688146" />} />
           <Route path="strategies/us-momentum-intc" element={<UsMomentumIntcStrategy />} />
           <Route path="strategies/us-momentum-nvda" element={<UsMomentumNvdaStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />

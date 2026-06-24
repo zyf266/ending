@@ -87,9 +87,36 @@ def run_signal_score_routed(
     timeframe: str = "",
     webhook_raw: Optional[Dict[str, Any]] = None,
     strategy_label: str = "adaptive_long",
+    skip_gate: bool = False,
+    for_trade_gate: bool = False,
+    require_dingtalk: bool = False,
+    require_webhook_action: bool = False,
+    strategy_name: str | None = None,
+    strategy_side: str | None = None,
+    skip_live_trade_gate: bool = False,
 ) -> Dict[str, Any]:
     """按品种自动选择 Hyperliquid（加密）或 Massive（美股）评分。"""
     kind = classify_signal_asset(symbol, webhook_raw)
+
+    if not skip_gate:
+        from backpack_quant_trading.core.crypto_signal_scorer import score_request_gate
+
+        mode, early = score_request_gate(
+            symbol,
+            action,
+            timeframe=timeframe,
+            webhook_raw=webhook_raw,
+            asset_kind=kind,
+            strategy_name=strategy_name,
+            strategy_side=strategy_side,
+            require_dingtalk=require_dingtalk,
+            require_webhook_action=require_webhook_action,
+            for_trade_gate=for_trade_gate,
+            skip_live_trade_gate=skip_live_trade_gate,
+        )
+        if mode in ("skip", "cached"):
+            return early
+
     if kind == "us_stock":
         from backpack_quant_trading.core.us_stock_signal_scorer import run_us_stock_signal_score
 

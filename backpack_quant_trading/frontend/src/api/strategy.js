@@ -137,6 +137,25 @@ export function getIntcTrades(cacheBust = false) {
   return cacheBust ? bust(key, fn) : cached(key, fn)
 }
 
+// ---------- A 股动量轮动 2H ----------
+export function getAShareOverview(code, cacheBust = false) {
+  const key = `a-share-${code}-overview`
+  const fn = () => request.get(`/strategy/${code}-2h/overview`)
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getAShareKlines(code, cacheBust = false) {
+  const key = `a-share-${code}-klines`
+  const fn = () => request.get(`/strategy/${code}-2h/klines`)
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getAShareTrades(code, cacheBust = false) {
+  const key = `a-share-${code}-trades`
+  const fn = () => request.get(`/strategy/${code}-2h/trades`)
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
 // ---------- NVDA 美股动量轮动 ----------
 export function getMatrixYearlyReturns() {
   return request.get('/strategy/matrix-yearly-returns')

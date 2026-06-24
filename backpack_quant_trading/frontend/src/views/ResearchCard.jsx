@@ -10,6 +10,12 @@ const formatPrice = (price, currency) => {
   return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
+const formatScenarioRange = (low, high, currency) => {
+  if (low == null || high == null) return '—'
+  if (currency === 'CNY') return `¥${low} – ¥${high}`
+  return `$${low} – $${high}`
+}
+
 const ResearchCard = ({ code: codeProp, hub, loading, index = 0, onOpenNews, onOpenSignals, onOpenDetail }) => {
   const card = hub?.card || {}
   const code = String(codeProp || card.code || '').toUpperCase()
@@ -18,6 +24,8 @@ const ResearchCard = ({ code: codeProp, hub, loading, index = 0, onOpenNews, onO
   const newsSummary = hub?.news_summary
   const signalSummary = hub?.signal_summary
   const price = hub?.price
+  const priceUpdatedAt = hub?.price_updated_at
+  const currency = hub?.currency || 'USD'
 
   const stagger = `${Math.min(index, 8) * 0.08}s`
   const themeClass = researchCardThemeClass(code)
@@ -51,7 +59,12 @@ const ResearchCard = ({ code: codeProp, hub, loading, index = 0, onOpenNews, onO
         </div>
         <div className="ais-rc-price-block">
           <span className="ais-rc-price-label">当前价格</span>
-          <span className="ais-rc-price">{formatPrice(price, hub?.currency || 'USD')}</span>
+          <span className="ais-rc-price">{formatPrice(price, currency)}</span>
+          {priceUpdatedAt ? (
+            <span className="ais-rc-price-updated" title="每日北京时间 5:00 自动同步">
+              报价 {priceUpdatedAt}
+            </span>
+          ) : null}
         </div>
       </header>
 
@@ -62,7 +75,7 @@ const ResearchCard = ({ code: codeProp, hub, loading, index = 0, onOpenNews, onO
               <div className="ais-scenario-label">{s.label}</div>
               <div className="ais-scenario-prob">{s.probability}</div>
               <div className="ais-scenario-range">
-                ${s.range_low} – ${s.range_high}
+                {formatScenarioRange(s.range_low, s.range_high, currency)}
               </div>
               {s.subtitle && <div className="ais-scenario-sub">{s.subtitle}</div>}
             </div>

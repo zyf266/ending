@@ -3,16 +3,20 @@ import { useLocation } from 'react-router-dom'
 import { BarChart3, Activity, TrendingUp, Wallet, Percent, Search, Filter, Plus, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { StrategyCardMatrix } from '../components/StrategyCardMatrix'
+import { formatProfitFactor } from '../utils/formatProfitFactor'
 import {
   getEthTrendOverview,
   getEthOnlyOverview,
   getPaxgTrendOverview,
   getNas100TrendOverview,
-  getCrclOverview,
   getIntcOverview,
   getNvdaOverview,
+  getAShareOverview,
   getMatrixYearlyReturns,
 } from '../api/strategy'
+
+const A_SHARE_KEYS = ['300308', '603986', '688146']
+const DEFAULT_USD_CNY = 7.25
 
 const strategies = [
   {
@@ -42,16 +46,42 @@ const strategies = [
     isRiskWarning: true,
   },
   {
-    to: '/strategies/us-momentum-crcl',
-    icon: '🇺🇸',
-    title: '美股动量轮动策略·CRCL',
-    code: 'ML-USM',
-    description: '专注 CRCL 等高波动资产，通过多周期协同过滤震荡噪音，精准捕捉由趋势扩张驱动的中长期波段，利用量化计算严控风险回撤，追求稳健的风险调整后收益。',
+    to: '/strategies/a-share-300308',
+    icon: '🏮',
+    title: 'A股动量轮动策略·中际旭创',
+    code: 'ML-AMR',
+    description: '聚焦中际旭创（300308）AI 光模块龙头，2H 动量轮动全仓复利，捕捉算力基建主升浪。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
-    progress: 68,
-    progressColor: '#3b82f6',
+    progress: 72,
+    progressColor: '#10b981',
     riskIndex: '中风险',
+    isRiskWarning: true,
+  },
+  {
+    to: '/strategies/a-share-603986',
+    icon: '🏮',
+    title: 'A股动量轮动策略·兆易创新',
+    code: 'ML-AMR',
+    description: '聚焦兆易创新（603986）存储龙头，2H 动量轮动全仓复利，捕捉存储超级周期与业绩爆发。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 72,
+    progressColor: '#10b981',
+    riskIndex: '中风险',
+    isRiskWarning: true,
+  },
+  {
+    to: '/strategies/a-share-688146',
+    icon: '🏮',
+    title: 'A股动量轮动策略·中船特气',
+    code: 'ML-AMR',
+    description: '聚焦中船特气（688146）半导体材料龙头，2H 动量轮动全仓复利，捕捉涨价与产能扩张周期。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 72,
+    progressColor: '#10b981',
+    riskIndex: '高风险',
     isRiskWarning: true,
   },
   {
@@ -106,19 +136,6 @@ const strategies = [
     riskIndex: '低风险',
     isRiskWarning: false,
   },
-  {
-    to: '/strategies/eth-trend',
-    icon: '🏮',
-    title: 'A股动量轮动策略',
-    code: 'ML-AMR',
-    description: '聚焦A股市场中的强势板块与个股，结合市场情绪指标与技术支撑进行动量捕捉，在震荡市依托强势因子做板块轮动，在趋势市集中持仓捕捉主升。',
-    status: '测试中',
-    statusColor: 'bg-blue-500 text-white',
-    progress: 72,
-    progressColor: '#10b981',
-    riskIndex: '低风险',
-    isRiskWarning: false,
-  },
 ]
 
 /** 单策略：由总收益与自身回测区间复利年化（%）；区间不足 9 个月返回 null */
@@ -149,9 +166,11 @@ export default function StrategyMatrixAlt() {
       { key: 'hype', fn: getEthTrendOverview },
       { key: 'paxg', fn: getPaxgTrendOverview },
       { key: 'nas100', fn: getNas100TrendOverview },
-      { key: 'crcl', fn: getCrclOverview },
       { key: 'intc', fn: getIntcOverview },
       { key: 'nvda', fn: getNvdaOverview },
+      { key: '300308', fn: () => getAShareOverview('300308') },
+      { key: '603986', fn: () => getAShareOverview('603986') },
+      { key: '688146', fn: () => getAShareOverview('688146') },
     ]
 
     Promise.allSettled([
@@ -170,14 +189,22 @@ export default function StrategyMatrixAlt() {
     })
   }, [])
 
+  const usdCny = Number(yearlyReturns?.usd_cny) > 0 ? Number(yearlyReturns.usd_cny) : DEFAULT_USD_CNY
+
+  const profitToUsd = (key, profit) => {
+    if (profit == null) return 0
+    if (A_SHARE_KEYS.includes(key)) return Number(profit) / usdCny
+    return Number(profit)
+  }
+
   // 动态计算统计数据
   const runningCount = strategies.filter((s) => s.status === '运行中').length
-  const overviewList = Object.values(overviews)
-  const avgWinRate = overviewList.length
-    ? (overviewList.reduce((s, o) => s + (o.win_rate_pct || 0), 0) / overviewList.length).toFixed(2)
+  const overviewEntries = Object.entries(overviews)
+  const avgWinRate = overviewEntries.length
+    ? (overviewEntries.reduce((s, [, o]) => s + (o.win_rate_pct || 0), 0) / overviewEntries.length).toFixed(2)
     : '--'
-  const totalProfit = overviewList.length
-    ? overviewList.reduce((s, o) => s + (o.strategy_profit || 0), 0)
+  const totalProfit = overviewEntries.length
+    ? overviewEntries.reduce((s, [key, o]) => s + profitToUsd(key, o.strategy_profit), 0)
     : null
   const totalProfitStr = totalProfit != null
     ? totalProfit >= 1e6
@@ -206,7 +233,7 @@ export default function StrategyMatrixAlt() {
     },
     {
       title: '平均胜率',
-      value: overviewList.length ? `${avgWinRate}%` : '--',
+      value: overviewEntries.length ? `${avgWinRate}%` : '--',
       icon: TrendingUp,
       iconColor: 'bg-blue-500',
     },
@@ -225,22 +252,20 @@ export default function StrategyMatrixAlt() {
     { title: '2027年化', value: '--' },
   ]
 
-  // 与 strategies 数组顺序一致：NVDA、INTC、CRCL、ETH、HYPE、PAXG、纳指、A股
-  const strategyKeys = ['nvda', 'intc', 'crcl', 'eth', 'hype', 'paxg', 'nas100', null]
-  // INTC/NVDA 的「最大回撤」读 overview；「盈亏比」按产品展示口径固定为指定值。
-  const useLiveDrawdown = new Set(['intc', 'nvda'])
+  // 与 strategies 数组顺序一致
+  const strategyKeys = ['nvda', 'intc', '300308', '603986', '688146', 'eth', 'hype', 'paxg', 'nas100']
+  const useLiveDrawdown = new Set(['intc', 'nvda', '300308', '603986', '688146'])
   const enrichedStrategies = strategies.map((s, i) => {
     const key = strategyKeys[i]
     const ov = overviews[key]
-    // 固定展示值：最大回撤和盈亏比（按上面 strategies 数组的顺序）
-    const fixedDrawdown = ['--', '--', '-10.89%', '-3.48%', '-6.47%', '-1.44%', '-4%', '--']
-    const fixedProfitFactor = ['--', '--', '4.21', '2.58', '2.84', '2.25', '0.71', '--']
+    const fixedDrawdown = ['--', '--', '--', '--', '--', '-3.48%', '-6.47%', '-1.44%', '-4%']
+    const fixedProfitFactor = ['--', '--', '--', '--', '--', '2.58', '2.84', '2.25', '0.71']
     const liveDrawdown = ov?.max_drawdown_pct != null
       ? `-${Number(ov.max_drawdown_pct).toFixed(2)}%`
       : null
     const drawdown = useLiveDrawdown.has(key) && liveDrawdown ? liveDrawdown : fixedDrawdown[i]
     const profitFactor =
-      key === 'intc' ? '10.39' : key === 'nvda' ? '9.8' : fixedProfitFactor[i]
+      key === 'intc' ? '10.39' : key === 'nvda' ? '9.8' : (ov ? formatProfitFactor(ov.profit_factor) : fixedProfitFactor[i])
     if (!ov) return { ...s, annualReturn: '--', annualReturnLabel: '平均年化', drawdown, profitFactor }
     let annualReturn = '--'
     let annualReturnLabel = '平均年化'
@@ -263,9 +288,8 @@ export default function StrategyMatrixAlt() {
   return (
     <div className="strategy-matrix-alt min-h-full w-full">
       <div className="mx-auto w-full max-w-[1920px] px-4 py-5">
-        {/* Stats Grid：第一行汇总，第二行分年年化 */}
         <div className="stats-grid-strategy mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {statsPrimary.map((stat, index) => (
+          {statsPrimary.map((stat) => (
             <StatCard
               key={stat.title}
               title={stat.title}
@@ -290,7 +314,6 @@ export default function StrategyMatrixAlt() {
           ))}
         </div>
 
-        {/* 搜索与筛选栏 */}
         <div className="mb-6 flex flex-1 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="relative max-w-[400px] flex-1">
@@ -337,7 +360,6 @@ export default function StrategyMatrixAlt() {
           </div>
         </div>
 
-        {/* Strategies Grid - 2 columns */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {enrichedStrategies.map((s, index) => (
             <StrategyCardMatrix
@@ -352,7 +374,7 @@ export default function StrategyMatrixAlt() {
               progress={s.progress}
               progressColor={s.progressColor}
               annualReturn={s.annualReturn}
-                annualReturnLabel={s.annualReturnLabel}
+              annualReturnLabel={s.annualReturnLabel}
               drawdown={s.drawdown}
               profitFactor={s.profitFactor}
               riskIndex={s.riskIndex}

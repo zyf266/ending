@@ -1,0 +1,4 @@
+2026-06-10 10:16:46 | DEBUG    | matplotlib:342 | matplotlib data path: C:\Users\A1\AppData\Roaming\Python\Python313\site-packages\matplotlib\mpl-data
+2026-06-10 10:16:46 | DEBUG    | matplotlib:342 | CONFIGDIR=C:\Users\A1\.matplotlib
+2026-06-10 10:16:46 | DEBUG    | matplotlib:1560 | interactive is False
+2026-06-10 10:16:46 | DEBUG    | matplotlib:1561 | platform is win32
