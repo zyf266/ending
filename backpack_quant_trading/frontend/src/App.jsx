@@ -82,6 +82,7 @@ function App() {
           <Route path="strategies/a-share-300308" element={<AShareMomentumStrategy code="300308" />} />
           <Route path="strategies/a-share-603986" element={<AShareMomentumStrategy code="603986" />} />
           <Route path="strategies/a-share-688146" element={<AShareMomentumStrategy code="688146" />} />
+          <Route path="strategies/a-share-002837" element={<AShareMomentumStrategy code="002837" />} />
           <Route path="strategies/us-momentum-intc" element={<UsMomentumIntcStrategy />} />
           <Route path="strategies/us-momentum-nvda" element={<UsMomentumNvdaStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />

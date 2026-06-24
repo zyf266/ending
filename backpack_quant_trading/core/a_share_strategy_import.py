@@ -4,6 +4,7 @@ A 股量化实盘：从 TradingView 回测 CSV 提取交易，按研报次日开
 """
 from __future__ import annotations
 
+import calendar
 import logging
 import os
 import time
@@ -117,7 +118,8 @@ class AShareStrategySpec:
     csv_filename: str
     route_slug: str  # e.g. 300308-2h
     report_date: date  # 研报发布日
-    trade_start_date: date  # 交易起始日（研报次日，以当日开盘价入场）
+    trade_start_date: date  # 交易起始日（以当日开盘价入场）
+    initial_capital_cny: float = INITIAL_CAPITAL_CNY
 
 
 def _project_root() -> Path:
@@ -133,8 +135,9 @@ A_SHARE_STRATEGY_SPECS: Tuple[AShareStrategySpec, ...] = (
         yahoo_ticker="300308.SZ",
         csv_filename="300308.csv",
         route_slug="300308-2h",
-        report_date=date(2026, 4, 3),
-        trade_start_date=date(2026, 4, 4),
+        report_date=date(2026, 1, 29),
+        trade_start_date=date(2026, 1, 30),
+        initial_capital_cny=2_000_000.0,
     ),
     AShareStrategySpec(
         code="603986",
@@ -144,8 +147,9 @@ A_SHARE_STRATEGY_SPECS: Tuple[AShareStrategySpec, ...] = (
         yahoo_ticker="603986.SS",
         csv_filename="603986.csv",
         route_slug="603986-2h",
-        report_date=date(2026, 4, 9),
-        trade_start_date=date(2026, 4, 10),
+        report_date=date(2026, 1, 29),
+        trade_start_date=date(2026, 1, 30),
+        initial_capital_cny=2_000_000.0,
     ),
     AShareStrategySpec(
         code="688146",
@@ -157,6 +161,19 @@ A_SHARE_STRATEGY_SPECS: Tuple[AShareStrategySpec, ...] = (
         route_slug="688146-2h",
         report_date=date(2026, 5, 11),
         trade_start_date=date(2026, 5, 12),
+        initial_capital_cny=500_000.0,
+    ),
+    AShareStrategySpec(
+        code="002837",
+        name="英维克",
+        strategy_name="002837_2H",
+        symbol="002837",
+        yahoo_ticker="002837.SZ",
+        csv_filename="002837.csv",
+        route_slug="002837-2h",
+        report_date=date(2026, 1, 29),
+        trade_start_date=date(2026, 1, 30),
+        initial_capital_cny=500_000.0,
     ),
 )
 
@@ -218,6 +235,17 @@ def _is_exit(tt: str) -> bool:
 def trade_start_datetime(spec: AShareStrategySpec) -> datetime:
     """研报次日 09:30 作为交易起点。"""
     return datetime.combine(spec.trade_start_date, dt_time(9, 30))
+
+
+def kline_chart_warmup_start(trade_start: datetime) -> datetime:
+    """K 线展示起点：交易起始日前推 1 个自然月（如 4/7 → 3/7），保留前置走势上下文。"""
+    d = trade_start.date()
+    year, month = d.year, d.month - 1
+    if month < 1:
+        month = 12
+        year -= 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return datetime.combine(date(year, month, day), trade_start.time())
 
 
 def _sina_symbol(code: str) -> str:
@@ -628,6 +656,7 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
     trade_start = datetime.combine(open_q.trade_date, dt_time(9, 30))
     trade_rows = recompound_trades_from_csv(
         path,
+        initial_capital=spec.initial_capital_cny,
         trade_start=trade_start,
         open_price_on_start=open_q.price,
     )
@@ -636,7 +665,7 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
             f"{spec.code} 自 {spec.trade_start_date} 起无有效交易（研报 {spec.report_date}）"
         )
 
-    kline_start = trade_start
+    kline_start = kline_chart_warmup_start(trade_start)
     klines, k_err, kline_source = fetch_a_share_klines_2h(spec.code, spec.yahoo_ticker, start=kline_start)
     if not klines:
         logger.warning("%s K线拉取失败: %s", spec.code, k_err)
@@ -701,6 +730,7 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
         "name": spec.name,
         "report_date": spec.report_date.isoformat(),
         "trade_start_date": spec.trade_start_date.isoformat(),
+        "kline_chart_start": kline_start.isoformat(sep=" "),
         "actual_trade_date": open_q.trade_date.isoformat(),
         "open_price_on_start": open_q.price,
         "trade_rows": len(trade_rows),
@@ -710,15 +740,17 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
         "kline_error": k_err,
         "kline_first": klines[0]["timestamp"].isoformat(sep=" ") if klines else None,
         "kline_last": klines[-1]["timestamp"].isoformat(sep=" ") if klines else None,
-        "final_capital_cny": trade_rows[-1]["cum_pnl"] + INITIAL_CAPITAL_CNY,
+        "final_capital_cny": trade_rows[-1]["cum_pnl"] + spec.initial_capital_cny,
+        "initial_capital_cny": spec.initial_capital_cny,
     }
 
 
 def sync_a_share_klines_to_db(spec: AShareStrategySpec) -> Dict[str, Any]:
-    """全量刷新单只 A 股 2H K 线（Yahoo 优先，自研报交易起始日起）。"""
+    """全量刷新单只 A 股 2H K 线（Yahoo 优先，自交易起始日前 1 个月起）。"""
     _, StrategyKline = _get_orm_classes()
+    kline_start = kline_chart_warmup_start(trade_start_datetime(spec))
     klines, k_err, source = fetch_a_share_klines_2h(
-        spec.code, spec.yahoo_ticker, start=trade_start_datetime(spec),
+        spec.code, spec.yahoo_ticker, start=kline_start,
     )
     if not klines:
         return {"code": spec.code, "inserted": 0, "total": 0, "source": source, "error": k_err}
@@ -752,6 +784,7 @@ def sync_a_share_klines_to_db(spec: AShareStrategySpec) -> Dict[str, Any]:
         "inserted": len(klines),
         "total": len(klines),
         "source": source,
+        "kline_chart_start": kline_start.isoformat(sep=" "),
         "first": klines[0]["timestamp"].isoformat(sep=" "),
         "last": klines[-1]["timestamp"].isoformat(sep=" "),
         "error": k_err,

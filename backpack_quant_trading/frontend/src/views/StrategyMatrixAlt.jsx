@@ -15,7 +15,7 @@ import {
   getMatrixYearlyReturns,
 } from '../api/strategy'
 
-const A_SHARE_KEYS = ['300308', '603986', '688146']
+const A_SHARE_KEYS = ['300308', '603986', '688146', '002837']
 const DEFAULT_USD_CNY = 7.25
 
 const strategies = [
@@ -82,6 +82,19 @@ const strategies = [
     progress: 72,
     progressColor: '#10b981',
     riskIndex: '高风险',
+    isRiskWarning: true,
+  },
+  {
+    to: '/strategies/a-share-002837',
+    icon: '🏮',
+    title: 'A股动量轮动策略·英维克',
+    code: 'ML-AMR',
+    description: '聚焦英维克（002837）精密温控龙头，2H 动量轮动全仓复利，捕捉 AI 液冷与储能温控景气周期。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 72,
+    progressColor: '#10b981',
+    riskIndex: '中风险',
     isRiskWarning: true,
   },
   {
@@ -171,6 +184,7 @@ export default function StrategyMatrixAlt() {
       { key: '300308', fn: () => getAShareOverview('300308') },
       { key: '603986', fn: () => getAShareOverview('603986') },
       { key: '688146', fn: () => getAShareOverview('688146') },
+      { key: '002837', fn: () => getAShareOverview('002837') },
     ]
 
     Promise.allSettled([
@@ -253,13 +267,13 @@ export default function StrategyMatrixAlt() {
   ]
 
   // 与 strategies 数组顺序一致
-  const strategyKeys = ['nvda', 'intc', '300308', '603986', '688146', 'eth', 'hype', 'paxg', 'nas100']
-  const useLiveDrawdown = new Set(['intc', 'nvda', '300308', '603986', '688146'])
+  const strategyKeys = ['nvda', 'intc', '300308', '603986', '688146', '002837', 'eth', 'hype', 'paxg', 'nas100']
+  const useLiveDrawdown = new Set(['intc', 'nvda', '300308', '603986', '688146', '002837'])
   const enrichedStrategies = strategies.map((s, i) => {
     const key = strategyKeys[i]
     const ov = overviews[key]
-    const fixedDrawdown = ['--', '--', '--', '--', '--', '-3.48%', '-6.47%', '-1.44%', '-4%']
-    const fixedProfitFactor = ['--', '--', '--', '--', '--', '2.58', '2.84', '2.25', '0.71']
+    const fixedDrawdown = ['--', '--', '--', '--', '--', '--', '-3.48%', '-6.47%', '-1.44%', '-4%']
+    const fixedProfitFactor = ['--', '--', '--', '--', '--', '--', '2.58', '2.84', '2.25', '0.71']
     const liveDrawdown = ov?.max_drawdown_pct != null
       ? `-${Number(ov.max_drawdown_pct).toFixed(2)}%`
       : null

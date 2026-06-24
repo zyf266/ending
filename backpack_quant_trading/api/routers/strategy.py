@@ -1362,6 +1362,20 @@ def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], flo
         finally:
             session.close()
 
+    from backpack_quant_trading.core.a_share_strategy_import import A_SHARE_STRATEGY_SPECS
+
+    a_share_specs = [
+        (
+            spec.code,
+            (lambda c=spec.code: _query_a_share_trades(c)),
+            spec.initial_capital_cny,
+            None,
+            1.0,
+            "CNY",
+        )
+        for spec in A_SHARE_STRATEGY_SPECS
+    ]
+
     return [
         ("eth", _eth_only_trades, 30_000_000, None, 1.0, "USD"),
         ("hype", _hype_trades, 1_000_000, None, 1.0, "USD"),
@@ -1369,9 +1383,7 @@ def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], flo
         ("nas100", _nas100_trades, 2_000_000, 4_000_000, 1.0, "USD"),
         ("intc", lambda: _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME), 500_000, None, 1.0, "USD"),
         ("nvda", lambda: _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME), 1_000_000, None, 1.0, "USD"),
-        ("300308", lambda: _query_a_share_trades("300308"), 2_000_000, None, 1.0, "CNY"),
-        ("603986", lambda: _query_a_share_trades("603986"), 2_000_000, None, 1.0, "CNY"),
-        ("688146", lambda: _query_a_share_trades("688146"), 2_000_000, None, 1.0, "CNY"),
+        *a_share_specs,
     ]
 
 
@@ -2281,7 +2293,7 @@ def _ensure_a_share_loaded(code: str) -> None:
 
 
 def _a_share_overview(code: str, label: str):
-    from backpack_quant_trading.core.a_share_strategy_import import INITIAL_CAPITAL_CNY, TIMEFRAME, get_spec_by_code
+    from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
 
     spec = get_spec_by_code(code)
     if not spec:
@@ -2305,7 +2317,7 @@ def _a_share_overview(code: str, label: str):
         session.close()
     if not trades:
         raise HTTPException(404, f"尚未导入 {code} 回测数据，请运行 tools/import_a_share_strategies.py")
-    ov = _compute_overview_from_trades_klines(trades, kls, INITIAL_CAPITAL_CNY, label)
+    ov = _compute_overview_from_trades_klines(trades, kls, spec.initial_capital_cny, label)
     if ov is None:
         raise HTTPException(404, f"{code} 回测数据计算失败")
     return ov

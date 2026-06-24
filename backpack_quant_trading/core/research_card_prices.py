@@ -64,6 +64,13 @@ def _session() -> requests.Session:
     return s
 
 
+def _direct_session() -> requests.Session:
+    """国内源（东方财富等）直连，不走 HTTP_PROXY。"""
+    s = requests.Session()
+    s.trust_env = False
+    return s
+
+
 def _yahoo_headers() -> Dict[str, str]:
     return {
         "User-Agent": (
@@ -368,32 +375,143 @@ def fetch_massive_prev_prices_slow(tickers: List[str]) -> Dict[str, float]:
     return out
 
 
-def fetch_eastmoney_a_share_price(code: str) -> Optional[float]:
-    """东方财富 A 股现价（国内服务器可用）。"""
+def _a_share_list_symbol(code: str) -> Optional[str]:
+    c = str(code or "").strip()
+    if not c.isdigit() or len(c) != 6:
+        return None
+    return f"sh{c}" if c.startswith("6") else f"sz{c}"
+
+
+def _fetch_eastmoney_a_share_price(code: str) -> Optional[float]:
+    """东方财富 A 股现价（直连）。"""
     c = str(code or "").strip()
     if not c.isdigit() or len(c) != 6:
         return None
     market = "1" if c.startswith("6") else "0"
     secid = f"{market}.{c}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://quote.eastmoney.com/",
+        "Accept": "application/json,text/plain,*/*",
+    }
+    urls = (
+        "https://push2.eastmoney.com/api/qt/stock/get",
+        "https://push2his.eastmoney.com/api/qt/stock/get",
+    )
+    for url in urls:
+        try:
+            with _direct_session() as sess:
+                r = sess.get(
+                    url,
+                    params={"secid": secid, "fields": "f43,f57,f152", "ut": "fa5fd1943c7b386f172d6893dbfba10b"},
+                    timeout=15,
+                    headers=headers,
+                )
+            if r.status_code != 200:
+                continue
+            data = (r.json() or {}).get("data") or {}
+            raw = data.get("f43")
+            if raw is None:
+                continue
+            scale = int(data.get("f152") or 2)
+            px = float(raw) / (10 ** scale)
+            if px > 0:
+                return px
+        except Exception as exc:
+            logger.debug("东方财富 %s (%s): %s", c, url, exc)
+    return None
+
+
+def _fetch_sina_a_share_price(code: str) -> Optional[float]:
+    """新浪 hq.sinajs.cn 现价（字段 index 3）。"""
+    sym = _a_share_list_symbol(code)
+    if not sym:
+        return None
     try:
-        with _session() as sess:
+        with _direct_session() as sess:
             r = sess.get(
-                "https://push2.eastmoney.com/api/qt/stock/get",
-                params={"secid": secid, "fields": "f43,f57,f152"},
-                timeout=12,
-                headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"},
+                f"https://hq.sinajs.cn/list={sym}",
+                timeout=15,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Referer": "https://finance.sina.com.cn/",
+                },
             )
         if r.status_code != 200:
             return None
-        data = (r.json() or {}).get("data") or {}
-        raw = data.get("f43")
-        if raw is None:
+        text = r.text
+        if '="' not in text:
             return None
-        scale = int(data.get("f152") or 2)
-        return float(raw) / (10 ** scale)
+        body = text.split('="', 1)[1].rstrip('";')
+        parts = body.split(",")
+        if len(parts) < 4:
+            return None
+        px = float(parts[3])
+        return px if px > 0 else None
     except Exception as exc:
-        logger.debug("东方财富 %s: %s", c, exc)
+        logger.debug("新浪 A股现价 %s 失败: %s", code, exc)
         return None
+
+
+def _fetch_tencent_a_share_price(code: str) -> Optional[float]:
+    """腾讯 qt.gtimg.cn 现价（~ 分隔，index 3）。"""
+    sym = _a_share_list_symbol(code)
+    if not sym:
+        return None
+    try:
+        with _direct_session() as sess:
+            r = sess.get(
+                f"https://qt.gtimg.cn/q={sym}",
+                timeout=15,
+                headers={"User-Agent": "Mozilla/5.0", "Referer": "https://gu.qq.com/"},
+            )
+        if r.status_code != 200:
+            return None
+        text = r.text
+        if "~" not in text:
+            return None
+        body = text.split('"', 1)[-1].strip().strip('"').strip()
+        parts = body.split("~")
+        if len(parts) < 4:
+            return None
+        px = float(parts[3])
+        return px if px > 0 else None
+    except Exception as exc:
+        logger.debug("腾讯 A股现价 %s 失败: %s", code, exc)
+        return None
+
+
+def fetch_a_share_price(code: str) -> Tuple[Optional[float], str]:
+    """
+    A 股现价：东方财富 → 新浪 → 腾讯（云服务器上东财常断连，后两者更稳）。
+    返回 (price, source)。
+    """
+    c = str(code or "").strip()
+    for attempt in range(2):
+        px = _fetch_eastmoney_a_share_price(c)
+        if px is not None:
+            return px, "eastmoney"
+        if attempt == 0:
+            time.sleep(0.35)
+    px = _fetch_sina_a_share_price(c)
+    if px is not None:
+        logger.info("A股现价 %s 走新浪兜底: %s", c, px)
+        return px, "sina"
+    px = _fetch_tencent_a_share_price(c)
+    if px is not None:
+        logger.info("A股现价 %s 走腾讯兜底: %s", c, px)
+        return px, "tencent"
+    logger.warning("A股现价 %s 全部数据源失败", c)
+    return None, "none"
+
+
+def fetch_eastmoney_a_share_price(code: str) -> Optional[float]:
+    """兼容旧调用；内部走多源 fetch_a_share_price。"""
+    px, _ = fetch_a_share_price(code)
+    return px
 
 
 def fetch_coingecko_usd_price(coin_code: str) -> Optional[float]:
@@ -480,9 +598,9 @@ def fetch_market_price(
             return p, "stooq", "USD"
 
     if _is_a_share(code, sym):
-        p = fetch_eastmoney_a_share_price(code)
+        p, src = fetch_a_share_price(code)
         if p is not None:
-            return p, "eastmoney", "CNY"
+            return p, src, "CNY"
 
     if _is_yahoo_crypto(sym):
         p = fetch_coingecko_usd_price(base)
@@ -618,9 +736,9 @@ def refresh_all_research_prices() -> Dict[str, Any]:
             else:
                 need_massive_prev.append(ticker)
         elif _is_a_share(code, qsym):
-            p = fetch_eastmoney_a_share_price(code)
+            p, src = fetch_a_share_price(code)
             if p is not None:
-                price, source, currency = p, "eastmoney", "CNY"
+                price, source, currency = p, src, "CNY"
         elif _is_yahoo_crypto(qsym):
             p = fetch_coingecko_usd_price(base)
             if p is not None:

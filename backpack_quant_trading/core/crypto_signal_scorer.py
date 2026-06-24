@@ -2303,15 +2303,66 @@ def enrich_webhook_raw_for_scoring(
     webhook_raw: Dict[str, Any],
     parsed: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """合并文本解析出的 ID，确保评分门禁能读到筛选ID。"""
+    """合并文本/JSON 解析结果，确保评分门禁能读到筛选ID、品种、方向等。"""
     merged = dict(webhook_raw)
-    if get_webhook_filter_id(merged):
+    if not parsed:
         return merged
-    alt = ""
-    if parsed:
+
+    if not get_webhook_filter_id(merged):
         alt = str(parsed.get("id") or parsed.get("alert_id") or "").strip()
-    if alt:
-        merged["筛选ID"] = alt
+        if alt:
+            merged["筛选ID"] = alt
+
+    sym = str(
+        merged.get("交易品种")
+        or merged.get("symbol")
+        or merged.get("ticker")
+        or merged.get("coin")
+        or ""
+    ).strip()
+    if not sym or sym.upper() in ("未知品种", "N/A"):
+        psym = str(parsed.get("symbol") or "").strip()
+        if psym and psym not in ("未知品种", "N/A"):
+            merged["交易品种"] = psym
+
+    act = str(
+        merged.get("方向")
+        or merged.get("操作")
+        or merged.get("action")
+        or merged.get("signal")
+        or merged.get("side")
+        or ""
+    ).strip()
+    if not act or act in ("信号", "N/A"):
+        pact = str(parsed.get("signal") or parsed.get("action") or "").strip()
+        if pact and pact not in ("信号", "N/A"):
+            merged["方向"] = pact
+
+    tf = str(
+        merged.get("周期")
+        or merged.get("K线级别")
+        or merged.get("timeframe")
+        or merged.get("interval")
+        or merged.get("tf")
+        or ""
+    ).strip()
+    if not tf:
+        ptf = str(parsed.get("timeframe") or "").strip()
+        if ptf:
+            merged["周期"] = ptf
+
+    st = str(
+        merged.get("策略名称")
+        or merged.get("策略名")
+        or merged.get("strategy_name")
+        or merged.get("strategy")
+        or ""
+    ).strip()
+    if not st or st in ("未知策略", "N/A"):
+        pst = str(parsed.get("strategy") or "").strip()
+        if pst and pst not in ("未知策略", "N/A"):
+            merged["策略名称"] = pst
+
     return merged
 
 
