@@ -23,45 +23,150 @@ mkdir -p "${CONFIG_DIR}" "${BIN_DIR}"
 
 SUB_FILE="${CONFIG_DIR}/subscription.yaml"
 CFG_FILE="${CONFIG_DIR}/config.yaml"
+SUB_LOG="${CONFIG_DIR}/download_last.err"
+
+_sub_looks_valid() {
+  local f="$1"
+  [[ -s "${f}" ]] || return 1
+  if head -n 5 "${f}" | tr -d '\r' | grep -qiE '<!doctype html|<html|access denied|forbidden|unauthorized|登录|subscribe|token|expired'; then
+    return 1
+  fi
+  grep -qE '^(proxies:|proxy-groups:|proxy-providers:|rules:|rule-providers:)' "${f}"
+}
+
+_sub_has_proxy_nodes() {
+  local f="$1"
+  python3 - "${f}" <<'PY'
+import re, sys
+from pathlib import Path
+
+def has_nodes(t: str) -> bool:
+    if re.search(r"^proxy-providers:\s*$", t, re.M):
+        return True
+    if re.search(r"^proxies:\s*\[\s*\]", t, re.M):
+        return False
+    in_proxies = False
+    for line in t.splitlines():
+        if re.match(r"^proxies:\s*$", line):
+            in_proxies = True
+            continue
+        if not in_proxies:
+            continue
+        if line and line[0] not in " \t" and re.match(r"^[A-Za-z0-9_-]+:", line):
+            break
+        if re.match(r"^\s+-\s+", line) and "name" in line:
+            return True
+    return False
+
+p = Path(sys.argv[1])
+sys.exit(0 if p.is_file() and has_nodes(p.read_text(encoding="utf-8", errors="ignore")) else 1)
+PY
+}
+
+_sub_diag() {
+  local f="$1"
+  echo "--- 订阅诊断: ${f} ---"
+  echo "大小: $(wc -c <"${f}" 2>/dev/null || echo 0) bytes"
+  echo "前 3 行:"
+  head -n 3 "${f}" 2>/dev/null | sed 's/^/  /'
+  local n
+  n="$(grep -cE '^[[:space:]]*-[[:space:]]+name:' "${f}" 2>/dev/null || echo 0)"
+  echo "proxies 节点数(粗估): ${n}"
+  if grep -qi 'MANAGED-CONFIG' "${f}" 2>/dev/null; then
+    echo "类型: MANAGED-CONFIG 托管壳（proxies 常为空，需本机下载完整订阅后上传）"
+  fi
+}
+
+_download_clash_sub() {
+  local url="$1" out="$2"
+  local ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  local tmp="${out}.tmp"
+  local err="${SUB_LOG}"
+  : >"${err}"
+
+  _try_curl() {
+    # shellcheck disable=SC2068
+    if curl -fsSL --connect-timeout 15 --max-time 120 "$@" "${url}" -o "${tmp}" 2>>"${err}"; then
+      if _sub_looks_valid "${tmp}" && _sub_has_proxy_nodes "${tmp}"; then
+        mv -f "${tmp}" "${out}"
+        return 0
+      fi
+      echo "WARN: 下载内容无有效代理节点（可能是空壳/HTML）" >>"${err}"
+    fi
+    rm -f "${tmp}"
+    return 1
+  }
+
+  # 多种请求头组合，应对订阅站对 curl/机房 IP 的 403 限制
+  _try_curl \
+    || _try_curl -A "${ua}" \
+    || _try_curl -A "${ua}" -H "Accept: text/yaml,application/yaml,*/*" \
+    || _try_curl -A "${ua}" -H "Referer: https://www.google.com/" \
+    || _try_curl -A "${ua}" -H "Referer: ${url%%\?*}" \
+    || return 1
+}
 
 echo "[1/4] 下载订阅到 ${SUB_FILE}"
 # 若订阅站点对 curl/机房 IP 有限制，可能返回 403。
 # 处理策略：
-# - 支持通过 CLASH_SUB_FILE 指向本地订阅文件（跳过下载）
-# - 否则下载失败时，带浏览器 UA 再重试一次
+# - CLASH_SUB_FILE：本地订阅文件（推荐：本机下载后 scp 上传）
+# - 下载失败时复用已有有效 subscription.yaml
+# - 多组 UA/Referer 重试
 if [[ -n "${CLASH_SUB_FILE:-}" ]]; then
   echo "使用本地订阅文件: ${CLASH_SUB_FILE}"
   cp -f "${CLASH_SUB_FILE}" "${SUB_FILE}"
-else
-  if ! curl -fsSL "${CLASH_SUB_URL}" -o "${SUB_FILE}"; then
-    echo "订阅下载失败，尝试携带浏览器 UA 重试..."
-    UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    curl -fsSL -A "${UA}" "${CLASH_SUB_URL}" -o "${SUB_FILE}"
+elif [[ "${CLASH_SUB_SKIP_DOWNLOAD:-}" == "1" ]] && _sub_looks_valid "${SUB_FILE}" && _sub_has_proxy_nodes "${SUB_FILE}"; then
+  echo "跳过下载，复用已有订阅: ${SUB_FILE}"
+elif [[ "${CLASH_SUB_SKIP_DOWNLOAD:-}" == "1" ]] && _sub_looks_valid "${SUB_FILE}"; then
+  echo "ERROR: ${SUB_FILE} 存在但无代理节点（可能是 403 时留下的空壳配置）"
+  _sub_diag "${SUB_FILE}"
+  echo "请删除后上传本机下载的完整订阅:"
+  echo "  rm -f ${SUB_FILE}"
+  echo "  scp subscription.yaml root@服务器:${SUB_FILE}"
+  echo "  export CLASH_SUB_SKIP_DOWNLOAD=1"
+  echo "  DAEMON=1 bash backpack_quant_trading/tools/proxy/start_clash.sh"
+  exit 1
+elif _download_clash_sub "${CLASH_SUB_URL}" "${SUB_FILE}"; then
+  echo "订阅下载成功"
+elif _sub_looks_valid "${SUB_FILE}" && _sub_has_proxy_nodes "${SUB_FILE}"; then
+  echo "WARN: 订阅下载失败（常见 403：机房 IP 被订阅站拦截），复用已有 ${SUB_FILE}"
+  echo "      若节点过旧，请在本机浏览器下载订阅后执行:"
+  echo "      scp subscription.yaml root@服务器:/root/.config/mihomo/subscription.yaml"
+  echo "      或 export CLASH_SUB_FILE=/path/to/subscription.yaml"
+  if [[ -f "${SUB_LOG}" ]]; then
+    echo "      最近错误: $(tr '\n' ' ' <"${SUB_LOG}" | head -c 180)"
   fi
+else
+  echo "ERROR: 无法下载订阅，且本地无可用 ${SUB_FILE}"
+  echo "云服务器常被订阅站返回 403，请在本机电脑操作:"
+  echo "  1) 浏览器打开订阅链接，保存为 subscription.yaml"
+  echo "  2) scp subscription.yaml root@你的服务器:/root/.config/mihomo/subscription.yaml"
+  echo "  3) export CLASH_SUB_SKIP_DOWNLOAD=1"
+  echo "  4) bash backpack_quant_trading/tools/proxy/start_clash.sh"
+  echo "或: export CLASH_SUB_FILE=/path/to/subscription.yaml"
+  if [[ -f "${SUB_LOG}" ]]; then
+    echo "curl 详情: $(tr '\n' ' ' <"${SUB_LOG}" | head -c 240)"
+  fi
+  exit 1
 fi
 
 # ─── 基础校验：避免订阅返回 HTML/报错页导致“启动后全直连” ────────────────
-if [[ ! -s "${SUB_FILE}" ]]; then
-  echo "ERROR: 订阅文件为空：${SUB_FILE}"
-  echo "可能原因：订阅链接失效/403/机房 IP 被限制/网络问题。"
+if ! _sub_looks_valid "${SUB_FILE}"; then
+  echo "ERROR: 订阅内容无效（空文件、HTML 或缺少 proxies/rules 字段）"
+  _sub_diag "${SUB_FILE}" 2>/dev/null || true
+  echo "请用 CLASH_SUB_FILE 或 scp 上传正确的 subscription.yaml"
+  exit 1
+fi
+if ! _sub_has_proxy_nodes "${SUB_FILE}"; then
+  echo "ERROR: 订阅无代理节点（proxies 为空）"
+  _sub_diag "${SUB_FILE}"
+  echo "删除坏文件后重新上传本机下载的订阅:"
+  echo "  rm -f ${SUB_FILE}"
+  echo "  scp subscription.yaml root@服务器:${SUB_FILE}"
   exit 1
 fi
 
-# 常见：订阅站返回 HTML、JSON 报错、或纯文本提示；这种内容会被当 YAML 读入但不会产生任何节点
-if head -n 5 "${SUB_FILE}" | tr -d '\r' | grep -qiE '<!doctype html|<html|access denied|forbidden|unauthorized|登录|subscribe|token|expired'; then
-  echo "ERROR: 订阅内容疑似为 HTML/错误页（不是 Clash YAML）。"
-  echo "请在服务器上直接查看订阅返回是否正常，或改用 CLASH_SUB_FILE 指向本地正确的 subscription.yaml。"
-  exit 1
-fi
-
-# 粗判 YAML 形态：至少要包含 proxies/proxy-groups/rules 等关键字之一
-if ! grep -qE '^(proxies:|proxy-groups:|proxy-providers:|rules:|rule-providers:)' "${SUB_FILE}"; then
-  echo "ERROR: 订阅内容看起来不像 Clash 配置（未发现 proxies/proxy-groups/rules 等关键字段）。"
-  echo "建议：检查订阅链接是否返回了加密/压缩/非 YAML 内容，或使用 CLASH_SUB_FILE 传入已解码的 YAML。"
-  exit 1
-fi
-
-echo "[2/4] 生成 ${CFG_FILE}"
+echo "[2/4] 生成 ${CFG_FILE}（mixed-port 固定 ${MIXED_PORT}，忽略订阅里的端口）"
 # 给 Python 片段提供真实路径与端口（避免 here-doc 单引号导致 ${VAR} 不展开）
 # 关键：必须 export MIXED_PORT，否则 Python 会用默认 7890 写进配置
 export SUB_FILE CFG_FILE MIXED_PORT CLASH_MODE CLASH_LOG_LEVEL CTRL_ADDR
@@ -98,13 +203,22 @@ def normalize_empty_proxies(t: str) -> str:
     return t
 
 def has_any_real_proxy_nodes(t: str) -> bool:
-    # 订阅常见坑：返回的是“托管配置壳子”（MANAGED-CONFIG），proxies 为空，
-    # 且也没有 proxy-providers；这种情况下 mihomo 只能 DIRECT，表现为 CONNECT 200 后 TLS 立刻断。
-    # 我们用一个保守判定：出现 `proxies:` 且其下至少有一个 `- name:` 才认为有节点。
-    #（不解析 YAML，避免依赖；用文本规则足够抓住该坑）
     if re.search(r"^proxy-providers:\s*$", t, re.M):
-        return True  # provider 模式可能没在 proxies 里展开
-    return bool(re.search(r"^proxies:\s*$\s*(?:-\s*name:|\s*-\s*\{[^}]*name\s*:)", t, re.M))
+        return True
+    if re.search(r"^proxies:\s*\[\s*\]", t, re.M):
+        return False
+    in_proxies = False
+    for line in t.splitlines():
+        if re.match(r"^proxies:\s*$", line):
+            in_proxies = True
+            continue
+        if not in_proxies:
+            continue
+        if line and line[0] not in " \t" and re.match(r"^[A-Za-z0-9_-]+:", line):
+            break
+        if re.match(r"^\s+-\s+", line) and "name" in line:
+            return True
+    return False
 
 def normalize_empty_group_members(t: str) -> str:
     # 部分订阅把 proxy-groups 的 proxies/use 输出为空（[] 或 {}），mihomo 会直接报错：
@@ -126,6 +240,23 @@ def normalize_empty_group_members(t: str) -> str:
     )
     return t
 
+def strip_dns_section(t: str) -> str:
+    """去掉订阅里的 dns 段，避免抢系统 53 端口导致异常。"""
+    lines = t.splitlines()
+    out: list[str] = []
+    skipping = False
+    for line in lines:
+        if not skipping and re.match(r"^dns:\s*$", line):
+            skipping = True
+            continue
+        if skipping:
+            if line and line[0] not in " \t" and re.match(r"^[A-Za-z0-9_-]+:", line):
+                skipping = False
+                out.append(line)
+            continue
+        out.append(line)
+    return "\n".join(out).strip() + "\n"
+
 def strip_top_level_lines(t: str) -> str:
     # 去掉常见顶层配置，避免重复 key；我们会在末尾强制写入一组“可控”的配置
     drop = (
@@ -145,7 +276,9 @@ def strip_top_level_lines(t: str) -> str:
 
 if looks_like_full_config(text):
     # 直接用订阅作为主配置，并强制覆写端口/控制器
-    cleaned = normalize_empty_group_members(normalize_empty_proxies(strip_top_level_lines(text)))
+    cleaned = normalize_empty_group_members(
+        normalize_empty_proxies(strip_dns_section(strip_top_level_lines(text)))
+    )
     if not has_any_real_proxy_nodes(cleaned):
         raise SystemExit(
             "ERROR: 订阅配置不包含任何代理节点（proxies 为空且无 proxy-providers）。\n"
@@ -340,8 +473,30 @@ else
   echo "已存在: ${MIHOMO_BIN}"
 fi
 
-echo "[4/4] 启动 mihomo（前台）"
-echo "提示：可用 tmux/nohup 让其后台常驻"
+echo "[4/4] 启动 mihomo"
 echo "配置目录: ${CONFIG_DIR}"
+MIHOMO_LOG="${CONFIG_DIR}/mihomo.log"
+
+if [[ "${DAEMON:-}" == "1" ]]; then
+  if pgrep -f "${MIHOMO_BIN}" >/dev/null 2>&1; then
+    echo "停止已有 mihomo，用新 config.yaml 在 ${MIXED_PORT} 重启..."
+    pkill -f "${MIHOMO_BIN}" 2>/dev/null || true
+    sleep 2
+  fi
+  nohup "${MIHOMO_BIN}" -d "${CONFIG_DIR}" -f "${CFG_FILE}" >>"${MIHOMO_LOG}" 2>&1 &
+  pid=$!
+  echo "mihomo 后台启动 pid=${pid}，日志: ${MIHOMO_LOG}"
+  for i in $(seq 1 8); do
+    sleep 1
+    if is_listening "${MIXED_PORT}"; then
+      echo "mixed-port ${MIXED_PORT} 已监听"
+      exit 0
+    fi
+  done
+  echo "WARN: 启动后端口未就绪，查看日志: tail -30 ${MIHOMO_LOG}"
+  exit 1
+fi
+
+echo "提示：后台启动: DAEMON=1 bash $0"
 exec "${MIHOMO_BIN}" -d "${CONFIG_DIR}" -f "${CFG_FILE}"
 

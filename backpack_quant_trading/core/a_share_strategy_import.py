@@ -10,7 +10,7 @@ import os
 import time
 import urllib.parse
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from datetime import time as dt_time
 from decimal import Decimal
 from pathlib import Path
@@ -29,6 +29,8 @@ TIMEFRAME = "2H"
 YAHOO_CHART_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 YAHOO_WARMUP_URL = "https://finance.yahoo.com/"
 DEFAULT_USD_CNY = 7.25
+_usd_cny_cache: Optional[Tuple[float, float]] = None
+_USD_CNY_CACHE_TTL = 3600.0
 
 
 def _proxy_env_value() -> str:
@@ -95,15 +97,20 @@ _CSV_COL_MAP = {
     "日期和时间": "trade_time",
     "信号": "signal",
     "价格 CNY": "price",
+    "价格 USD": "price",
     "大小（数量）": "position_qty",
     "大小（价值）": "position_value",
     "净损益 CNY": "pnl",
+    "净损益 USD": "pnl",
     "净损益 %": "pnl_pct",
     "有利波动 CNY": "runup",
+    "有利波动 USD": "runup",
     "有利波动 %": "runup_pct",
     "不利波动 CNY": "drawdown",
+    "不利波动 USD": "drawdown",
     "不利波动 %": "drawdown_pct",
     "累计损益 CNY": "cum_pnl",
+    "累计损益 USD": "cum_pnl",
     "累计损益 %": "cum_pnl_pct",
 }
 
@@ -120,6 +127,7 @@ class AShareStrategySpec:
     report_date: date  # 研报发布日
     trade_start_date: date  # 交易起始日（以当日开盘价入场）
     initial_capital_cny: float = INITIAL_CAPITAL_CNY
+    trade_start_open_price: Optional[float] = None  # 指定首笔开盘价（除权价等），不设则拉行情
 
 
 def _project_root() -> Path:
@@ -174,6 +182,7 @@ A_SHARE_STRATEGY_SPECS: Tuple[AShareStrategySpec, ...] = (
         report_date=date(2026, 1, 29),
         trade_start_date=date(2026, 1, 30),
         initial_capital_cny=500_000.0,
+        trade_start_open_price=74.48,
     ),
 )
 
@@ -187,22 +196,30 @@ def get_spec_by_code(code: str) -> Optional[AShareStrategySpec]:
 
 
 def get_usd_cny_rate() -> float:
-    """Yahoo USDCNY=X 最新价；失败则用默认 7.25。"""
+    """Yahoo USDCNY=X 最新价；失败则用默认 7.25（内存缓存 1 小时，避免矩阵页每次打外网）。"""
+    global _usd_cny_cache
+    now = time.time()
+    if _usd_cny_cache and now - _usd_cny_cache[1] < _USD_CNY_CACHE_TTL:
+        return _usd_cny_cache[0]
     try:
         enc = urllib.parse.quote("USDCNY=X", safe="")
         url = f"{YAHOO_CHART_BASE}/{enc}"
         r = _yahoo_get(
             url,
             params={"range": "5d", "interval": "1d"},
+            timeout=6,
         )
         r.raise_for_status()
         res = r.json()["chart"]["result"][0]
         closes = (res.get("indicators") or {}).get("quote", [{}])[0].get("close") or []
         for c in reversed(closes):
             if c is not None and float(c) > 0:
-                return float(c)
+                rate = float(c)
+                _usd_cny_cache = (rate, now)
+                return rate
     except Exception as exc:
         logger.warning("USDCNY 汇率获取失败，使用默认 %.2f: %s", DEFAULT_USD_CNY, exc)
+    _usd_cny_cache = (DEFAULT_USD_CNY, now)
     return DEFAULT_USD_CNY
 
 
@@ -246,6 +263,56 @@ def kline_chart_warmup_start(trade_start: datetime) -> datetime:
         year -= 1
     day = min(d.day, calendar.monthrange(year, month)[1])
     return datetime.combine(date(year, month, day), trade_start.time())
+
+
+def first_entry_time_from_trade_rows(rows: List[Dict[str, Any]]) -> Optional[datetime]:
+    """从复利后的交易腿列表取最早一笔进场时间。"""
+    entries = [r for r in rows if _is_entry(str(r.get("trade_type") or ""))]
+    if not entries:
+        return None
+    t = min(entries, key=lambda r: r["trade_time"])["trade_time"]
+    if isinstance(t, datetime):
+        return t.replace(tzinfo=None)
+    return t
+
+
+def first_entry_time_from_db(spec: AShareStrategySpec) -> Optional[datetime]:
+    """从库中已导入的交易取最早一笔进场时间。"""
+    StrategyBacktestTrade, _ = _get_orm_classes()
+    session = db_manager.get_session()
+    try:
+        rows = (
+            session.query(StrategyBacktestTrade)
+            .filter_by(
+                strategy_name=spec.strategy_name,
+                symbol=spec.symbol,
+                timeframe=TIMEFRAME,
+            )
+            .order_by(StrategyBacktestTrade.trade_time.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    entries = [r for r in rows if _is_entry(str(r.trade_type or ""))]
+    if not entries:
+        return None
+    t = min(r.trade_time for r in entries if r.trade_time)
+    return t.replace(tzinfo=None) if t else None
+
+
+def resolve_a_share_kline_start(
+    spec: AShareStrategySpec,
+    trade_rows: Optional[List[Dict[str, Any]]] = None,
+) -> datetime:
+    """K 线拉取起点：优先按实际首笔进场前推 1 个月，否则回退到 spec 配置。"""
+    ft: Optional[datetime] = None
+    if trade_rows:
+        ft = first_entry_time_from_trade_rows(trade_rows)
+    if ft is None:
+        ft = first_entry_time_from_db(spec)
+    if ft is not None:
+        return kline_chart_warmup_start(ft)
+    return kline_chart_warmup_start(trade_start_datetime(spec))
 
 
 def _sina_symbol(code: str) -> str:
@@ -363,6 +430,7 @@ def recompound_trades_from_csv(
     initial_capital: float = INITIAL_CAPITAL_CNY,
     trade_start: Optional[datetime] = None,
     open_price_on_start: Optional[float] = None,
+    start_entry_signal: str = "研报次日开盘",
 ) -> List[Dict[str, Any]]:
     """
     提取出场时间 >= trade_start 的完整交易，按时间顺序用全仓复利重算。
@@ -404,7 +472,7 @@ def recompound_trades_from_csv(
                 raise ValueError(f"首笔交易需 {ts.date()} 开盘价，但未提供有效 open_price_on_start")
             entry_price = float(open_price_on_start)
             entry_time = ts
-            entry_signal = "研报次日开盘"
+            entry_signal = start_entry_signal
         first_trade = False
 
         exit_price = float(exit_row["price"])
@@ -493,6 +561,132 @@ def _resample_to_2h(bars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+def fetch_sina_klines_60m(
+    code: str,
+    start: datetime = TRADE_CUTOFF,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """新浪 60 分钟 K 线（国内源，约 1000 根，可覆盖数月 warmup）。"""
+    sym = _sina_symbol(code)
+    try:
+        r = _direct_get(
+            "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData",
+            params={"symbol": sym, "scale": 60, "ma": "no", "datalen": 1023},
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        r.raise_for_status()
+        rows = r.json() or []
+    except Exception as exc:
+        return [], f"新浪 60m K线失败 {code}: {exc}"
+
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        day = str(row.get("day") or "").strip()
+        if not day:
+            continue
+        try:
+            ts = datetime.strptime(day, "%Y-%m-%d %H:%M:%S")
+            if ts < start:
+                continue
+            out.append({
+                "timestamp": ts,
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": float(row.get("volume") or 0),
+            })
+        except (ValueError, TypeError, KeyError):
+            continue
+    if not out:
+        return [], f"新浪无有效 60m K线: {code}"
+    out.sort(key=lambda b: b["timestamp"])
+    return out, None
+
+
+def fetch_sina_klines_2h(
+    code: str,
+    start: datetime = TRADE_CUTOFF,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """新浪 60m 聚合为 2H。"""
+    bars, err = fetch_sina_klines_60m(code, start)
+    if not bars:
+        return [], err
+    resampled = _resample_to_2h(bars)
+    if not resampled:
+        return [], err or f"新浪 60m 无法聚合 2H: {code}"
+    return resampled, None
+
+
+def fetch_eastmoney_klines_daily(
+    code: str,
+    start: datetime,
+    end: Optional[datetime] = None,
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """东方财富日线（用于 2H 源不足时 warmup 回填）。"""
+    secid = _eastmoney_secid(code)
+    if not secid:
+        return [], f"无效 A 股代码: {code}"
+    beg = start.strftime("%Y%m%d")
+    end_s = (end or datetime.now()).strftime("%Y%m%d")
+    try:
+        r = _direct_get(
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+            params={
+                "secid": secid,
+                "klt": "101",
+                "fqt": "1",
+                "beg": beg,
+                "end": end_s,
+                "fields1": "f1,f2,f3,f4,f5,f6",
+                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+                "ut": "fa5fd1943c7b386f172d6893dbfba10b",
+            },
+            headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"},
+        )
+        r.raise_for_status()
+        klines = ((r.json() or {}).get("data") or {}).get("klines") or []
+    except Exception as exc:
+        return [], f"东方财富日线失败 {code}: {exc}"
+
+    out: List[Dict[str, Any]] = []
+    for line in klines:
+        parts = str(line).split(",")
+        if len(parts) < 6:
+            continue
+        try:
+            day = datetime.strptime(parts[0], "%Y-%m-%d").date()
+            ts = datetime.combine(day, dt_time(15, 0))
+            if ts < start:
+                continue
+            if end and ts >= end:
+                continue
+            out.append({
+                "timestamp": ts,
+                "open": float(parts[1]),
+                "close": float(parts[2]),
+                "high": float(parts[3]),
+                "low": float(parts[4]),
+                "volume": float(parts[5] or 0),
+            })
+        except (ValueError, TypeError):
+            continue
+    return out, None
+
+
+def _merge_kline_backfill(
+    warmup: List[Dict[str, Any]],
+    intraday: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """日线 warmup 与 2H 主序列合并，去重按时间排序。"""
+    if not warmup:
+        return intraday
+    if not intraday:
+        return warmup
+    cut = intraday[0]["timestamp"]
+    pre = [b for b in warmup if b["timestamp"] < cut]
+    return pre + intraday
+
+
 def _eastmoney_secid(code: str) -> Optional[str]:
     c = str(code or "").strip()
     if not c.isdigit() or len(c) != 6:
@@ -562,20 +756,29 @@ def fetch_a_share_klines_2h(
     start: datetime = TRADE_CUTOFF,
 ) -> Tuple[List[Dict[str, Any]], Optional[str], str]:
     """
-    拉取 2H K 线：Yahoo 60m 聚合（主，走代理）→ 东方财富 120（国内兜底）。
+    拉取 2H K 线：Yahoo 60m 聚合 → 新浪 60m 聚合 → 东方财富 120（+ 日线 warmup 回填）。
     返回 (bars, error, source)。
     """
     yerr: Optional[str] = None
     if yahoo_ticker:
         bars, yerr = fetch_yahoo_klines_2h(yahoo_ticker, start)
-        if bars:
+        if bars and bars[0]["timestamp"] <= start + timedelta(days=3):
             return bars, yerr, "yahoo_2h"
+
+    serr: Optional[str] = None
+    bars, serr = fetch_sina_klines_2h(code, start)
+    if bars:
+        return bars, None, "sina_2h"
 
     bars, em_err = fetch_eastmoney_klines_2h(code, start)
     if bars:
+        if bars[0]["timestamp"] > start + timedelta(days=3):
+            daily, _ = fetch_eastmoney_klines_daily(code, start, bars[0]["timestamp"])
+            if daily:
+                bars = _merge_kline_backfill(daily, bars)
         return bars, None, "eastmoney_2h"
 
-    return [], yerr if yahoo_ticker else em_err or "无可用 K 线源", "none"
+    return [], yerr or serr or em_err or "无可用 K 线源", "none"
 
 
 def fetch_yahoo_klines_2h(
@@ -652,20 +855,25 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
     if not path.exists():
         raise FileNotFoundError(f"CSV 不存在: {path}")
 
-    open_q = fetch_daily_open_price(spec.code, spec.trade_start_date)
+    if spec.trade_start_open_price is not None and spec.trade_start_open_price > 0:
+        open_q = DailyOpenQuote(price=float(spec.trade_start_open_price), trade_date=spec.trade_start_date)
+    else:
+        open_q = fetch_daily_open_price(spec.code, spec.trade_start_date)
     trade_start = datetime.combine(open_q.trade_date, dt_time(9, 30))
+    start_sig = "除权开盘价" if spec.trade_start_open_price else "研报次日开盘"
     trade_rows = recompound_trades_from_csv(
         path,
         initial_capital=spec.initial_capital_cny,
         trade_start=trade_start,
         open_price_on_start=open_q.price,
+        start_entry_signal=start_sig,
     )
     if not trade_rows:
         raise ValueError(
             f"{spec.code} 自 {spec.trade_start_date} 起无有效交易（研报 {spec.report_date}）"
         )
 
-    kline_start = kline_chart_warmup_start(trade_start)
+    kline_start = resolve_a_share_kline_start(spec, trade_rows)
     klines, k_err, kline_source = fetch_a_share_klines_2h(spec.code, spec.yahoo_ticker, start=kline_start)
     if not klines:
         logger.warning("%s K线拉取失败: %s", spec.code, k_err)
@@ -745,10 +953,15 @@ def import_strategy_to_db(spec: AShareStrategySpec, *, csv_path: Optional[Path] 
     }
 
 
-def sync_a_share_klines_to_db(spec: AShareStrategySpec) -> Dict[str, Any]:
-    """全量刷新单只 A 股 2H K 线（Yahoo 优先，自交易起始日前 1 个月起）。"""
+def sync_a_share_klines_to_db(
+    spec: AShareStrategySpec,
+    *,
+    kline_start: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """全量刷新单只 A 股 2H K 线（自首笔交易进场日前 1 个月起）。"""
     _, StrategyKline = _get_orm_classes()
-    kline_start = kline_chart_warmup_start(trade_start_datetime(spec))
+    if kline_start is None:
+        kline_start = resolve_a_share_kline_start(spec)
     klines, k_err, source = fetch_a_share_klines_2h(
         spec.code, spec.yahoo_ticker, start=kline_start,
     )

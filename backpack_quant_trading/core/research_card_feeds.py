@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 _RESEARCH_TRADE_BINDINGS: Dict[str, Tuple[str, Optional[str], Optional[str], str]] = {
     "NVDA": ("NVDAUSDT", "NVDA_KLINE", "2H", "NVDA K线策略"),
     "INTC": ("INTCUSDT", "INTC_KLINE", "1H", "INTC K线策略"),
+    "MU": ("MUUSDT", "MU_KLINE", "2H", "MU K线策略"),
     "CRCL": ("CRCL", "CRCL_1H", "1H", "CRCL 动量策略"),
     "ETH": ("ETHUSDT", "ETH_2H_TREND", "2h", "ETH 2H 趋势"),
     "HYPE": ("HYPEUSDT", "HYPE_2H_TREND", "4h", "HYPE 2H 趋势"),

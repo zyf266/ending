@@ -1,0 +1,20 @@
+{
+  "updated_at": "2026-06-25 15:54:11",
+  "quotes": {
+    "300308": {
+      "close": 1323.4,
+      "trade_date": "2026-06-25",
+      "source": "sina_daily"
+    },
+    "603986": {
+      "close": 775.21,
+      "trade_date": "2026-06-25",
+      "source": "sina_daily"
+    },
+    "688146": {
+      "close": 389.99,
+      "trade_date": "2026-06-22",
+      "source": "sina_daily"
+    }
+  }
+}

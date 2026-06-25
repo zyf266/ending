@@ -157,8 +157,10 @@ export function getAShareTrades(code, cacheBust = false) {
 }
 
 // ---------- NVDA 美股动量轮动 ----------
-export function getMatrixYearlyReturns() {
-  return request.get('/strategy/matrix-yearly-returns')
+export function getMatrixYearlyReturns(cacheBust = false) {
+  const key = 'matrix-yearly-returns'
+  const fn = () => request.get('/strategy/matrix-yearly-returns')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
 }
 
 export function getNvdaOverview(cacheBust = false) {
@@ -176,5 +178,24 @@ export function getNvdaKlines(cacheBust = false) {
 export function getNvdaTrades(cacheBust = false) {
   const key = 'nvda-trades'
   const fn = () => request.get('/strategy/nvda-2h/trades')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+// ---------- MU 美股动量轮动 ----------
+export function getMuOverview(cacheBust = false) {
+  const key = 'mu-overview'
+  const fn = () => request.get('/strategy/mu-2h/overview')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getMuKlines(cacheBust = false) {
+  const key = 'mu-klines'
+  const fn = () => request.get('/strategy/mu-2h/klines')
+  return cacheBust ? bust(key, fn) : cached(key, fn)
+}
+
+export function getMuTrades(cacheBust = false) {
+  const key = 'mu-trades'
+  const fn = () => request.get('/strategy/mu-2h/trades')
   return cacheBust ? bust(key, fn) : cached(key, fn)
 }

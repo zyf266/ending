@@ -11,6 +11,7 @@ import {
   getNas100TrendOverview,
   getIntcOverview,
   getNvdaOverview,
+  getMuOverview,
   getAShareOverview,
   getMatrixYearlyReturns,
 } from '../api/strategy'
@@ -46,11 +47,24 @@ const strategies = [
     isRiskWarning: true,
   },
   {
+    to: '/strategies/us-momentum-mu',
+    icon: '💾',
+    title: '美股动量轮动策略·MU',
+    code: 'ML-USM',
+    description: '聚焦美光科技（MU）等存储龙头，动量轮动全仓复利，捕捉 AI 存储超级周期与 HBM 放量行情。',
+    status: '运行中',
+    statusColor: 'bg-green-500 text-white',
+    progress: 68,
+    progressColor: '#3b82f6',
+    riskIndex: '中风险',
+    isRiskWarning: true,
+  },
+  {
     to: '/strategies/a-share-300308',
     icon: '🏮',
     title: 'A股动量轮动策略·中际旭创',
     code: 'ML-AMR',
-    description: '聚焦中际旭创（300308）AI 光模块龙头，2H 动量轮动全仓复利，捕捉算力基建主升浪。',
+    description: '聚焦中际旭创（300308）AI 光模块龙头，动量轮动全仓复利，捕捉算力基建主升浪。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 72,
@@ -63,7 +77,7 @@ const strategies = [
     icon: '🏮',
     title: 'A股动量轮动策略·兆易创新',
     code: 'ML-AMR',
-    description: '聚焦兆易创新（603986）存储龙头，2H 动量轮动全仓复利，捕捉存储超级周期与业绩爆发。',
+    description: '聚焦兆易创新（603986）存储龙头，动量轮动全仓复利，捕捉存储超级周期与业绩爆发。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 72,
@@ -76,7 +90,7 @@ const strategies = [
     icon: '🏮',
     title: 'A股动量轮动策略·中船特气',
     code: 'ML-AMR',
-    description: '聚焦中船特气（688146）半导体材料龙头，2H 动量轮动全仓复利，捕捉涨价与产能扩张周期。',
+    description: '聚焦中船特气（688146）半导体材料龙头，动量轮动全仓复利，捕捉涨价与产能扩张周期。',
     status: '运行中',
     statusColor: 'bg-green-500 text-white',
     progress: 72,
@@ -181,26 +195,26 @@ export default function StrategyMatrixAlt() {
       { key: 'nas100', fn: getNas100TrendOverview },
       { key: 'intc', fn: getIntcOverview },
       { key: 'nvda', fn: getNvdaOverview },
+      { key: 'mu', fn: getMuOverview },
       { key: '300308', fn: () => getAShareOverview('300308') },
       { key: '603986', fn: () => getAShareOverview('603986') },
       { key: '688146', fn: () => getAShareOverview('688146') },
       { key: '002837', fn: () => getAShareOverview('002837') },
     ]
 
-    Promise.allSettled([
-      ...reqs.map((r) => r.fn()),
-      getMatrixYearlyReturns(),
-    ]).then((results) => {
-      const next = {}
-      reqs.forEach((r, i) => {
-        if (results[i].status === 'fulfilled' && results[i].value) {
-          next[r.key] = results[i].value
-        }
-      })
-      setOverviews(next)
-      const yr = results[reqs.length]
-      if (yr.status === 'fulfilled' && yr.value) setYearlyReturns(yr.value)
+    reqs.forEach((r) => {
+      r.fn()
+        .then((value) => {
+          if (value) setOverviews((prev) => ({ ...prev, [r.key]: value }))
+        })
+        .catch(() => {})
     })
+
+    getMatrixYearlyReturns()
+      .then((value) => {
+        if (value) setYearlyReturns(value)
+      })
+      .catch(() => {})
   }, [])
 
   const usdCny = Number(yearlyReturns?.usd_cny) > 0 ? Number(yearlyReturns.usd_cny) : DEFAULT_USD_CNY
@@ -267,13 +281,13 @@ export default function StrategyMatrixAlt() {
   ]
 
   // 与 strategies 数组顺序一致
-  const strategyKeys = ['nvda', 'intc', '300308', '603986', '688146', '002837', 'eth', 'hype', 'paxg', 'nas100']
-  const useLiveDrawdown = new Set(['intc', 'nvda', '300308', '603986', '688146', '002837'])
+  const strategyKeys = ['nvda', 'intc', 'mu', '300308', '603986', '688146', '002837', 'eth', 'hype', 'paxg', 'nas100']
+  const useLiveDrawdown = new Set(['intc', 'nvda', 'mu', '300308', '603986', '688146', '002837'])
   const enrichedStrategies = strategies.map((s, i) => {
     const key = strategyKeys[i]
     const ov = overviews[key]
-    const fixedDrawdown = ['--', '--', '--', '--', '--', '--', '-3.48%', '-6.47%', '-1.44%', '-4%']
-    const fixedProfitFactor = ['--', '--', '--', '--', '--', '--', '2.58', '2.84', '2.25', '0.71']
+    const fixedDrawdown = ['--', '--', '--', '--', '--', '--', '--', '-3.48%', '-6.47%', '-1.44%', '-4%']
+    const fixedProfitFactor = ['--', '--', '--', '--', '--', '--', '--', '2.58', '2.84', '2.25', '0.71']
     const liveDrawdown = ov?.max_drawdown_pct != null
       ? `-${Number(ov.max_drawdown_pct).toFixed(2)}%`
       : null

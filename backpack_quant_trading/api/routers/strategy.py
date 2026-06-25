@@ -1,7 +1,8 @@
 from datetime import datetime, timezone, date as _date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from decimal import Decimal as PyDecimal
+import threading
 import time as _time
 import logging as _logging
 import requests as _requests
@@ -209,6 +210,7 @@ def sync_us_stock_klines_massive(
 _US_STOCK_KLINE_SPECS: Tuple[Dict[str, str], ...] = (
     {"strategy_name": "NVDA_KLINE", "symbol": "NVDAUSDT", "timeframe": "2H", "ticker": "NVDA", "massive_interval": "2h"},
     {"strategy_name": "INTC_KLINE", "symbol": "INTCUSDT", "timeframe": "1H", "ticker": "INTC", "massive_interval": "1h"},
+    {"strategy_name": "MU_KLINE", "symbol": "MUUSDT", "timeframe": "2H", "ticker": "MU", "massive_interval": "2h"},
 )
 
 
@@ -281,6 +283,12 @@ NVDA_STRATEGY_NAME = "NVDA_KLINE"
 NVDA_SYMBOL = "NVDAUSDT"
 NVDA_TIMEFRAME = "2H"
 NVDA_KLINE_CSV = PROJECT_ROOT / "BATS_NVDA, 120_7e649.csv"
+
+# 美股动量轮动策略 MU（2H）
+MU_STRATEGY_NAME = "MU_KLINE"
+MU_SYMBOL = "MUUSDT"
+MU_TIMEFRAME = "2H"
+MU_INITIAL_CAPITAL = 1_000_000
 
 
 Base = declarative_base()
@@ -504,7 +512,7 @@ def sync_eth_2h_klines():
 
 @router.get("/eth-2h/klines", response_model=List[KlinePoint], summary="获取 ETH 2H K 线")
 def get_eth_2h_klines():
-    _maybe_sync_crypto_klines()
+    _maybe_sync_crypto_klines_async()
     session = db_manager.get_session()
     try:
         q = (
@@ -674,8 +682,30 @@ ETH_ONLY_TIMEFRAME = "2h"
 ETH_ONLY_CSV_PATH = PROJECT_ROOT / "2h趋势策略_(隐藏优化版)_OKX_ETHUSDT.P_2026-03-26_325b4.csv"
 
 
+_bg_sync_lock = threading.Lock()
+_bg_sync_last: Dict[str, float] = {}
+_BG_SYNC_DEBOUNCE_SEC = 300.0
+
+
+def _schedule_background_sync(key: str, fn: Callable[[], None]) -> None:
+    """读接口立即返回库内数据；过期同步放后台，避免页面卡在代理/外网超时。"""
+    now = _time.time()
+    with _bg_sync_lock:
+        if now - _bg_sync_last.get(key, 0.0) < _BG_SYNC_DEBOUNCE_SEC:
+            return
+        _bg_sync_last[key] = now
+
+    def _run() -> None:
+        try:
+            fn()
+        except Exception as exc:
+            _hl_logger.warning("后台 K 线同步失败 [%s]: %s", key, exc)
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def _maybe_sync_crypto_klines() -> None:
-    """打开策略页时：数据过期则增量拉取 Hyperliquid K 线。"""
+    """数据过期则增量拉取 Hyperliquid K 线（同步，仅供定时任务/手动同步）。"""
     try:
         if _is_kline_stale(ETH_ONLY_STRATEGY_NAME, ETH_ONLY_SYMBOL, ETH_ONLY_TIMEFRAME, 3):
             sync_eth_klines_hl()
@@ -685,9 +715,13 @@ def _maybe_sync_crypto_klines() -> None:
         _hl_logger.warning("加密 K 线懒同步失败: %s", exc)
 
 
+def _maybe_sync_crypto_klines_async() -> None:
+    _schedule_background_sync("crypto", _maybe_sync_crypto_klines)
+
+
 def _maybe_sync_us_stock_klines() -> None:
-    """打开美股策略页时：数据过期则从 Massive 增量更新。"""
-    stale_map = {"NVDA": 4, "INTC": 2}
+    """数据过期则从 Massive 增量更新（同步，仅供定时任务/手动同步）。"""
+    stale_map = {"NVDA": 4, "INTC": 2, "MU": 4}
     for spec in _US_STOCK_KLINE_SPECS:
         ticker = str(spec.get("ticker") or "")
         hours = stale_map.get(ticker.upper(), 4)
@@ -702,6 +736,10 @@ def _maybe_sync_us_stock_klines() -> None:
                 )
         except Exception as exc:
             _hl_logger.warning("美股 K 线懒同步 %s 失败: %s", ticker, exc)
+
+
+def _maybe_sync_us_stock_klines_async() -> None:
+    _schedule_background_sync("us_stock", _maybe_sync_us_stock_klines)
 
 
 def _ensure_eth_only_trades_loaded() -> None:
@@ -789,7 +827,7 @@ def get_eth_only_2h_trades():
 
 @router.get("/eth-only-2h/klines", response_model=List[KlinePoint], summary="ETH 独立策略 K 线")
 def get_eth_only_2h_klines():
-    _maybe_sync_crypto_klines()
+    _maybe_sync_crypto_klines_async()
     session = db_manager.get_session()
     try:
         q = (
@@ -1100,7 +1138,7 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
         peak = max(peak, v)
         dd = (v / peak - 1) * 100
         max_dd = min(max_dd, dd)
-    max_drawdown_pct = abs(max_dd)
+    equity_max_drawdown_pct = abs(max_dd)
     # 一买一卖算一笔：只统计出场行（纳指 CSV 类型=多头出场、信号=long close）
     if exit_rule == "signal_close":
         exit_trades = [
@@ -1115,6 +1153,19 @@ def _compute_overview_from_trades_klines(trades, kls, initial_capital, strategy_
             if ("出" in tp(r)) or ("出场" in tp(r)) or ("止损" in tp(r)) or ("close" in tp(r)) or ("close" in sig(r))
         ]
     base_trades = exit_trades if exit_trades else trades
+    # 与交易清单「不利波动%」对齐：取各笔出场最大回撤
+    trade_drawdown_pcts: Dict[Any, float] = {}
+    for idx, r in enumerate(base_trades):
+        try:
+            dd_key = int(getattr(r, "trade_no", None))
+        except (TypeError, ValueError):
+            dd_key = None
+        if dd_key is None:
+            dd_key = f"idx_{idx}"
+        dd_val = abs(float(getattr(r, "drawdown_pct", 0) or 0))
+        trade_drawdown_pcts[dd_key] = max(trade_drawdown_pcts.get(dd_key, 0.0), dd_val)
+    trade_max_drawdown_pct = max(trade_drawdown_pcts.values()) if trade_drawdown_pcts else 0.0
+    max_drawdown_pct = max(equity_max_drawdown_pct, trade_max_drawdown_pct)
     # 以“交易号 trade_no”为一笔交易，只保留每笔交易的一次 pnl，避免进/出两行导致翻倍
     trade_pnls = {}
     for idx, r in enumerate(base_trades):
@@ -1255,6 +1306,14 @@ def _query_a_share_trades(code: str) -> List:
         )
     finally:
         session.close()
+    if rows and code in {"300308", "603986", "688146"}:
+        from backpack_quant_trading.core.a_share_strategy_mtm import apply_mtm_to_trades
+
+        rows = apply_mtm_to_trades(
+            rows,
+            code=code,
+            initial_capital=spec.initial_capital_cny,
+        )
     if rows:
         return rows
     try:
@@ -1383,6 +1442,7 @@ def _matrix_strategy_specs() -> List[Tuple[str, Any, float, Optional[float], flo
         ("nas100", _nas100_trades, 2_000_000, 4_000_000, 1.0, "USD"),
         ("intc", lambda: _query_trades_by_symbol(INTC_SYMBOL, INTC_STRATEGY_NAME, INTC_TIMEFRAME), 500_000, None, 1.0, "USD"),
         ("nvda", lambda: _query_trades_by_symbol(NVDA_SYMBOL, NVDA_STRATEGY_NAME, NVDA_TIMEFRAME), 1_000_000, None, 1.0, "USD"),
+        ("mu", lambda: _query_trades_by_symbol(MU_SYMBOL, MU_STRATEGY_NAME, MU_TIMEFRAME), MU_INITIAL_CAPITAL, None, 1.0, "USD"),
         *a_share_specs,
     ]
 
@@ -1928,7 +1988,7 @@ def import_crcl_trades_csv():
 @router.get("/crcl-1h/klines", response_model=List[KlinePoint], summary="获取 CRCL 1H K 线")
 def get_crcl_1h_klines():
     _ensure_crcl_klines_loaded_from_csv()
-    _maybe_sync_us_stock_klines()
+    _maybe_sync_us_stock_klines_async()
     session = db_manager.get_session()
     try:
         q = (
@@ -2193,7 +2253,7 @@ def import_intc_1h_klines():
 @router.get("/intc-1h/klines", response_model=List[KlinePoint], summary="获取 INTC 1H K 线")
 def get_intc_1h_klines():
     _ensure_klines_loaded(INTC_KLINE_CSV, INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME, "bats_intc")
-    _maybe_sync_us_stock_klines()
+    _maybe_sync_us_stock_klines_async()
     return _query_klines(INTC_STRATEGY_NAME, INTC_SYMBOL, INTC_TIMEFRAME)
 
 
@@ -2237,7 +2297,7 @@ def import_nvda_2h_klines():
 @router.get("/nvda-2h/klines", response_model=List[KlinePoint], summary="获取 NVDA 2H K 线")
 def get_nvda_2h_klines():
     _ensure_klines_loaded(NVDA_KLINE_CSV, NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME, "bats_nvda")
-    _maybe_sync_us_stock_klines()
+    _maybe_sync_us_stock_klines_async()
     return _query_klines(NVDA_STRATEGY_NAME, NVDA_SYMBOL, NVDA_TIMEFRAME)
 
 
@@ -2269,6 +2329,40 @@ def get_nvda_2h_overview():
     return ov
 
 
+# ---------- MU 2H ----------
+@router.get("/mu-2h/klines", response_model=List[KlinePoint], summary="获取 MU 2H K 线")
+def get_mu_2h_klines():
+    _maybe_sync_us_stock_klines_async()
+    return _query_klines(MU_STRATEGY_NAME, MU_SYMBOL, MU_TIMEFRAME)
+
+
+@router.get("/mu-2h/trades", response_model=List[BacktestTradeOut], summary="MU 2H 回测交易明细")
+def get_mu_2h_trades():
+    rows = _query_trades_by_symbol(MU_SYMBOL, MU_STRATEGY_NAME, MU_TIMEFRAME)
+    return _trades_to_out(rows)
+
+
+@router.get("/mu-2h/overview", response_model=StrategyOverview, summary="MU 2H 策略总体表现")
+def get_mu_2h_overview():
+    trades = _query_trades_by_symbol(MU_SYMBOL, MU_STRATEGY_NAME, MU_TIMEFRAME)
+    if not trades:
+        raise HTTPException(404, "数据库中尚无 MU 回测交易数据，请先执行 MU_insert.sql")
+    session = db_manager.get_session()
+    try:
+        kls = (
+            session.query(StrategyKline)
+            .filter_by(strategy_name=MU_STRATEGY_NAME, symbol=MU_SYMBOL, timeframe=MU_TIMEFRAME)
+            .order_by(StrategyKline.timestamp.asc())
+            .all()
+        )
+    finally:
+        session.close()
+    ov = _compute_overview_from_trades_klines(trades, kls, MU_INITIAL_CAPITAL, "美股动量轮动·MU")
+    if ov is None:
+        raise HTTPException(404, "MU 回测数据存在但计算失败")
+    return ov
+
+
 # ──────────────────────────────────────────────────────────
 # 手动触发全量 K 线同步（HYPE 4H + ETH 2H）
 # ──────────────────────────────────────────────────────────
@@ -2292,13 +2386,13 @@ def _ensure_a_share_loaded(code: str) -> None:
             import_strategy_to_db(spec)
 
 
-def _a_share_overview(code: str, label: str):
+def _load_a_share_trades_and_klines(code: str):
     from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
+    from backpack_quant_trading.core.a_share_strategy_mtm import MTM_CODES, apply_mtm_to_trades
 
     spec = get_spec_by_code(code)
     if not spec:
-        raise HTTPException(404, f"未知 A 股策略: {code}")
-    _ensure_a_share_loaded(code)
+        return None, [], []
     session = db_manager.get_session()
     try:
         trades = (
@@ -2315,6 +2409,23 @@ def _a_share_overview(code: str, label: str):
         )
     finally:
         session.close()
+    if code in MTM_CODES and trades:
+        trades = apply_mtm_to_trades(
+            trades,
+            code=code,
+            initial_capital=spec.initial_capital_cny,
+            klines=kls,
+        )
+    return spec, trades, kls
+
+
+def _a_share_overview(code: str, label: str):
+    from backpack_quant_trading.core.a_share_strategy_import import get_spec_by_code
+
+    spec = get_spec_by_code(code)
+    if not spec:
+        raise HTTPException(404, f"未知 A 股策略: {code}")
+    spec, trades, kls = _load_a_share_trades_and_klines(code)
     if not trades:
         raise HTTPException(404, f"尚未导入 {code} 回测数据，请运行 tools/import_a_share_strategies.py")
     ov = _compute_overview_from_trades_klines(trades, kls, spec.initial_capital_cny, label)
@@ -2324,22 +2435,14 @@ def _a_share_overview(code: str, label: str):
 
 
 def _a_share_trades_list(code: str):
-    from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
+    from backpack_quant_trading.core.a_share_strategy_import import get_spec_by_code
 
     spec = get_spec_by_code(code)
     if not spec:
         raise HTTPException(404, f"未知 A 股策略: {code}")
-    _ensure_a_share_loaded(code)
-    session = db_manager.get_session()
-    try:
-        rows = (
-            session.query(StrategyBacktestTrade)
-            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
-            .order_by(StrategyBacktestTrade.trade_time.asc(), StrategyBacktestTrade.trade_no.asc())
-            .all()
-        )
-    finally:
-        session.close()
+    _, rows, _ = _load_a_share_trades_and_klines(code)
+    if not rows:
+        raise HTTPException(404, f"尚未导入 {code} 回测数据")
     return [
         BacktestTradeOut(
             trade_no=r.trade_no,
@@ -2363,33 +2466,57 @@ def _a_share_trades_list(code: str):
 
 
 def _a_share_klines_list(code: str):
-    from backpack_quant_trading.core.a_share_strategy_import import TIMEFRAME, get_spec_by_code
+    from datetime import timedelta
+
+    from backpack_quant_trading.core.a_share_strategy_import import (
+        TIMEFRAME,
+        get_spec_by_code,
+        resolve_a_share_kline_start,
+        sync_a_share_klines_to_db,
+    )
 
     spec = get_spec_by_code(code)
     if not spec:
         raise HTTPException(404, f"未知 A 股策略: {code}")
-    _ensure_a_share_loaded(code)
-    session = db_manager.get_session()
-    try:
-        q = (
-            session.query(StrategyKline)
-            .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
-            .order_by(StrategyKline.timestamp.asc())
-        )
-        return [
-            KlinePoint(
-                timestamp=r.timestamp,
-                open=float(r.open),
-                high=float(r.high),
-                low=float(r.low),
-                close=float(r.close),
-                volume=float(r.volume),
+    kline_start = resolve_a_share_kline_start(spec)
+
+    def _load_klines():
+        session = db_manager.get_session()
+        try:
+            return (
+                session.query(StrategyKline)
+                .filter_by(strategy_name=spec.strategy_name, symbol=spec.symbol, timeframe=TIMEFRAME)
+                .order_by(StrategyKline.timestamp.asc())
+                .all()
             )
-            for r in q.all()
-            if r is not None and r.timestamp is not None
-        ]
-    finally:
-        session.close()
+        finally:
+            session.close()
+
+    rows = _load_klines()
+    need_sync = not rows
+    if rows and rows[0].timestamp and rows[0].timestamp.replace(tzinfo=None) > kline_start + timedelta(days=3):
+        need_sync = True
+    if need_sync:
+        def _sync() -> None:
+            try:
+                sync_a_share_klines_to_db(spec, kline_start=kline_start)
+            except Exception as exc:
+                _hl_logger.warning("A股 %s K线自动同步失败: %s", code, exc)
+
+        _schedule_background_sync(f"a_share_{code}", _sync)
+
+    return [
+        KlinePoint(
+            timestamp=r.timestamp,
+            open=float(r.open),
+            high=float(r.high),
+            low=float(r.low),
+            close=float(r.close),
+            volume=float(r.volume),
+        )
+        for r in rows
+        if r is not None and r.timestamp is not None
+    ]
 
 
 def _register_a_share_routes():

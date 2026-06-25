@@ -20,6 +20,7 @@ import EthOnlyStrategy from './views/EthOnlyStrategy'
 import OkxConsole from './views/OkxConsole'
 import UsMomentumIntcStrategy from './views/UsMomentumIntcStrategy'
 import UsMomentumNvdaStrategy from './views/UsMomentumNvdaStrategy'
+import UsMomentumMuStrategy from './views/UsMomentumMuStrategy'
 import AShareMomentumStrategy from './views/AShareMomentumStrategy'
 import UsWeeklyReport from './views/UsWeeklyReport'
 import StockNewsAlert from './views/StockNewsAlert'
@@ -85,6 +86,7 @@ function App() {
           <Route path="strategies/a-share-002837" element={<AShareMomentumStrategy code="002837" />} />
           <Route path="strategies/us-momentum-intc" element={<UsMomentumIntcStrategy />} />
           <Route path="strategies/us-momentum-nvda" element={<UsMomentumNvdaStrategy />} />
+          <Route path="strategies/us-momentum-mu" element={<UsMomentumMuStrategy />} />
           <Route path="okx-console" element={<OkxConsole />} />
           <Route path="us-weekly-report" element={<UsWeeklyReport />} />
           <Route path="stock-news-alert" element={<StockNewsAlert />} />

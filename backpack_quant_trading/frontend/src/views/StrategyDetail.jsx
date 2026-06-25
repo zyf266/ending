@@ -11,6 +11,24 @@ const _today = new Date().toISOString().slice(0, 10)
 const FIXED_END_DATE = _today
 const DEFAULT_END_DATE = _today
 
+/** 首笔交易日前推 1 个自然月，作为 K 线展示起点 */
+const chartWarmupStart = (tradesList) => {
+  if (!Array.isArray(tradesList) || !tradesList.length) return null
+  const sorted = [...tradesList].sort(
+    (a, b) => new Date(a.trade_time).getTime() - new Date(b.trade_time).getTime()
+  )
+  const entries = sorted.filter((t) => String(t.trade_type || '').includes('进场'))
+  const first = entries.length ? entries[0] : sorted[0]
+  if (!first?.trade_time) return null
+  const d = new Date(first.trade_time)
+  if (Number.isNaN(d.getTime())) return null
+  const y = d.getFullYear()
+  const m = d.getMonth()
+  const day = d.getDate()
+  const prev = new Date(y, m - 1, Math.min(day, new Date(y, m, 0).getDate()))
+  return prev.toISOString().slice(0, 10)
+}
+
 const formatPct = (v) => {
   if (v == null) return '--'
   const n = Number(v)
@@ -67,6 +85,14 @@ function computeOverviewFromTrades(tradesArray, initial = DEFAULT_INITIAL_CAPITA
     const dd = (v / peak - 1) * 100
     if (dd < maxDd) maxDd = dd
   }
+  const tradeDdMap = new Map()
+  for (const t of base) {
+    const raw = t.trade_no ?? 0
+    const key = Number.isFinite(Number(raw)) ? Number(raw) : raw
+    const dd = Math.abs(Number(t.drawdown_pct || 0))
+    tradeDdMap.set(key, Math.max(tradeDdMap.get(key) || 0, dd))
+  }
+  const maxTradeMae = tradeDdMap.size ? Math.max(...tradeDdMap.values()) : 0
 
   const wins = pnls.filter((p) => p > 0)
   const losses = pnls.filter((p) => p < 0)
@@ -80,7 +106,7 @@ function computeOverviewFromTrades(tradesArray, initial = DEFAULT_INITIAL_CAPITA
   return {
     strategy_profit: running,
     total_return_pct: Number(totalReturnPct.toFixed(2)),
-    max_drawdown_pct: Number(Math.abs(maxDd).toFixed(2)),
+    max_drawdown_pct: Number(Math.max(Math.abs(maxDd), maxTradeMae).toFixed(2)),
     win_rate_pct: Number(winRatePct.toFixed(2)),
     profit_factor: profitFactor == null ? null : Number(Number(profitFactor).toFixed(2)),
     total_trades: totalTrades,
@@ -390,8 +416,11 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
     setTradePage(1)
 
     const computed = computeOverviewFromTrades(filteredTradesLocal, initial)
-    // 后端 overview 为权威口径（尤其是本金/收益率）；本地 computed 仅用于兜底
+    // 后端 overview 为权威口径（尤其是本金/收益率）；最大回撤按当前筛选交易重算
     const merged = computed ? { ...computed, ...(baseOverview || {}) } : baseOverview
+    if (computed?.max_drawdown_pct != null) {
+      merged.max_drawdown_pct = computed.max_drawdown_pct
+    }
     setOverview(merged)
 
     const sorted = [...filteredTradesLocal].sort(
@@ -416,26 +445,38 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
     setLoading(true)
     setLoadingSignals(true)
     try {
-      const promises = [
-        getOverview ? getOverview(true) : Promise.resolve(null),
-        getTrades ? getTrades(true) : Promise.resolve([]),
-      ]
-      if (getKlines) {
-        promises.push(getKlines(true))
-      }
-      const results = await Promise.all(promises)
-      const ovRes = results[0]
-      const tradesRes = Array.isArray(results[1]) ? results[1] : []
-      const klinesRes = results[2] && Array.isArray(results[2]) ? results[2] : []
-
-      setAllTrades(tradesRes)
-      setAllKlines(klinesRes)
-
+      const [ovRes, tradesRes] = await Promise.all([
+        getOverview ? getOverview(false) : Promise.resolve(null),
+        getTrades ? getTrades(false) : Promise.resolve([]),
+      ])
+      const tradesResArr = Array.isArray(tradesRes) ? tradesRes : []
       const baseOverview = ovRes && typeof ovRes === 'object' ? ovRes : {}
-      applyDateFilter([fixedStart, fixedEnd], tradesRes, klinesRes, baseOverview)
+
+      setAllTrades(tradesResArr)
+      const warmupStart = chartWarmupStart(tradesResArr) || fixedStart
+      setDateRange([warmupStart, fixedEnd])
+      applyDateFilter([warmupStart, fixedEnd], tradesResArr, [], baseOverview)
+      setLoading(false)
+
+      if (!getKlines) {
+        setLoadingSignals(false)
+        return
+      }
+
+      getKlines(false)
+        .then((klinesRes) => {
+          const klinesResArr = Array.isArray(klinesRes) ? klinesRes : []
+          setAllKlines(klinesResArr)
+          applyDateFilter([warmupStart, fixedEnd], tradesResArr, klinesResArr, baseOverview)
+        })
+        .catch((e) => {
+          console.error('load strategy klines error', e)
+        })
+        .finally(() => {
+          setLoadingSignals(false)
+        })
     } catch (e) {
       console.error('load strategy data error', e)
-    } finally {
       setLoading(false)
       setLoadingSignals(false)
     }
@@ -932,9 +973,11 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title])
 
+  const defaultChartStart = () => chartWarmupStart(allTrades) || fixedStart
+
   const onShortcut = (type) => {
     const today = new Date().toISOString().slice(0, 10)
-    let start = fixedStart
+    let start = defaultChartStart()
     if (type === 'month') {
       const d = new Date()
       start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
@@ -945,7 +988,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
     } else if (type === 'ytd') {
       start = `${new Date().getFullYear()}-01-01`
     } else if (type === 'all') {
-      start = fixedStart
+      start = defaultChartStart()
     }
     const range = [start, today]
     setDateRange(range)
@@ -957,7 +1000,7 @@ export default function StrategyDetail({ title, subtitle, currencyLabel, initial
   }
 
   const onResetClick = () => {
-    const range = [fixedStart, fixedEnd]
+    const range = [defaultChartStart(), fixedEnd]
     setDateRange(range)
     applyDateFilter(range, allTrades, allKlines, overview)
   }

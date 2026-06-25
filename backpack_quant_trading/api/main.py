@@ -158,6 +158,8 @@ async def start_kline_scheduler():
     _asyncio.create_task(_bootstrap_research_prices())
     _asyncio.create_task(_daily_research_price_sync_loop())
     _asyncio.create_task(_hourly_uptrend_scan_loop())
+    _asyncio.create_task(_bootstrap_a_share_mtm())
+    _asyncio.create_task(_daily_a_share_mtm_loop())
 
 
 async def _weekly_bubble_analyze_loop():
@@ -270,6 +272,56 @@ async def _daily_research_price_sync_loop():
         )
         await _asyncio.sleep(wait_secs)
         await _run_research_price_sync("每日定时")
+
+
+_A_SHARE_MTM_HOUR = 15
+_A_SHARE_MTM_MINUTE = 35
+
+
+def _today_cn_a_share_mtm_at() -> _dt:
+    now = _cn_now()
+    return now.replace(hour=_A_SHARE_MTM_HOUR, minute=_A_SHARE_MTM_MINUTE, second=0, microsecond=0)
+
+
+async def _run_a_share_mtm_sync(reason: str) -> None:
+    from backpack_quant_trading.core.a_share_strategy_mtm import refresh_mtm_close_prices
+
+    try:
+        res = await _asyncio.to_thread(refresh_mtm_close_prices)
+        _sched_logger.info(
+            "[A股盯市收盘] %s: 更新=%s quotes=%s",
+            reason,
+            res.get("updated_at"),
+            list((res.get("quotes") or {}).keys()),
+        )
+    except Exception as exc:
+        _sched_logger.error("[A股盯市收盘] %s 失败: %s", reason, exc)
+
+
+async def _bootstrap_a_share_mtm() -> None:
+    from backpack_quant_trading.core.a_share_strategy_mtm import load_close_cache
+
+    cache = load_close_cache()
+    if _research_price_cache_stale_hours(cache, max_age_hours=20.0):
+        _sched_logger.info("[A股盯市收盘] 启动补拉: 缓存 %s", cache.get("updated_at"))
+        await _run_a_share_mtm_sync("启动补拉")
+
+
+async def _daily_a_share_mtm_loop() -> None:
+    """每个交易日收盘后（北京时间 15:35）刷新 300308/603986/688146 收盘价。"""
+    while True:
+        now = _cn_now()
+        target = _today_cn_a_share_mtm_at()
+        if target <= now:
+            target += _td(days=1)
+        wait_secs = (target - now).total_seconds()
+        _sched_logger.info(
+            "[A股盯市收盘] 下次更新(北京时间)：%s（%.1fh 后）",
+            target.strftime("%Y-%m-%d %H:%M:%S"),
+            wait_secs / 3600,
+        )
+        await _asyncio.sleep(wait_secs)
+        await _run_a_share_mtm_sync("每日收盘后")
 
 
 # ── HYPE 策略 Webhook 快捷入口（无需 /api/trading 前缀，供 TradingView 直接调用）──
